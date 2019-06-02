@@ -9,7 +9,7 @@ import efittools
 import read_iterdb
 
 import matplotlib.pyplot as plt
-plt.switch_backend('agg')
+#plt.switch_backend('agg')
 
 from glob import glob
 from scipy.interpolate import interp1d,interp2d
@@ -70,9 +70,15 @@ def namelistcreate(csvfn,rec,setParam={}):
     if   'NFUNC'     in setParamKeys: wfh.write(' NFUNC=%1d,      \n' % (int(setParam['NFUNC'])))
     elif 'NFUNC'     in namelistkeys: wfh.write(' NFUNC=%1d,      \n' % (int(table['NFUNC'][rec])))
     else:                             wfh.write(' NFUNC=4,        \n')
-    if   'NPPFUN'    in setParamKeys: wfh.write(' NPPFUN=%1d,     \n' % (int(setParam['NPPFUN'])))
-    elif 'NPPFUN'    in namelistkeys: wfh.write(' NPPFUN=%1d,     \n' % (int(table['NPPFUN'][rec])))
-    else:                             wfh.write(' NPPFUN=4,       \n')
+    if   'NPPFUN'    in setParamKeys: 
+                                      wfh.write(' NPPFUN=%1d,     \n' % (int(setParam['NPPFUN'])))
+                                      nppfun = int(setParam['NPPFUN'])
+    elif 'NPPFUN'    in namelistkeys:
+                                      wfh.write(' NPPFUN=%1d,     \n' % (int(table['NPPFUN'][rec])))
+                                      nppfun = int(table['NPPFUN'][rec])
+    else:                             
+                                      wfh.write(' NPPFUN=4,       \n')
+                                      nppfun = 4
     if   'NFUNRHO'   in setParamKeys: wfh.write(' NFUNRHO=%1d, '      % (int(setParam['NFUNRHO'])))
     elif 'NFUNRHO'   in namelistkeys: wfh.write(' NFUNRHO=%1d, '      % (int(table['NFUNRHO'][rec])))
     else:                             wfh.write(' NFUNRHO=0, ')
@@ -82,9 +88,15 @@ def namelistcreate(csvfn,rec,setParam={}):
     if   'NSTTP'     in setParamKeys: wfh.write(' NSTTP=%1d, '        % (int(setParam['NSTTP'])))
     elif 'NSTTP'     in namelistkeys: wfh.write(' NSTTP=%1d, '        % (int(table['NSTTP'][rec])))
     else:                             wfh.write(' NSTTP=%1d, '        % (int(3)))
-    if   'NPROPT'    in setParamKeys: wfh.write(' NPROPT=%1d,     \n' % (int(setParam['NSTTP'])))
-    elif 'NPROPT'    in namelistkeys: wfh.write(' NPROPT=%1d,     \n' % (int(table['NSTTP'][rec])))
-    else:                             wfh.write(' NPROPT=%1d,     \n' % (int(1)))
+    if   'NPROPT'    in setParamKeys:
+                     if   nppfun== 4: wfh.write(' NPROPT=%1d,     \n' % ( int(setParam['NSTTP'])))
+                     elif nppfun== 8: wfh.write(' NPROPT=%1d,     \n' % (-int(setParam['NSTTP'])))
+    elif 'NPROPT'    in namelistkeys:
+                     if   nppfun== 4: wfh.write(' NPROPT=%1d,     \n' % ( int(table['NSTTP'][rec])))
+                     elif nppfun== 8: wfh.write(' NPROPT=%1d,     \n' % (-int(table['NSTTP'][rec])))
+    else:                             
+                     if   nppfun== 4: wfh.write(' NPROPT=%1d,     \n' % ( int(1)))
+                     elif nppfun== 8: wfh.write(' NPROPT=%1d,     \n' % (-int(1)))
     if   'NVERBOSE'  in setParamKeys: wfh.write(' NVERBOSE=%1d,   \n' % (int(setParam['NVERBOSE'])))
     elif 'NVERBOSE'  in namelistkeys: wfh.write(' NVERBOSE=%1d,   \n' % (int(table['NVERBOSE'][rec])))
     else:                             wfh.write(' NVERBOSE=%1d,   \n' % (int(4)))
@@ -93,6 +105,8 @@ def namelistcreate(csvfn,rec,setParam={}):
     elif 'QSPEC'     in namelistkeys: wfh.write(' QSPEC=%3.3f, '      % (float(table['QSPEC'][rec])))
     if   'CSSPEC'    in setParamKeys: wfh.write(' CSSPEC=%3.3f,   \n' % (float(setParam['CSSPEC'])))
     elif 'CSSPEC'    in namelistkeys: wfh.write(' CSSPEC=%3.3f,   \n' % (float(table['CSSPEC'][rec])))
+    if   'TRIANG'    in setParamKeys: wfh.write(' TRIANG=%3.3f,   \n' % (float(setParam['TRIANG'])))
+    elif 'TRIANG'    in namelistkeys: wfh.write(' TRIANG=%3.3f,   \n' % (float(table['TRIANG'][rec])))
 
     if   'R0'        in setParamKeys: wfh.write(' R0=%10.8f, '        % (float(setParam['R0'])))
     elif 'R0'        in namelistkeys: wfh.write(' R0=%10.8f, '        % (float(table['R0'][rec])))
@@ -249,61 +263,6 @@ def CubicSplineIntegral(x,fxy,intaxis=0):
          elif intaxis == 1:
               fy = CubicSpline(x,fxy,axis=1).integrate(x[0],x[-1])
     return fy
-
-#def read_profiles(pfpath):
-#    from scipy.interpolate import CubicSpline
-#    if os.path.isfile(pfpath) == False:
-#       print('Fatal: file %s not found.' % pfpath)
-#       sys.exit()
-#
-#    ofh = open(DIIIDpfpath,'r')
-#    print('Reading %s file ...' % DIIIDpfpath)
-#
-#    profiles = {}
-#    while True:
-#          recs = ofh.readline().split()
-#          if len(recs)>=4:
-#             nrec = int(recs[0]);
-#             var0 = str(recs[1]).lower(); ary0=np.zeros(nrec)
-#             var1 = str(recs[2]).lower(); ary1=np.zeros(nrec)
-#             var2 = str(recs[3]).lower(); ary2=np.zeros(nrec)
-#             for i in range(nrec):
-#                 recs    = ofh.readline().split()
-#                 ary0[i] = float(recs[0])
-#                 ary1[i] = float(recs[1])
-#                 ary2[i] = float(recs[2])
-#             if var0 in profiles.keys():
-#                CS = CubicSpline(ary0,ary1,extrapolate=bool)
-#                profiles[var1] = CS(profiles[var0])
-#                CS = CubicSpline(ary0,ary2,extrapolate=bool)
-#                profiles[var2] = CS(profiles[var0])
-#             else:
-#                profiles[var0] = ary0
-#                profiles[var1] = ary1
-#                profiles[var2] = ary2
-#          else:
-#             break
-#
-#    ofh.close()
-#    return profiles
- 
-
-#def profilesPlotter(pfpath):
-#    from matplotlib.backends.backend_pdf import PdfPages
-#    DIIIDprofiles = read_profiles(pfpath)
-#    nvars = sorted(DIIIDprofiles.keys())
-#    print('Plotting DIIID profiles in: %s ...' % DIIIDpfpath)
-#    DIIIDfigs  = PdfPages('DIIIDprofiles.pdf')
-#    for i in nvars:
-#        if i in ['n','z','a','psinorm']: continue
-#        figname = plt.figure(i)
-#        plt.plot(DIIIDprofiles['psinorm'],DIIIDprofiles[i])
-#        plt.xlabel('$\Psi$')
-#        plt.ylabel(i)
-#        DIIIDfigs.savefig(figname)
-#    DIIIDfigs.close()
-#    return 1
-    
 
 def read_cheaseh5(h5fpath):
     import h5py
@@ -489,8 +448,8 @@ def read_expeq(expeqfpath):
     EXPEQdata['zgeom']         = float(EXPEQOUT[1])
     EXPEQdata['pedge']         = float(EXPEQOUT[2])
     nRZmesh                    =   int(EXPEQOUT[3])
-    EXPEQdata['rbound']         = np.array([irec.split()[0] for irec in EXPEQOUT[4:nRZmesh+4]],dtype=float)
-    EXPEQdata['zbound']         = np.array([irec.split()[1] for irec in EXPEQOUT[4:nRZmesh+4]],dtype=float)
+    EXPEQdata['rbound']        = np.array([irec.split()[0] for irec in EXPEQOUT[4:nRZmesh+4]],dtype=float)
+    EXPEQdata['zbound']        = np.array([irec.split()[1] for irec in EXPEQOUT[4:nRZmesh+4]],dtype=float)
     
     nrhomesh                   = int(EXPEQOUT[nRZmesh+4].split()[0])
     EXPEQdata['nppfun']        = int(EXPEQOUT[nRZmesh+4].split()[1])
@@ -515,6 +474,8 @@ def read_expeq(expeqfpath):
          EXPEQdata['iprlN']    = np.array(EXPEQOUT[nRZmesh+6+2*nrhomesh:nRZmesh+6+3*nrhomesh],dtype=float)
     elif EXPEQdata['nsttp']    == 4:
          EXPEQdata['jprlN']    = np.array(EXPEQOUT[nRZmesh+6+2*nrhomesh:nRZmesh+6+3*nrhomesh],dtype=float)
+    elif EXPEQdata['nsttp']    == 5:
+         EXPEQdata['q']        = np.array(EXPEQOUT[nRZmesh+6+2*nrhomesh:nRZmesh+6+3*nrhomesh],dtype=float)
 
     return EXPEQdata
 
@@ -861,10 +822,10 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
            CHEASEdata = read_cheaseh5(h5fid)
            CHEASEdataKeys = CHEASEdata.keys()
 
-           EXPTNZdata = read_exptnz(exptnzlist[h5list.index(h5fid)])
-           EXPEQdata  = read_expeq(expeqlist[h5list.index(h5fid)])
-           EXPTNZdataKeys = EXPTNZdata.keys()
-           EXPEQdataKeys  = EXPEQdata.keys()
+          #EXPTNZdata = read_exptnz(exptnzlist[h5list.index(h5fid)])
+          #EXPEQdata  = read_expeq(expeqlist[h5list.index(h5fid)])
+          #EXPTNZdataKeys = EXPTNZdata.keys()
+          #EXPEQdataKeys  = EXPEQdata.keys()
 
            PSINfig = plt.figure("PSIN")
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['rhopsiN'],label=caselabel)
@@ -920,8 +881,8 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
 
            TPPRfig = plt.figure("Plasma Pressure")
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['PN'],label=caselabel)
-           if 'pN' in EXPEQdataKeys:
-              plt.plot(EXPEQdata['rhopsiN']**2,EXPEQdata['pN'],'--',label=caselabel)
+          #if 'pN' in EXPEQdataKeys:
+          #   plt.plot(EXPEQdata['rhopsiN']**2,EXPEQdata['pN'],'--',label=caselabel)
            plt.suptitle(shotnam[0][2:-6])
            plt.title('Plasma Pressure Profiles')
            plt.xlabel('$\psi$')
@@ -938,8 +899,8 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
        
            TTPMfig = plt.figure("TT'")
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['TTPrimeN'],label=caselabel)
-           if 'ttprimeN' in EXPEQdataKeys:
-              plt.plot(EXPEQdata['rhopsiN']**2,EXPEQdata['ttprimeN'],'--',label=caselabel)
+          #if 'ttprimeN' in EXPEQdataKeys:
+          #   plt.plot(EXPEQdata['rhopsiN']**2,EXPEQdata['ttprimeN'],'--',label=caselabel)
            plt.suptitle(shotnam[0][2:-6])
            plt.title("TT' Profiles")
            plt.xlabel('$\psi$')
@@ -948,8 +909,8 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
        
            ISTRfig = plt.figure("I*")
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['ISTRN'],label=caselabel)
-           if 'istrN' in EXPEQdataKeys:
-              plt.plot(EXPEQdata['rhopsiN']**2,EXPEQdata['istrN'],'--',label=caselabel)
+          #if 'istrN' in EXPEQdataKeys:
+          #   plt.plot(EXPEQdata['rhopsiN']**2,EXPEQdata['istrN'],'--',label=caselabel)
            plt.suptitle(shotnam[0][2:-6])
            plt.title("I* Profiles")
            plt.xlabel('$\psi$')
@@ -1141,38 +1102,44 @@ def profiles2exptnz(pfpath):
 
     return EXPTNZdata
 
-def iterdb2exptnz(iterdbfpath,eqdskfpath):
+def iterdb2exptnz(iterdbfpath,eqdskfpath,output=True):
     rhotor,profiles,units = read_iterdb.read_iterdb(iterdbfpath)
     eqdskdata = efittools.read_eqdsk(eqdskfpath)
     EXPTNZdata = {}
 
-    nerhotorfn            = interp1d(rhotor['NE'], profiles['NE'], kind='linear')
-    terhotorfn            = interp1d(rhotor['TE'], profiles['TE'], kind='linear')
+    EXPTNZdata['rhopsiN'] = eqdskdata['rhopsi']
+    nrhopsi               = np.size(EXPTNZdata['rhopsiN'])
+
+    nerhotorfn            = interp1d(rhotor['NE'] ,profiles['NE'] ,kind='linear')
+    terhotorfn            = interp1d(rhotor['TE'] ,profiles['TE'] ,kind='linear')
     nirhotorfn            = interp1d(rhotor['NM1'],profiles['NM1'],kind='linear')
-    tirhotorfn            = interp1d(rhotor['TI'], profiles['TI'], kind='linear')
-    nzrhotorfn            = interp1d(rhotor['NM2'],profiles['NM2'],kind='linear')
+    tirhotorfn            = interp1d(rhotor['TI'] ,profiles['TI'] ,kind='linear')
+
     EXPTNZdata['ne']      = nerhotorfn(eqdskdata['rhotor'])
     EXPTNZdata['Te']      = terhotorfn(eqdskdata['rhotor'])
     EXPTNZdata['ni']      = nirhotorfn(eqdskdata['rhotor'])
     EXPTNZdata['Ti']      = tirhotorfn(eqdskdata['rhotor'])
-    EXPTNZdata['nz']      = nzrhotorfn(eqdskdata['rhotor'])
 
-    EXPTNZdata['rhopsiN'] = eqdskdata['rhopsi']
-    nrhopsi               = np.size(EXPTNZdata['rhopsiN'])
+    if 'NM2' in profiles:
+       nzrhotorfn         = interp1d(rhotor['NM2'],profiles['NM2'],kind='linear')
+       EXPTNZdata['nz']   = nzrhotorfn(eqdskdata['rhotor'])
+    else:
+       EXPTNZdata['nz']   = npy.zeros(nrhopsi)
 
-    EXPTNZdata['Zeff']    = (2**2)*EXPTNZdata['ni']
+    EXPTNZdata['Zeff']    = (1**2)*EXPTNZdata['ni']
     EXPTNZdata['Zeff']   += (6**2)*EXPTNZdata['nz']
     EXPTNZdata['Zeff']   /= EXPTNZdata['ne']
 
-    ofh = open("%s_EXPTNZ" % iterdbfpath[:-7],'w')
-    ofh.write('%5d rhopsi,  Te,   ne,   Zeff,   Ti,   ni  profiles\n' % nrhopsi)
-    for i in range(nrhopsi): ofh.write('%16.6E\n' % EXPTNZdata['rhopsiN'][i])
-    for i in range(nrhopsi): ofh.write('%16.6E\n' % EXPTNZdata['Te'][i])
-    for i in range(nrhopsi): ofh.write('%16.6E\n' % EXPTNZdata['ne'][i])
-    for i in range(nrhopsi): ofh.write('%16.6E\n' % EXPTNZdata['Zeff'][i])
-    for i in range(nrhopsi): ofh.write('%16.6E\n' % EXPTNZdata['Ti'][i])
-    for i in range(nrhopsi): ofh.write('%16.6E\n' % EXPTNZdata['ni'][i])
-    ofh.close()
+    if output:
+       ofh = open("%s_EXPTNZ" % iterdbfpath[:-7],'w')
+       ofh.write('%5d rhopsi,  Te,   ne,   Zeff,   Ti,   ni  profiles\n' % nrhopsi)
+       for i in range(nrhopsi): ofh.write('%16.6E\n' % EXPTNZdata['rhopsiN'][i])
+       for i in range(nrhopsi): ofh.write('%16.6E\n' % EXPTNZdata['Te'][i])
+       for i in range(nrhopsi): ofh.write('%16.6E\n' % EXPTNZdata['ne'][i])
+       for i in range(nrhopsi): ofh.write('%16.6E\n' % EXPTNZdata['Zeff'][i])
+       for i in range(nrhopsi): ofh.write('%16.6E\n' % EXPTNZdata['Ti'][i])
+       for i in range(nrhopsi): ofh.write('%16.6E\n' % EXPTNZdata['ni'][i])
+       ofh.close()
 
     return EXPTNZdata
 
@@ -1199,12 +1166,25 @@ def eqdsk2expeq(eqdskdata={},eqdskfpath='',setParam={}):
     if 'nppfun' in setParam: expeqdata['nppfun'] = setParam['nppfun']
     else:                    expeqdata['nppfun'] = 4
 
-    rbound,zbound = efittools.magsurf_solvflines(eqdskdata=eqdskdata,psi=0.9999,eps=1.0e-16)
+    rbndtst = int(eqdskdata['RLEN']/(max(eqdskdata['rbound'])-abs(min(eqdskdata['rbound']))))
+    zbndtst = int(eqdskdata['ZLEN']/(max(eqdskdata['zbound'])+abs(min(eqdskdata['zbound']))))
+    if  rbndtst==1 and zbndtst==1:
+        rbound,zbound = efittools.magsurf_solvflines(eqdskdata=eqdskdata,psi=0.9999,eps=1.0e-16)
+    else:
+        rbound=np.zeros(2*len(eqdskdata['rbound'])-1)
+        zbound=np.zeros(2*len(eqdskdata['zbound'])-1)
+        rbound[0] = eqdskdata['rbound'][0]
+        zbound[0] = eqdskdata['zbound'][0]
+        for i in range(1,len(eqdskdata['rbound'])):
+            rbound[i]  = eqdskdata['rbound'][i]
+            rbound[-i] = eqdskdata['rbound'][i]
+            zbound[i]  = eqdskdata['zbound'][i]
+            zbound[-i] =-eqdskdata['zbound'][i]
 
-    expeqdata['R0EXP']   = eqdskdata['RCTR']
-    expeqdata['B0EXP']   = eqdskdata['BCTR']
-    expeqdata['zgeom']   = eqdskdata['ZMAX']/eqdskdata['RCTR']
-    expeqdata['pedge']   = eqdskdata['pressure'][-1]
+    expeqdata['R0EXP']   = abs(eqdskdata['RCTR'])
+    expeqdata['B0EXP']   = abs(eqdskdata['BCTR'])
+    expeqdata['zgeom']   = eqdskdata['ZMAX']/expeqdata['R0EXP']
+    expeqdata['pedge']   = mu0*eqdskdata['pressure'][-1]/expeqdata['B0EXP']**2
     expeqdata['aspect']  = (max(eqdskdata['rbound'])-min(eqdskdata['rbound']))
     expeqdata['aspect'] /= (max(eqdskdata['rbound'])+min(eqdskdata['rbound']))
     expeqdata['nbound']  = np.size(rbound)
@@ -1214,8 +1194,8 @@ def eqdsk2expeq(eqdskdata={},eqdskfpath='',setParam={}):
     ofh.write('%18.8E\n'           % expeqdata['zgeom'])
     ofh.write('%18.8E\n'           % expeqdata['pedge'])
     ofh.write('%5d\n'              % expeqdata['nbound'])
-    expeqdata['rbound'] = rbound/eqdskdata['RCTR']
-    expeqdata['zbound'] = zbound/eqdskdata['RCTR']
+    expeqdata['rbound'] = rbound/expeqdata['R0EXP']
+    expeqdata['zbound'] = zbound/expeqdata['R0EXP']
     for i in range(expeqdata['nbound']):
         ofh.write('%18.8E%18.8E\n' % (expeqdata['rbound'][i],expeqdata['zbound'][i]))
     ofh.write('%5d%5d\n'           % (np.size(eqdskdata['rhopsi']),expeqdata['nppfun']))
@@ -1224,27 +1204,28 @@ def eqdsk2expeq(eqdskdata={},eqdskfpath='',setParam={}):
     if expeqdata['nrhotype'] == 0 or expeqdata['nrhotype'] == 'rhopsi':
        expeqdata['rhopsi'] = eqdskdata['rhopsi']
        for i in range(np.size(eqdskdata['rhopsi'])):
+          #ofh.write('%18.8E\n'       % (expeqdata['rhopsi'][i]/np.sqrt(expeqdata['B0EXP'])/expeqdata['R0EXP']))
            ofh.write('%18.8E\n'       % expeqdata['rhopsi'][i])
     elif expeqdata['nrhotype'] == 1 or expeqdata['nrhotype'] == 'rhotor':
        expeqdata['rhotor'] = eqdskdata['rhotor']
        for i in range(np.size(eqdskdata['rhotor'])):
            ofh.write('%18.8E\n'       % eqdskdata['rhotor'][i])
     else:
-	    raise ValueError('FATAL: nrhotype takes only 0 and 1. Exit!')
+       raise ValueError('FATAL: nrhotype takes only 0 and 1. Exit!')
 
     if expeqdata['nppfun'] == 4 or expeqdata['nppfun'][0] == 'pprime':
-       expeqdata['PPrime'] = mu0*eqdskdata['pprime']*eqdskdata['RCTR']**2/eqdskdata['BCTR']
+       expeqdata['PPrime'] = mu0*eqdskdata['pprime']*expeqdata['R0EXP']**2/expeqdata['B0EXP']
        for i in range(np.size(expeqdata['PPrime'])):
            ofh.write('%18.8E\n'       % expeqdata['PPrime'][i])
     elif expeqdata['nppfun'] == 8 or expeqdata['nppfun'] == 'p':
-       expeqdata['p'] = mu0*eqdskdata['pressure']/eqdskdata['BCTR']**2
+       expeqdata['p'] = mu0*eqdskdata['pressure']/expeqdata['B0EXP']**2
        for i in range(np.size(expeqdata['p'])):
            ofh.write('%18.8E\n'       % expeqdata['p'][i])
     else:
        raise ValueError('FATAL: nppfun takes only 4 and 8. Exit!')
 
     if expeqdata['nsttp'] == 1 or expeqdata['nsttp'] == 'ttprime':
-       expeqdata['TTPrime'] = eqdskdata['ffprime']/eqdskdata['BCTR']
+       expeqdata['TTPrime'] = eqdskdata['ffprime']/expeqdata['B0EXP']
        if expeqdata['nrhotype'] == 1 or expeqdata['nrhotype'] == 'rhotor':
           raise ValueError('FATAL: with ttprime or ffprime, nrhotype (must) = 0 or rhopsi. EXIT!')
        for i in range(np.size(expeqdata['TTPrime'])):
@@ -1252,7 +1233,7 @@ def eqdsk2expeq(eqdskdata={},eqdskfpath='',setParam={}):
     elif expeqdata['nsttp'] == 5 or expeqdata['nsttp'] == 'q':
        expeqdata['q'] = eqdskdata['qpsi']
        for i in range(np.size(eqdskdata['qpsi'])):
-           ofh.write('%18.8E\n'       % expeqdata['qpsi'][i])
+           ofh.write('%18.8E\n'       % expeqdata['q'][i])
     else:
        raise ValueError('FATAL: nsttp takes only 1 and 5. Exit!')
 
@@ -1276,7 +1257,27 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
           print(CGRN+'(4) Exit.'+CEND)
           try:
               selection = input('Selected Option: ')
-              if    selection in [1,2,3,4]: break
+              if    selection in [1,2,3,4]:
+                    if    selection == 3:
+                       if glob('./NGA'):                   os.system('rm NGA')
+                       if glob('./NDES'):                  os.system('rm NDES')
+                       if glob('./*OUT*'):                 os.system('rm *OUT*')
+                       if glob('./*.pdf'):                 os.system('rm *.pdf')
+                       if glob('./EXPEQ'):                 os.system('rm EXPEQ')
+                       if glob('./EXPTNZ'):                os.system('rm EXPTNZ')
+                       if glob('./*_EQDSK'):               os.system('rm *_EQDSK')
+                       if glob('./*_EXPTNZ'):              os.system('rm *_EXPTNZ')
+                       if glob('./*.iterdb'):              os.system('rm *.iterdb')
+                       if glob('./ogyropsi*'):             os.system('rm ogyropsi*')
+                       if glob('./*_Profiles'):            os.system('rm *_Profiles')
+                       if glob('./EXPEQ_EQDSK*'):          os.system('rm EXPEQ_EQDSK*')
+                       if glob('./EXPEQ_EXPEQ*'):          os.system('rm EXPEQ_EXPEQ*')
+                       if glob('./chease_namelist*'):      os.system('rm chease_namelist*')
+                       if glob('./chease_parameters.csv'): os.system('rm chease_parameters.csv')
+                       continue
+                    elif  selection == 4: sys.exit()
+                    else: break
+
               else: raise(NameError)
           except NameError:
              print(CRED+'Select between 1,2,3, and 4 options.'+CEND)
@@ -1317,8 +1318,6 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
                 continue
     
        namelistParam           = {}
-       namelistParam['CSSPEC'] = 0
-       namelistParam['NCSCAL'] = 4
        print(CRED+'List of files from previous run(s):'+CEND)
        os.system('ls')
        if raw_input(CBLU+'Remove output (h5, pdf, dat, OUT) files of previous runs (yes/no)? '+CEND).lower() in ['yes','y']:
@@ -1357,11 +1356,13 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
              namelist = namelistcreate('chease_parameters.csv',0,namelistParam)
           else:
              raise IOError('chease namelist file NOT FOUND in the given path!')
-          print('%s/%s_EQDSK'   % (shotlist[shotrec-1],shotlist[shotrec-1][8:]))
-          if os.path.isfile('%s/%s_EQDSK'   % (shotlist[shotrec-1],shotlist[shotrec-1][8:])):
-             os.system('cp %s/%s_EQDSK .'   % (shotlist[shotrec-1],shotlist[shotrec-1][8:]))
+         #print('%s/%s_EQDSK'                        % (shotlist[shotrec-1],shotlist[shotrec-1][8:]))
+          if os.path.isfile('%s/%s_EQDSK'            % (shotlist[shotrec-1],shotlist[shotrec-1][8:])):
+             os.system('cp %s/%s_EQDSK .'            % (shotlist[shotrec-1],shotlist[shotrec-1][8:]))
           else:
              raise IOError('EQDSK file NOT FOUND in the given path!')
+          if os.path.isfile('%s/%s_EXPEQ'            % (shotlist[shotrec-1],shotlist[shotrec-1][8:])):
+             os.system('cp %s/%s_EXPEQ ./EXPEQ'      % (shotlist[shotrec-1],shotlist[shotrec-1][8:]))
           if int(namelist['NBSEXPQ'][0]) != 0:
              if   os.path.isfile('%s/%s_EXPTNZ'      % (shotlist[shotrec-1],shotlist[shotrec-1][8:])):
                   os.system('cp %s/%s_EXPTNZ .'      % (shotlist[shotrec-1],shotlist[shotrec-1][8:]))
@@ -1400,11 +1401,13 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
                namelist = namelistcreate('chease_parameters.csv',0)
           else:
                raise IOError('chease_parameters.csv file NOT FOUND in the given path!')
-          print('%s/%s_EQDSK'   % (shotlist[shotrec-1],shotlist[shotrec-1][8:]))
-          if os.path.isfile('%s/%s_EQDSK'       %(shotlist[shotrec-1],shotlist[shotrec-1][8:])):
-             os.system('cp   %s/%s_EQDSK .'     %(shotlist[shotrec-1],shotlist[shotrec-1][8:]))
+         #print('%s/%s_EQDSK'   % (shotlist[shotrec-1],shotlist[shotrec-1][8:]))
+          if os.path.isfile('%s/%s_EQDSK'            %(shotlist[shotrec-1],shotlist[shotrec-1][8:])):
+             os.system('cp   %s/%s_EQDSK .'          %(shotlist[shotrec-1],shotlist[shotrec-1][8:]))
           else:
              raise IOError('EQDSK (or KEFIT) file NOT FOUND in the given path!')
+          if os.path.isfile('%s/%s_EXPEQ'            % (shotlist[shotrec-1],shotlist[shotrec-1][8:])):
+             os.system('cp %s/%s_EXPEQ ./EXPEQ'      % (shotlist[shotrec-1],shotlist[shotrec-1][8:]))
           if int(namelist['NBSEXPQ'][0]) != 0:
              if   os.path.isfile('%s/%s_EXPTNZ'      % (shotlist[shotrec-1],shotlist[shotrec-1][8:])):
                   os.system('cp   %s/%s_EXPTNZ .'    % (shotlist[shotrec-1],shotlist[shotrec-1][8:]))
@@ -1425,17 +1428,33 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
        if   int(namelist['NEQDSK'][0]) == 1:
             print('Reading from EQDSK file.')
             os.system('cp *_EQDSK  EXPEQ')
+            eqdskdata=efittools.read_eqdsk(EQDSKfname[0])
        elif int(namelist['NEQDSK'][0]) == 0:
             print('Reading from EXPEQ file.')
             if len(glob('./EXPEQ'))==0:
-               expeqdata = eqdsk2expeq(eqdskfpath=EQDSKfname[0])
+               eqdskdata = efittools.read_eqdsk(EQDSKfname[0])
+               expeqParam = {}
+               expeqParam['nrhotype'] = int(namelist['NRHOMESH'][0])
+               expeqParam['nsttp']    = int(namelist['NSTTP'][0])
+               expeqParam['nppfun']   = int(namelist['NPPFUN'][0])
+               expeqdata = eqdsk2expeq(eqdskfpath=EQDSKfname[0],setParam=expeqParam)
                namelistParam['R0EXP'] = expeqdata['R0EXP']
                namelistParam['B0EXP'] = expeqdata['B0EXP']
             else:
-               eqdskdata=efittools.read_eqdsk(EQDSKfname[0])
-               namelistParam['R0EXP'] = eqdskdata['RCTR']
-               namelistParam['B0EXP'] = eqdskdata['BCTR']
+               eqdskdata = efittools.read_eqdsk(EQDSKfname[0])
+               namelistParam['R0EXP'] = abs(eqdskdata['RCTR'])
+               namelistParam['B0EXP'] = abs(eqdskdata['BCTR'])
             namelist = namelistcreate('chease_parameters.csv',0,namelistParam)
+
+       namelistParam['CSSPEC'] = 0.0
+       expeqdata = read_expeq('./EXPEQ')
+       if expeqdata['nsttp'] == 5: 
+          namelistParam['QSPEC']  = expeqdata['q'][0]
+       else:
+          namelistParam['QSPEC']  = eqdskdata['qpsi'][0]
+      #namelistParam['NCSCAL'] = 1
+       namelistParam['NCSCAL'] = 4
+       namelist = namelistcreate('chease_parameters.csv',0,namelistParam)
 
        if len(glob('./EXPTNZ'))==0:
           os.system('cp *_EXPTNZ EXPTNZ')
@@ -1459,7 +1478,8 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
             it=0
        else:
             it=int(OGYROPSIfname[-1][-6:-3])+1
-       exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % it)
+      #exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % it)
+       exit_status = os.system('./chease_hdf5 chease_namelist')
        if abs(exit_status) > 0: sys.exit()
        if os.path.isfile('./chease_namelist'): os.system('mv ./chease_namelist ./chease_namelist_iter%03d' % it)
        if os.path.isfile('./ogyropsi.dat'): os.system('mv ./ogyropsi.dat ogyropsi_iter%03d.dat' % it)
@@ -1487,9 +1507,12 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
        #namelistParam['RBOXLFT'] = cheasedata['rmesh'][0]
        #namelistParam['RBOXLEN'] = cheasedata['rmesh'][-1]-cheasedata['rmesh'][0]
        #namelistParam['ZBOXLEN'] = cheasedata['zmesh'][-1]*2.0
-       namelistParam['R0EXP']   = cheasedata['R0EXP']
-       namelistParam['B0EXP']   = cheasedata['B0EXP']
-       namelistParam['QSPEC']   = cheasedata['q'][0]
+       namelistParam['R0EXP']    = cheasedata['R0EXP']
+       namelistParam['B0EXP']    = cheasedata['B0EXP']
+       namelistParam['CSSPEC']   = 0.0
+       namelistParam['QSPEC']    = cheasedata['q'][0]
+       namelistParam['NCSCAL']   = 1
+      #namelistParam['NCSCAL']   = 4
     
        ITErr = (cheasedata['ITOR']-ITEXP)/ITEXP
        print 'Iter  = ', 0
@@ -1500,10 +1523,11 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
        it+=1
        ITErr = (cheasedata['ITOR']-ITEXP)/ITEXP
        while (abs(ITErr) > 1.0e-6):
-           if (cheasemode != 2) and (it >= iterTotal+1): break
+           if (cheasemode == 1) and (it >= iterTotal+1): break
            namelist = namelistcreate('chease_parameters.csv',min(len(namelist['fname'])-1,it),namelistParam)
            os.system('cp chease_namelist chease_namelist_iter%3d' % (min(len(namelist['fname'])-1,it)))
-           exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % it)
+          #exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % it)
+           exit_status = os.system('./chease_hdf5 chease_namelist')
            if abs(exit_status) > 0: sys.exit()
            if os.path.isfile('./ogyropsi.dat'): os.system('mv ./ogyropsi.dat ogyropsi_iter%03d.dat' % it)
            if os.path.isfile('./ogyropsi.h5'): os.system('mv ./ogyropsi.h5 ogyropsi_iter%03d.h5' % it)
@@ -1542,21 +1566,5 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
        plot_cheasedata('./',skipfigs=0)
     elif selection == 2:
        plot_cheasedata('./',skipfigs=0)
-    elif selection == 3:
-       if glob('./NGA'):                   os.system('rm NGA')
-       if glob('./NDES'):                  os.system('rm NDES')
-       if glob('./*OUT*'):                 os.system('rm *OUT*')
-       if glob('./*.pdf'):                 os.system('rm *.pdf')
-       if glob('./EXPEQ'):                 os.system('rm EXPEQ')
-       if glob('./EXPTNZ'):                os.system('rm EXPTNZ')
-       if glob('./*_EQDSK'):               os.system('rm *_EQDSK')
-       if glob('./*_EXPTNZ'):              os.system('rm *_EXPTNZ')
-       if glob('./*.iterdb'):              os.system('rm *.iterdb')
-       if glob('./ogyropsi*'):             os.system('rm ogyropsi*')
-       if glob('./*_Profiles'):            os.system('rm *_Profiles')
-       if glob('./EXPEQ_EQDSK*'):          os.system('rm EXPEQ_EQDSK*')
-       if glob('./EXPEQ_EXPEQ*'):          os.system('rm EXPEQ_EXPEQ*')
-       if glob('./chease_namelist*'):      os.system('rm chease_namelist*')
-       if glob('./chease_parameters.csv'): os.system('rm chease_parameters.csv')
     
     return 1
