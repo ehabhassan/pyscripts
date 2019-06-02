@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf as pdfh
 
 from scipy.integrate import simps
-from scipy.interpolate import interp1d,interp2d
+from scipy.interpolate import interp1d,interp2d,RectBivariateSpline
 
 import read_iterdb
 
@@ -105,6 +105,7 @@ def read_profiles(pfpath,setParam={}):
     units    = {}
     while True:
           recs = ofh.readline().split()
+         #if len(recs)>0 and '#' in recs[0]: continue
           if   len(recs)>4:
                nrec = int(recs[0])
                ary0=npy.zeros(nrec)
@@ -155,7 +156,7 @@ def read_profiles(pfpath,setParam={}):
                   profiles[var2] = ary2
                if   var1.strip() in ['ne','ni','nb','nz1']:
                     profiles[var1] *= 10.0**powr
-               elif var1.strip() in ['te']:
+               elif var1.strip() in ['te','ti']:
                     profiles[var1] *= 1.0e3
           else:
                break
@@ -206,7 +207,7 @@ def read_eqdsk(eqdskfpath):
     cline = ofh.readline()
     eqdskdata['idum']   = int(cline[48:52])
     eqdskdata['RDIM']   = int(cline[52:56])
-    eqdskdata['ZDIM']   = int(cline[56:60])
+    eqdskdata['ZDIM']   = int(cline[56:61])
     cline = ofh.readline()
     eqdskdata['RLEN']   = float(cline[0:16])
     eqdskdata['ZLEN']   = float(cline[16:32])
@@ -295,7 +296,7 @@ def read_eqdsk(eqdskfpath):
             eqdskdata['psiRZ'][iline*5+4] = float(cline[64:80])
         except:
             error = 'empty records'
-    eqdskdata['psiRZ'] = npy.reshape(eqdskdata['psiRZ'],(eqdskdata['RDIM'],eqdskdata['ZDIM']))
+    eqdskdata['psiRZ'] = npy.reshape(eqdskdata['psiRZ'],(eqdskdata['ZDIM'],eqdskdata['RDIM']))
 
 
     eqdskdata['qpsi'] = npy.zeros(eqdskdata['RDIM'])
@@ -430,6 +431,44 @@ def plot_eqdsk(eqdskdata,reportpath=''):
 
     return 1
 
+def profile_mapping(psi,phi,profpsi=[],profphi=[]):
+    if   any(profpsi):
+         profpsifn=interp1d(psi,profpsi,kind='linear')
+         phipsifn =interp1d(psi,phi,kind='linear')
+         profphi  =profpsifn(phipsifn(psi))
+    elif any(profphi):
+         profphifn=interp1d(phi,profphi,kind='linear')
+         psiphifn =interp1d(phi,psi,kind='linear')
+         profpsi  =profphifn(psiphifn(phi))
+
+def psi2phi(q,psi):
+    qpsifn  = interp1d(psi,q)
+    psinorm = npy.linspace(psi[0],psi[-1],10*len(psi))
+    qpsi    = qpsifn(psinorm)
+    phinorm = npy.zeros_like(psinorm)
+    for i in range(1,npy.size(qpsi)):
+        x = psinorm[1:i+1]
+        y = qpsi[1:i+1]
+        phinorm[i] = npy.trapz(y,x)
+    phinorm  = (phinorm-phinorm[0])/(phinorm[-1]-phinorm[0])
+    phipsifn = interp1d(psinorm,phinorm)
+    phi      = phipsifn(psi)
+    return phi
+
+def phi2psi(q,phi):
+    qphifn  = interp1d(phi,q)
+    phinorm = npy.linspace(phi[0],phi[-1],10*len(phi))
+    qphi    = qphifn(phinorm)
+    psinorm = npy.zeros_like(phinorm)
+    for i in range(1,npy.size(qphi)):
+        x = phinorm[1:i+1]
+        y = 1./qphi[1:i+1]
+        psinorm[i] = npy.trapz(y,x)
+    psinorm  = (psinorm-psinorm[0])/(psinorm[-1]-psinorm[0])
+    psiphifn = interp1d(phinorm,psinorm)
+    psi      = psiphifn(phi)
+    return psi
+
 def findmonotonic(A,kind="increasing"):
     if kind.lower()=="increasing":
        bgnloc=0
@@ -480,8 +519,6 @@ def magsurf_solvflines(eqdskfpath='',eqdskdata={},psi=1.0,eps=1.0e-6):
           sys.exit()
 
     qpsifn = interp1d(eqdskdata['PSIN'],eqdskdata['qpsi'],kind="linear")
-#   phipsi = interp1d(eqdskdata['PSIN'],eqdskdata['PHIN'],kind="linear")
-#   phi    = phipsi(psi)
 
     minZ = min(eqdskdata['zbound'])+eqdskdata['ZLEN']/2
     maxZ = max(eqdskdata['zbound'])+eqdskdata['ZLEN']/2
@@ -514,7 +551,7 @@ def magsurf_solvflines(eqdskfpath='',eqdskdata={},psi=1.0,eps=1.0e-6):
     zsln = []
     slns = npy.array([cs_r,cs_z])
 
-    maxzta = 1.0*npy.pi*qpsifn(psiRZ(cs_r,cs_z))
+    maxzta = 4.0*npy.pi*eqdskdata['RLEN']*eqdskdata['ZLEN']*psiRZ(cs_r,cs_z)
     zta = npy.linspace(0.0,maxzta,npts)
     stp = npy.diff(zta)[0]
     passhalf = False
@@ -522,7 +559,7 @@ def magsurf_solvflines(eqdskfpath='',eqdskdata={},psi=1.0,eps=1.0e-6):
        if j >= npy.size(zta)/2: passhalf = True
        slns = rk5(f1,f2,zta[j],slns,stp)
        if passhalf:
-          if (abs(rsln[0]-slns[0])<5.0e-3) and (abs(zsln[0]-slns[1])<5.0e-3):
+          if (abs(rsln[0]-slns[0])<5.0e-1) and (abs(zsln[0]-slns[1])<5.0e-1):
              break
        rsln.append(slns[0])
        zsln.append(slns[1])
