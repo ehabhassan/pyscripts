@@ -80,6 +80,7 @@ def create_report(genefpath="./"):
     texfhand.write("\\usepackage{geometry} \n")    
     texfhand.write("\\geometry{legalpaper, landscape, margin=0.7in} \n")    
     texfhand.write("\\usepackage{makecell} \n")    
+    texfhand.write("\\usepackage{multirow,tabularx} \n")    
     texfhand.write("\\setcellgapes{4pt} \n")    
 
     texfhand.write("\\title{GENE Scan Run Results\\\\- "+report_title.replace('_','\_')+" -} \n")
@@ -331,124 +332,153 @@ def create_report(genefpath="./"):
        texfhand.write("\\end{tabular} \n")
     texfhand.write("\\end{table} \n")
 
-    texfhand.write("\\clearpage \n")
-    texfhand.write("\\subsection{Method II:} \n")
-    print('Finding Modes Classification from Fluxes ...')
-    fluxinfo = flux_info(genefpath)
-    texfhand.write("\\begin{table}[!h] \n")
-    if geneparams['box']['n_spec'] >= 3:
-       texfhand.write("\\begin{tabular}{| m{2.0cm} | m{2.0cm} | m{2.0cm} | m{2.0cm} | m{2.0cm} | m{2.0cm} | m{2.0cm} | m{2.0cm} |} \n")
-       texfhand.write("\\hline \n")
-       texfhand.write("$k_y$ & $\\chi_i/\\chi_e$ & $\\chi_e/\\chi_i$ & ")
-       texfhand.write("$D_e/\\chi_e$ & $D_z/\\chi_e$ & $D_e/(\\chi_e+\\chi_i)$ & $D_z/(\\chi_e+\\chi_i)$ & Mode \\\\ \n")
-       texfhand.write("\\hline \n")
-       if type(geneparams['box']['kymin'])==list:
-          kyminlist = geneparams['box']['kymin']
-       else:
-          kyminlist = [geneparams['box']['kymin']]
-       for item in kyminlist:
-           texfhand.write("%5.3f & \n" % (item))
-           texfhand.write("%5.3f & \n" % (fluxinfo[item]['i']['Chi']/fluxinfo[item]['e']['Chi']))
-           texfhand.write("%5.3f & \n" % (fluxinfo[item]['e']['Chi']/fluxinfo[item]['i']['Chi']))
-           texfhand.write("%5.3f & \n" % (fluxinfo[item]['e']['Dee']/fluxinfo[item]['e']['Chi']))
-           texfhand.write("%5.3f & \n" % (fluxinfo[item]['z']['Dee']/fluxinfo[item]['e']['Chi']))
-           texfhand.write("%5.3f & \n" % (fluxinfo[item]['e']['Dee']/(fluxinfo[item]['e']['Chi']+fluxinfo[item]['i']['Chi'])))
-           texfhand.write("%5.3f & \n" % (fluxinfo[item]['z']['Dee']/(fluxinfo[item]['e']['Chi']+fluxinfo[item]['i']['Chi'])))
-           texfhand.write("%s \\\\ \n" % (fluxinfo[item]['Type']))
-           texfhand.write("\\hline \n")
-       texfhand.write("\\end{tabular} \n")
-    else:
+    if x_local:
+       texfhand.write("\\clearpage \n")
+       texfhand.write("\\section{Modes Classification} \n")
+       texfhand.write("\\subsection{Method II:} \n")
+       print('Finding Modes Classification from Fluxes ...')
+       fluxinfo = flux_info(genefpath)
        texfhand.write("\\begin{table}[!h] \n")
-       texfhand.write("\\begin{tabular}{| m{1.5cm} | m{1.5cm} |} \n")
-       texfhand.write("\\hline \n")
-       texfhand.write("$k_y$ & Mode \\\\ \n")
-       texfhand.write("\\hline \n")
-       for item in sorted(modetype.keys()):
-           texfhand.write("%5.3f & \n" % (item))
-           texfhand.write("%s \\\\ \n" % (modetype[item]))
-           texfhand.write("\\hline \n")
-       texfhand.write("\\end{tabular} \n")
-    texfhand.write("\\end{table} \n")
+       if geneparams['box']['n_spec'] >= 3:
+          texfhand.write("\\begin{tabular}{| m{2.0cm} | m{2.0cm} | m{2.0cm} | m{2.0cm} | m{2.0cm} | m{2.0cm} | m{2.0cm} | m{2.0cm} |} \n")
+          texfhand.write("\\hline \n")
+          texfhand.write("$k_y$ & $\\chi_i/\\chi_e$ & $\\chi_e/\\chi_i$ & ")
+          texfhand.write("$D_e/\\chi_e$ & $D_z/\\chi_e$ & $D_e/(\\chi_e+\\chi_i)$ & $D_z/(\\chi_e+\\chi_i)$ & Mode \\\\ \n")
+          texfhand.write("\\hline \n")
+          if type(geneparams['box']['kymin'])==list:
+             kyminlist = geneparams['box']['kymin']
+          else:
+             kyminlist = [geneparams['box']['kymin']]
+          for item in kyminlist:
+              texfhand.write("%5.3f & \n" % (item))
+              texfhand.write("%5.3f & \n" % (fluxinfo[item]['i']['Chi']/fluxinfo[item]['e']['Chi']))
+              texfhand.write("%5.3f & \n" % (fluxinfo[item]['e']['Chi']/fluxinfo[item]['i']['Chi']))
+              texfhand.write("%5.3f & \n" % (fluxinfo[item]['e']['Dee']/fluxinfo[item]['e']['Chi']))
+              texfhand.write("%5.3f & \n" % (fluxinfo[item]['z']['Dee']/fluxinfo[item]['e']['Chi']))
+              texfhand.write("%5.3f & \n" % (fluxinfo[item]['e']['Dee']/(fluxinfo[item]['e']['Chi']+fluxinfo[item]['i']['Chi'])))
+              texfhand.write("%5.3f & \n" % (fluxinfo[item]['z']['Dee']/(fluxinfo[item]['e']['Chi']+fluxinfo[item]['i']['Chi'])))
+              texfhand.write("%s \\\\ \n" % (fluxinfo[item]['Type']))
+              texfhand.write("\\hline \n")
+          texfhand.write("\\end{tabular} \n")
+       else:
+          texfhand.write("\\begin{table}[!h] \n")
+          texfhand.write("\\begin{tabular}{| m{1.5cm} | m{1.5cm} |} \n")
+          texfhand.write("\\hline \n")
+          texfhand.write("$k_y$ & Mode \\\\ \n")
+          texfhand.write("\\hline \n")
+          for item in sorted(modetype.keys()):
+              texfhand.write("%5.3f & \n" % (item))
+              texfhand.write("%s \\\\ \n" % (modetype[item]))
+              texfhand.write("\\hline \n")
+          texfhand.write("\\end{tabular} \n")
+       texfhand.write("\\end{table} \n")
 
 
     print('Ploting Mode Structures ...')
     field = read_field(fieldfpath=genefpath)
     plot_field(field=field,reportpath=genefpath)
-    texfhand.write("\\clearpage \n")
-    texfhand.write("\\section{Modes $\\phi(k_y)$ Structure} \n")
-    nmodes = len(geneparams['box']['kymin'])
-    for imode in range(0,nmodes,6):
-        if (imode+1) % 6 == 0:
-           texfhand.write("\\clearpage \n")
-           texfhand.write("\\section*{Modes $\\phi(k_y)$ Structure (continue ...)} \n")
-        texfhand.write("\\begin{figure}[!h] \n")
-        texfhand.write("\\begin{center} \n")
-        texfhand.write("\\begin{tabular}{c c c} \n")
-        if imode+1 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"phi_mode_%04d.png} & \n"    % (imode+1))
-        if imode+2 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"phi_mode_%04d.png} & \n"    % (imode+2))
-        if imode+3 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"phi_mode_%04d.png} \\\\ \n" % (imode+3))
-        if imode+4 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"phi_mode_%04d.png} & \n"    % (imode+4))
-        if imode+5 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"phi_mode_%04d.png} & \n"    % (imode+5))
-        if imode+6 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"phi_mode_%04d.png} \\\\ \n" % (imode+6))
-        texfhand.write("\\end{tabular} \n")
-        texfhand.write("\\end{center} \n")
-        texfhand.write("\\end{figure} \n")
+    if x_local:
+       texfhand.write("\\clearpage \n")
+       texfhand.write("\\section{Modes $\\phi(k_y)$ Structure} \n")
+       if type(geneparams['box']['kymin'])==list:
+          kyminlist = geneparams['box']['kymin']
+       else:
+          kyminlist = [geneparams['box']['kymin']]
+       nmodes = len(kyminlist)
+       for imode in range(0,nmodes,6):
+           if (imode+1) % 6 == 0:
+              texfhand.write("\\clearpage \n")
+              texfhand.write("\\section*{Modes $\\phi(k_y)$ Structure (continue ...)} \n")
+           texfhand.write("\\begin{figure}[!h] \n")
+           texfhand.write("\\begin{center} \n")
+           texfhand.write("\\begin{tabular}{c c c} \n")
+           if imode+1 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"phi_mode_%04d.png} & \n"    % (imode+1))
+           if imode+2 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"phi_mode_%04d.png} & \n"    % (imode+2))
+           if imode+3 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"phi_mode_%04d.png} \\\\ \n" % (imode+3))
+           if imode+4 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"phi_mode_%04d.png} & \n"    % (imode+4))
+           if imode+5 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"phi_mode_%04d.png} & \n"    % (imode+5))
+           if imode+6 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"phi_mode_%04d.png} \\\\ \n" % (imode+6))
+           texfhand.write("\\end{tabular} \n")
+           texfhand.write("\\end{center} \n")
+           texfhand.write("\\end{figure} \n")
 
-    texfhand.write("\\clearpage \n")
-    texfhand.write("\\section{Modes $A_{||}(k_y)$ Structure} \n")
-    for imode in range(0,nmodes,6):
-        if (imode+1) % 6 == 0:
-           texfhand.write("\\clearpage \n")
-           texfhand.write("\\section*{Modes $A_{||}(k_y)$ Structure (continue ...)} \n")
-        texfhand.write("\\begin{figure}[!h] \n")
-        texfhand.write("\\begin{center} \n")
-        texfhand.write("\\begin{tabular}{c c c} \n")
-        if imode+1 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"apar_mode_%04d.png} & \n"    % (imode+1))
-        if imode+2 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"apar_mode_%04d.png} & \n"    % (imode+2))
-        if imode+3 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"apar_mode_%04d.png} \\\\ \n" % (imode+3))
-        if imode+4 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"apar_mode_%04d.png} & \n"    % (imode+4))
-        if imode+5 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"apar_mode_%04d.png} & \n"    % (imode+5))
-        if imode+6 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"apar_mode_%04d.png} \\\\ \n" % (imode+6))
-        texfhand.write("\\end{tabular} \n")
-        texfhand.write("\\end{center} \n")
-        texfhand.write("\\end{figure} \n")
+       texfhand.write("\\clearpage \n")
+       texfhand.write("\\section{Modes $A_{||}(k_y)$ Structure} \n")
+       for imode in range(0,nmodes,6):
+           if (imode+1) % 6 == 0:
+              texfhand.write("\\clearpage \n")
+              texfhand.write("\\section*{Modes $A_{||}(k_y)$ Structure (continue ...)} \n")
+           texfhand.write("\\begin{figure}[!h] \n")
+           texfhand.write("\\begin{center} \n")
+           texfhand.write("\\begin{tabular}{c c c} \n")
+           if imode+1 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"apar_mode_%04d.png} & \n"    % (imode+1))
+           if imode+2 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"apar_mode_%04d.png} & \n"    % (imode+2))
+           if imode+3 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"apar_mode_%04d.png} \\\\ \n" % (imode+3))
+           if imode+4 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"apar_mode_%04d.png} & \n"    % (imode+4))
+           if imode+5 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"apar_mode_%04d.png} & \n"    % (imode+5))
+           if imode+6 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"apar_mode_%04d.png} \\\\ \n" % (imode+6))
+           texfhand.write("\\end{tabular} \n")
+           texfhand.write("\\end{center} \n")
+           texfhand.write("\\end{figure} \n")
 
-    texfhand.write("\\clearpage \n")
-    texfhand.write("\\section{Modes $\\nabla\phi(k_y),\partial_tA_{||}(k_y)$ Structure} \n")
-    for imode in range(0,nmodes,6):
-        if (imode+1) % 6 == 0:
-           texfhand.write("\\clearpage \n")
-           texfhand.write("\\section*{Modes $\\nabla\phi(k_y),\partial_tA_{||}(k_y)$ Structure (continue ...)} \n")
-        texfhand.write("\\begin{figure}[!h] \n")
-        texfhand.write("\\begin{center} \n")
-        texfhand.write("\\begin{tabular}{c c c} \n")
-        if imode+1 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"wApar_dPhi_mode_%04d.png} & \n"    % (imode+1))
-        if imode+2 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"wApar_dPhi_mode_%04d.png} & \n"    % (imode+2))
-        if imode+3 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"wApar_dPhi_mode_%04d.png} \\\\ \n" % (imode+3))
-        if imode+4 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"wApar_dPhi_mode_%04d.png} & \n"    % (imode+4))
-        if imode+5 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"wApar_dPhi_mode_%04d.png} & \n"    % (imode+5))
-        if imode+6 <= nmodes:
-           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"wApar_dPhi_mode_%04d.png} \\\\ \n" % (imode+6))
-        texfhand.write("\\end{tabular} \n")
-        texfhand.write("\\end{center} \n")
-        texfhand.write("\\end{figure} \n")
+       texfhand.write("\\clearpage \n")
+       texfhand.write("\\section{Modes $\\nabla\phi(k_y),\partial_tA_{||}(k_y)$ Structure} \n")
+       for imode in range(0,nmodes,6):
+           if (imode+1) % 6 == 0:
+              texfhand.write("\\clearpage \n")
+              texfhand.write("\\section*{Modes $\\nabla\phi(k_y),\partial_tA_{||}(k_y)$ Structure (continue ...)} \n")
+           texfhand.write("\\begin{figure}[!h] \n")
+           texfhand.write("\\begin{center} \n")
+           texfhand.write("\\begin{tabular}{c c c} \n")
+           if imode+1 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"wApar_dPhi_mode_%04d.png} & \n"    % (imode+1))
+           if imode+2 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"wApar_dPhi_mode_%04d.png} & \n"    % (imode+2))
+           if imode+3 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"wApar_dPhi_mode_%04d.png} \\\\ \n" % (imode+3))
+           if imode+4 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"wApar_dPhi_mode_%04d.png} & \n"    % (imode+4))
+           if imode+5 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"wApar_dPhi_mode_%04d.png} & \n"    % (imode+5))
+           if imode+6 <= nmodes:
+              texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"wApar_dPhi_mode_%04d.png} \\\\ \n" % (imode+6))
+           texfhand.write("\\end{tabular} \n")
+           texfhand.write("\\end{center} \n")
+           texfhand.write("\\end{figure} \n")
+    if not x_local:
+       texfhand.write("\\clearpage \n")
+       texfhand.write("\\section{Modes $\\phi(k_y)$ Structure} \n")
+       if type(geneparams['box']['kymin'])==list:
+          kyminlist = geneparams['box']['kymin']
+       else:
+          kyminlist = [geneparams['box']['kymin']]
+       nmodes = len(kyminlist)
+       for imode in range(0,nmodes):
+           texfhand.write("\\begin{figure}[!h] \n")
+           texfhand.write("\\begin{center} \n")
+           texfhand.write("\\begin{tabular}{c} \n")
+           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"phi_mode_%04d.png} \\\\     \n"    % (imode+1))
+           texfhand.write("\\includegraphics[scale=0.65]{"+reportpath+"apar_mode_%04d.png}   \n"                              % (imode+1))
+           texfhand.write("\\end{tabular} \n")
+           texfhand.write("\\begin{tabular}{c c} \n")
+           texfhand.write("\\includegraphics[height=17cm,width=10cm]{"+reportpath+"phi_mode_%04d_2d.png}  & \n" % (imode+1))
+           texfhand.write("\\includegraphics[height=17cm,width=10cm]{"+reportpath+"apar_mode_%04d_2d.png}   \n" % (imode+1))
+           texfhand.write("\\end{tabular} \n")
+           texfhand.write("\\end{center} \n")
+           texfhand.write("\\end{figure} \n")
+           if imode<nmodes-1: texfhand.write("\\clearpage \n")
 
     texfhand.write("\\end{document} \n")
     texfhand.close()

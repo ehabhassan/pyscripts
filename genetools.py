@@ -1104,7 +1104,10 @@ def merge_runs(runspathlist,destination='./'):
     if destination[-1]!='/': destination+='/merged'
     else:                    destination+= 'merged'
     if not os.path.isdir(destination):
-       os.system('mkdir %s'%destination)
+       os.system('mkdir %s'   %(destination))
+       os.system('mkdir %s/%s'%(destination,'in_par'))
+    elif not os.path.isdir(destination+'/in_par'):
+       os.system('mkdir %s/%s'%(destination,'in_par'))
     ntotalfiles = 0
     for runpath in runspathlist:
         if runpath[-1]=='/': runpath=runpath[:-1]
@@ -1126,4 +1129,13 @@ def merge_runs(runspathlist,destination='./'):
             if os.path.isfile('%s/mom_z_%04d'%(runpath,ifile)):
                os.system('cp %s/mom_z_%04d %s/mom_z_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
         ntotalfiles += nlocalfiles
+
+    wfh = open('%s/scan.log' %destination,'w')
+    wfh.write('#Run  | kymin     1  /Eigenvalue1 \n')
+    nlocalfiles = len(glob.glob(destination+'/omega*'))
+    for ifile in range(1,nlocalfiles+1):
+        omega=read_omega('%s/omega_%04d' %(destination,ifile))
+        wfh.write("%04d | %12.6E | %6.4f %6.4f \n" %(ifile,omega['kymin'][0],omega['gamma'][0],omega['omega'][0]))
+    wfh.close()
+
     return ntotalfiles

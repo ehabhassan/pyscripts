@@ -132,8 +132,12 @@ def plot_scandata(scandata,normalize=False):
          if vlist[0] == 'kymin':
             axhand01.set_title('$k_y$ vs $\gamma$')
             axhand02.set_title('$k_y$ vs $\omega$')
-            axhand01.set_xlabel("$\\rho_{ref}k_y$")
-            axhand02.set_xlabel("$\\rho_{ref}k_y$")
+            if normalize:
+               axhand01.set_xlabel("$\\rho_{ref}k_y$")
+               axhand02.set_xlabel("$\\rho_{ref}k_y$")
+            elif not normalize:
+               axhand01.set_xlabel("$k_y$")
+               axhand02.set_xlabel("$k_y$")
          elif vlist[0] == 'kx_center':
             axhand01.set_title('$k_{x_{center}}$ vs $\gamma$')
             axhand02.set_title('$k_{x_{center}}$ vs $\omega$')
@@ -227,7 +231,6 @@ def plot_scans(scanfiles,normalize=False):
     if type(scanfiles)==list:
        for iscan in scanfiles:
            scanvals = read_scanfile(iscan)
-           print "plot_scans: Normalize=",normalize
            gammafig,omegafig = plot_scandata(scandata=scanvals,normalize=normalize)
     else:       
            scanvals = read_scanfile(scanfiles)
@@ -262,7 +265,7 @@ else:
      else:
         scanfpath.append(raw_input('Path to the scan file: '))
 
-plot_scans(scanfiles=scanfpath,normalize=True)
-#plot_scans(scanfiles=scanfpath,normalize=False)
+#plot_scans(scanfiles=scanfpath,normalize=True)
+plot_scans(scanfiles=scanfpath,normalize=False)
 
 

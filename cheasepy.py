@@ -15,6 +15,8 @@ from glob import glob
 from scipy.interpolate import interp1d,interp2d
 from matplotlib.backends.backend_pdf import PdfPages
 
+mu0 = 4.0e-7*np.pi
+
 def namelistcreate(csvfn,rec,setParam={}):
     infid = open(csvfn, "r")
     import csv
@@ -243,25 +245,41 @@ def CubicSplineDerivative2D(x,fx,axis=0,dorder=1):
     dfx=np.zeros((m,n))
     if   axis == 0:
          for j in range(n):
-           #CS = CubicSpline(x,fx[:,j],extrapolate=bool)
             CS = CubicSpline(x,fx[:,j])
             dfx[:,j] = CS(x,dorder)
     elif axis == 1:
          for i in range(m):
-           #CS = CubicSpline(x,fx[i,:],extrapolate=bool)
             CS = CubicSpline(x,fx[i,:])
             dfx[i,:] = CS(x,dorder)
     return dfx
 
 def CubicSplineIntegral(x,fxy,intaxis=0):
-    from scipy.interpolate import CubicSpline
-    if   len(np.shape(fxy)) == 1:
+    from scipy.interpolate import CubicSpline,interp1d
+    from scipy.integrate   import trapz,quad
+    fxydims = np.shape(fxy)
+    if   len(fxydims) == 1:
               fy = CubicSpline(x,fxy).integrate(x[0],x[-1])
-    elif len(np.shape(fxy)) == 2:
+    elif len(fxydims) == 2:
          if   intaxis == 0:
-              fy = CubicSpline(x,fxy,axis=0,bc_type='periodic',extrapolate='periodic').integrate(x[0],x[-1],extrapolate='periodic')
+              try:
+                 fy = CubicSpline(x,fxy,axis=0,bc_type='periodic',extrapolate='periodic').integrate(x[0],x[-1],extrapolate='periodic')
+              except ValueError:
+                #fy = trapz(fxy,x,axis=0)
+                 fy = np.zeros(fxydims[1])
+                 for j in range(fxydims[1]):
+                     func  = interp1d(x,fxy[:,j],kind='linear')
+                     fyfnc = lambda z: func(z)
+                     fy[j] = quad(fyfnc,x[0],x[-1])
          elif intaxis == 1:
-              fy = CubicSpline(x,fxy,axis=1).integrate(x[0],x[-1])
+              try:
+                 fy = CubicSpline(x,fxy,axis=1).integrate(x[0],x[-1])
+              except ValueError:
+                #fy = trapz(fxy,x,axis=1)
+                 fy = np.zeros(fxydims[1])
+                 for j in range(fxydims[1]):
+                     func  = interp1d(x,fxy[:,j],kind='linear')
+                     fyfnc = lambda z: func(z)
+                     fy[j] = quad(fyfnc,x[0],x[-1])
     return fy
 
 def read_cheaseh5(h5fpath):
@@ -601,11 +619,11 @@ def write_expeq(h5fpath="",expeqfpath="",exptnzfpath="",setParam={}):
                  if   setParam['cheasemode'] == 2:
                       IOHMIC  = (1.0-ITErr)*(EXPEQdata['iprlN']-CHEASEdata['IBSN'])
                       IPRLN   = CHEASEdata['IBSN'] + IOHMIC
-            y0       = (1.0+CHEASEdata['C3']/CHEASEdata['C2']/CHEASEdata['T']**2/4.0/np.pi**2)*CHEASEdata['R']
-            y1       = (CHEASEdata['C1']/CHEASEdata['C2'])-(y0*CHEASEdata['R']**2)
-            JPHIN    = (IPRLN+CHEASEdata['PPrime']*y1)/y0
-            TTPM     =-JPHIN*CHEASEdata['R']-CHEASEdata['PPrimeN']*CHEASEdata['R']**2
-            TTPMN    = CubicSplineIntegral(x=CHEASEdata['CHI'],fxy=TTPM*CHEASEdata['J'], intaxis=0)
+           #IPRL     = CHEASEdata['B0EXP']*CHEASEdata['R0EXP']*IPRLN/mu0
+            y        = (1.0+CHEASEdata['C3']/CHEASEdata['C2']/CHEASEdata['T']**2/4.0/np.pi**2)
+           #TTPMN    =-(CHEASEdata['PPrime']*CHEASEdata['C1']/CHEASEdata['C2']+IPRL)/y
+           #TTPMN   /= CHEASEdata['B0EXP']
+            TTPMN    =-(CHEASEdata['PPrimeN']*CHEASEdata['C1']/CHEASEdata['C2']+IPRLN)/y
             for i in range(np.size(TTPMN)):
                 ofh.write('%18.8E\n'       % TTPMN[i])
          else:
@@ -651,10 +669,18 @@ def write_expeq(h5fpath="",expeqfpath="",exptnzfpath="",setParam={}):
                  if   setParam['cheasemode'] == 2:
                       IOHMIC  = (1.0-ITErr)*(CHEASEdata['IPRLN']-CHEASEdata['IBSN'])
                       IPRLN   = CHEASEdata['IBSN'] + IOHMIC
+                 elif setParam['cheasemode'] == 3:
+                      IOHMIC  = CHEASEdata['IPRLN']-CHEASEdata['IBSN']
+                      IBSN    = (1.0-ITErr)*CHEASEdata['IBSN']
+                      IPRLN   = IBSN + IOHMIC
             elif expeq['nsttp'][1] == 1 or expeq['nsttp'][1] == 'expeq':
                  if   setParam['cheasemode'] == 2:
                       IOHMIC  = (1.0-ITErr)*(EXPEQdata['iprlN']-CHEASEdata['IBSN'])
                       IPRLN   = CHEASEdata['IBSN'] + IOHMIC
+                 elif setParam['cheasemode'] == 3:
+                      IOHMIC  = EXPEQdata['iprlN']-CHEASEdata['IBSN']
+                      IBSN    = (1.0-ITErr)*CHEASEdata['IBSN']
+                      IPRLN   = IBSN + IOHMIC
             for i in range(np.size(IPRLN)):
                 ofh.write('%18.8E\n'       % IPRLN[i])
          else:
@@ -671,10 +697,18 @@ def write_expeq(h5fpath="",expeqfpath="",exptnzfpath="",setParam={}):
                  if   setParam['cheasemode'] == 2:
                       JOHMIC  = (1.0-ITErr)*(CHEASEdata['JPRLN']-CHEASEdata['JBSN'])
                       JPRLN   = CHEASEdata['JBSN'] + JOHMIC
+                 elif setParam['cheasemode'] == 3:
+                      JOHMIC  = CHEAEdata['JPRLN']-CHEASEdata['JBSN']
+                      JBSN    = (1.0-ITErr)*CHEASEdata['JBSN']
+                      JPRLN   = JBSN + JOHMIC
             elif expeq['nsttp'][1] == 1 or expeq['nsttp'][1] == 'expeq':
                  if   setParam['cheasemode'] == 2:
                       JOHMIC  = (1.0-ITErr)*(EXPEQdata['jprlN']-CHEASEdata['JBSN'])
                       JPRLN   = CHEASEdata['JBSN'] + JOHMIC
+                 elif setParam['cheasemode'] == 3:
+                      JOHMIC  = EXPEQdata['jprlN']-CHEASEdata['JBSN']
+                      JBSN    = (1.0-ITErr)*CHEASEdata['JBSN']
+                      JPRLN   = JBSN + JOHMIC
             for i in range(np.size(JPRLN)):
                  ofh.write('%18.8E\n'       % JPRLN[i])
          else:
@@ -1204,7 +1238,6 @@ def eqdsk2expeq(eqdskdata={},eqdskfpath='',setParam={}):
     if expeqdata['nrhotype'] == 0 or expeqdata['nrhotype'] == 'rhopsi':
        expeqdata['rhopsi'] = eqdskdata['rhopsi']
        for i in range(np.size(eqdskdata['rhopsi'])):
-          #ofh.write('%18.8E\n'       % (expeqdata['rhopsi'][i]/np.sqrt(expeqdata['B0EXP'])/expeqdata['R0EXP']))
            ofh.write('%18.8E\n'       % expeqdata['rhopsi'][i])
     elif expeqdata['nrhotype'] == 1 or expeqdata['nrhotype'] == 'rhotor':
        expeqdata['rhotor'] = eqdskdata['rhotor']
@@ -1242,13 +1275,14 @@ def eqdsk2expeq(eqdskdata={},eqdskfpath='',setParam={}):
     return expeqdata
 
 
-def cheasepy(srcVals={},namelistVals={},pltVals={}):
+def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={}):
     CGRN = '\x1b[32m'
     CYLW = '\x1b[33m'
     CBLU = '\x1b[34m'
     CRED = '\x1b[91m'
     CEND = '\x1b[0m'
-    
+
+
     while True:
           print(CGRN+'Select on of the following options:'+CEND)
           print(CGRN+'(1) Run the Code and Plot the Outputs.'+CEND)
@@ -1256,7 +1290,11 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
           print(CGRN+'(3) Remove Input/Output Files.'+CEND)
           print(CGRN+'(4) Exit.'+CEND)
           try:
-              selection = input('Selected Option: ')
+              if 'runmode' in cheaseVals:
+                 selection = cheaseVals['runmode']
+                 print('Selected Option: %d' %selection)
+              else:
+                 selection = input('Selected Option: ')
               if    selection in [1,2,3,4]:
                     if    selection == 3:
                        if glob('./NGA'):                   os.system('rm NGA')
@@ -1302,15 +1340,27 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
     else:                              eprofiles_src = 0  
     if 'iprofiles_src' in srcValsKeys: iprofiles_src = srcVals['iprofiles_src']   
     else:                              iprofiles_src = 0  
-    
+
     if selection == 1:
+       if 'removeinputs' in cheaseVals:
+          if type(cheaseVals['removeinputs'])==str:
+             removeinputs = cheaseVals['removeinputs'].lower()
+          else:
+             removeinputs = cheaseVals['removeinputs']
+       else:
+          removeinputs = raw_input(CRED+'Do you want to remove the avaiable shot EXPEQ and EXPTNZ? (yes/no)? '+CEND).lower()
+ 
        while True:
              print(CYLW+'Select CHEASE running mode:'+CEND)
              print(CYLW+'(1) Check Equilibrium Preservation Over Multiple Iterations.'+CEND)
              print(CYLW+'(2) Converge to Total Current by correcting Ohmic current.'+CEND)
              print(CYLW+'(3) Converge to Total Current by correcting Bootstrap current.'+CEND)
              try:
-                cheasemode = input('Selected Option: ')
+                if 'cheasemode' in cheaseVals:
+                   cheasemode = cheaseVals['cheasemode']
+                   print('Selected Option: %d' %cheasemode)
+                else:
+                   cheasemode = input('Selected Option: ')
                 if    cheasemode in [1,2,3]: break
                 else: raise(NameError)
              except NameError:
@@ -1320,7 +1370,15 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
        namelistParam           = {}
        print(CRED+'List of files from previous run(s):'+CEND)
        os.system('ls')
-       if raw_input(CBLU+'Remove output (h5, pdf, dat, OUT) files of previous runs (yes/no)? '+CEND).lower() in ['yes','y']:
+       if 'removeoutputs' in cheaseVals:
+          if type(cheaseVals['removeoutputs'])==str:
+             removeoutputs = cheaseVals['removeoutputs'].lower()
+          else:
+             removeoutputs = cheaseVals['removeoutputs']
+          print(CBLU+'Remove output (h5, pdf, dat, OUT) files of previous runs (yes/no)? '+str(removeoutputs)+CEND)
+       else:
+          removeoutputs = raw_input(CBLU+'Remove output (h5, pdf, dat, OUT) files of previous runs (yes/no)? '+CEND).lower()
+       if removeoutputs in ['yes','y',1,True]:
           if glob('./NGA'):                   os.system('rm NGA')
           if glob('./NDES'):                  os.system('rm NDES')
           if glob('./*OUT*'):                 os.system('rm *OUT*')
@@ -1342,7 +1400,11 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
                 for ishot in range(len(shotlist)):
                     print(CYLW+'(%02d) %s' % (ishot+1,shotlist[ishot][8:])+CEND)
                 try:
-                   shotrec = input('Select Shot Number: ')
+                   if 'shotrec' in cheaseVals:
+                      shotrec = cheaseVals['shotrec']
+                      print('Select Shot Number: %d' %shotrec)
+                   else:
+                      shotrec = input('Select Shot Number: ')
                    if shotrec-1 in range(len(shotlist)):
                       print(CGRN+'Chease runs the %s shot.' % shotlist[shotrec-1][8:]+CEND)
                       break
@@ -1356,7 +1418,6 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
              namelist = namelistcreate('chease_parameters.csv',0,namelistParam)
           else:
              raise IOError('chease namelist file NOT FOUND in the given path!')
-         #print('%s/%s_EQDSK'                        % (shotlist[shotrec-1],shotlist[shotrec-1][8:]))
           if os.path.isfile('%s/%s_EQDSK'            % (shotlist[shotrec-1],shotlist[shotrec-1][8:])):
              os.system('cp %s/%s_EQDSK .'            % (shotlist[shotrec-1],shotlist[shotrec-1][8:]))
           else:
@@ -1375,8 +1436,19 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
              else:
                   raise IOError('Profiles (EXPTNZ or Profiles) files NOT FOUND in the given path!')
           os.system('ls')
-          if raw_input(CBLU+'Do you want to continue? (yes/no)? '+CEND).lower() not in ['yes','y']: sys.exit()
-       elif raw_input(CRED+'Do you want to use the avaiable shot EXPEQ and EXPTNZ? (yes/no)? '+CEND).lower() in ['no','n']:
+          if 'runchease' in cheaseVals:
+             if type(cheaseVals['runchease'])==str:
+                runchease = cheaseVals['runchease'].lower()
+             else:
+                runchease = cheaseVals['runchease']
+             print(CBLU+'Do you want to continue? (yes/no)? '+str(runchease)+CEND)
+          else:
+             runchease = raw_input(CBLU+'Do you want to continue? (yes/no)? '+CEND).lower()
+          if runchease not in ['yes','y',1,True]: sys.exit()
+      #elif raw_input(CRED+'Do you want to remove the avaiable shot EXPEQ and EXPTNZ? (yes/no)? '+CEND).lower() in ['yes','y']:
+       elif removeinputs in ['yes','y',1,True]:
+          if 'removeinputs' in cheaseVals:
+             print(CRED+'Do you want to remove the avaiable shot EXPEQ and EXPTNZ? (yes/no)? '+str(removeinputs)+CEND)
           if glob('./*_EQDSK'):               os.system('rm *_EQDSK')
           if glob('./*_EXPTNZ'):              os.system('rm *_EXPTNZ')
           if glob('./*_Profiles'):            os.system('rm *_Profiles')
@@ -1387,7 +1459,11 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
                 for ishot in range(len(shotlist)):
                     print(CYLW+'(%02d) %s' % (ishot+1,shotlist[ishot][8:])+CEND)
                 try:
-                   shotrec = input('Select Shot Number: ')
+                   if 'shotrec' in cheaseVals:
+                      shotrec = cheaseVals['shotrec']
+                      print('Select Shot Number: %d' %shotrec)
+                   else:
+                      shotrec = input('Select Shot Number: ')
                    if shotrec-1 in range(len(shotlist)):
                       print(CGRN+'Chease runs the %s shot.' % shotlist[shotrec-1][8:]+CEND)
                       break
@@ -1401,7 +1477,6 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
                namelist = namelistcreate('chease_parameters.csv',0)
           else:
                raise IOError('chease_parameters.csv file NOT FOUND in the given path!')
-         #print('%s/%s_EQDSK'   % (shotlist[shotrec-1],shotlist[shotrec-1][8:]))
           if os.path.isfile('%s/%s_EQDSK'            %(shotlist[shotrec-1],shotlist[shotrec-1][8:])):
              os.system('cp   %s/%s_EQDSK .'          %(shotlist[shotrec-1],shotlist[shotrec-1][8:]))
           else:
@@ -1420,7 +1495,15 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
              else:
                  raise IOError('Profiles (EXPTNZ or Profiles) files NOT FOUND in the given path!')
           os.system('ls')
-          if raw_input(CBLU+'Do you want to continue? (yes/no)? '+CEND).lower() not in ['yes','y']: sys.exit()
+          if 'runchease' in cheaseVals:
+             if type(cheaseVals['runchease'])==str:
+                runchease = cheaseVals['runchease'].lower()
+             else:
+                runchease = cheaseVals['runchease']
+             print(CBLU+'Do you want to continue? (yes/no)? '+str(runchease)+CEND)
+          else:
+             runchease = raw_input(CBLU+'Do you want to continue? (yes/no)? '+CEND).lower()
+          if runchease not in ['yes','y',1,True]: sys.exit()
        else:
           namelist = namelistcreate('chease_parameters.csv',0,namelistParam)
 
@@ -1429,6 +1512,8 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
             print('Reading from EQDSK file.')
             os.system('cp *_EQDSK  EXPEQ')
             eqdskdata=efittools.read_eqdsk(EQDSKfname[0])
+            namelistParam['R0EXP'] = eqdskdata['RCTR']
+            namelistParam['B0EXP'] = eqdskdata['BCTR']
        elif int(namelist['NEQDSK'][0]) == 0:
             print('Reading from EXPEQ file.')
             if len(glob('./EXPEQ'))==0:
@@ -1447,12 +1532,12 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
             namelist = namelistcreate('chease_parameters.csv',0,namelistParam)
 
        namelistParam['CSSPEC'] = 0.0
-       expeqdata = read_expeq('./EXPEQ')
-       if expeqdata['nsttp'] == 5: 
+       if namelist['NSTTP'] == 5: 
+          expeqdata = read_expeq('./EXPEQ')
           namelistParam['QSPEC']  = expeqdata['q'][0]
        else:
+         #expeqdata = eqdsk2expeq(eqdskfpath=EQDSKfname[0])
           namelistParam['QSPEC']  = eqdskdata['qpsi'][0]
-      #namelistParam['NCSCAL'] = 1
        namelistParam['NCSCAL'] = 4
        namelist = namelistcreate('chease_parameters.csv',0,namelistParam)
 
@@ -1478,8 +1563,8 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
             it=0
        else:
             it=int(OGYROPSIfname[-1][-6:-3])+1
-      #exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % it)
-       exit_status = os.system('./chease_hdf5 chease_namelist')
+       exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % it)
+      #exit_status = os.system('./chease_hdf5 chease_namelist')
        if abs(exit_status) > 0: sys.exit()
        if os.path.isfile('./chease_namelist'): os.system('mv ./chease_namelist ./chease_namelist_iter%03d' % it)
        if os.path.isfile('./ogyropsi.dat'): os.system('mv ./ogyropsi.dat ogyropsi_iter%03d.dat' % it)
@@ -1511,8 +1596,7 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
        namelistParam['B0EXP']    = cheasedata['B0EXP']
        namelistParam['CSSPEC']   = 0.0
        namelistParam['QSPEC']    = cheasedata['q'][0]
-       namelistParam['NCSCAL']   = 1
-      #namelistParam['NCSCAL']   = 4
+       namelistParam['NCSCAL']   = 4
     
        ITErr = (cheasedata['ITOR']-ITEXP)/ITEXP
        print 'Iter  = ', 0
@@ -1526,8 +1610,8 @@ def cheasepy(srcVals={},namelistVals={},pltVals={}):
            if (cheasemode == 1) and (it >= iterTotal+1): break
            namelist = namelistcreate('chease_parameters.csv',min(len(namelist['fname'])-1,it),namelistParam)
            os.system('cp chease_namelist chease_namelist_iter%3d' % (min(len(namelist['fname'])-1,it)))
-          #exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % it)
-           exit_status = os.system('./chease_hdf5 chease_namelist')
+           exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % it)
+          #exit_status = os.system('./chease_hdf5 chease_namelist')
            if abs(exit_status) > 0: sys.exit()
            if os.path.isfile('./ogyropsi.dat'): os.system('mv ./ogyropsi.dat ogyropsi_iter%03d.dat' % it)
            if os.path.isfile('./ogyropsi.h5'): os.system('mv ./ogyropsi.h5 ogyropsi_iter%03d.h5' % it)
