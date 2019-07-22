@@ -629,10 +629,8 @@ def magsurf_searching(eqdskfpath='',eqdskdata={},psi=1.0,eps=1.0e-6):
         psirho = interp1d(rho1D,psi1D,kind="cubic")
         rhopsi = bisection(psirho,rho1D[0],rho1D[-1],root=psi,eps=eps)
         if abs(psirho(rhopsi)-psi) <= eps:
-           print i
            rbound.append(RMAX+rhopsi*npy.cos(ang))
            zbound.append(ZMAX+rhopsi*npy.sin(ang))
-    print len(eqdskdata['rbound']),len(rbound)
 
     return npy.array(rbound),npy.array(zbound)
 

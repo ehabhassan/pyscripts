@@ -5,6 +5,7 @@ import os
 import sys
 import glob
 import math
+import cmath
 import numpy as npy
 
 import efittools
@@ -111,6 +112,8 @@ def read_parameters(paramfpath):
                               geneparam[pkey][skey] = float(items[1])
                          elif skey in ['adapt_lx','adapt_ly']:
                               geneparam[pkey][skey] = bool(items[1])
+                         elif skey in ['mu_grid_type']:
+                              geneparam[pkey][skey] = str(items[1])
                          else:
                               geneparam[pkey][skey] = int(items[1])
                       elif type(geneparam[pkey][skey]) == list:
@@ -118,6 +121,8 @@ def read_parameters(paramfpath):
                               geneparam[pkey][skey].append(float(items[1]))
                          elif skey in ['adapt_lx','adapt_ly']:
                               geneparam[pkey][skey].append(str2bool(items[1]))
+                         elif skey in ['mu_grid_type']:
+                              geneparam[pkey][skey].append(str(items[1]))
                          else:
                               geneparam[pkey][skey].append(int(items[1]))
                       else:
@@ -127,6 +132,9 @@ def read_parameters(paramfpath):
                          elif skey in ['adapt_lx','adapt_ly']:
                               if geneparam[pkey][skey] != str2bool(items[1]):
                                  geneparam[pkey][skey]  = [geneparam[pkey][skey],str2bool(items[1])]
+                         elif skey in ['mu_grid_type']:
+                              if geneparam[pkey][skey] != str(items[1]):
+                                 geneparam[pkey][skey] = [geneparam[pkey][skey],str(items[1])]
                          else:
                               if geneparam[pkey][skey] != int(items[1]):
                                  geneparam[pkey][skey]  = [geneparam[pkey][skey],int(items[1])]
@@ -380,19 +388,29 @@ def read_nrg(nrgfpath,nspecs=0,parameters={},normalized=True):
                      linedata = nrgfhand.readline().split()
                      specdata = [float(item) for item in linedata]
                      if not normalized:
-                        specname = 'species'+str(ispecs+1)
-                        specdata[0]*=(units['nref']*units[specname]['rhostar'])**2
-                        specdata[1]*=(units[specname]['vspec']*units[specname]['rhostar'])**2
-                        specdata[2]*=(units[specname]['Tspec']*units[specname]['rhostar'])**2
-                        specdata[3]*=(units[specname]['Tspec']*units[specname]['rhostar'])**2
-                        specdata[4]*=units[specname]['Ggb']
-                        specdata[5]*=units[specname]['Ggb']
-                        specdata[6]*=units[specname]['Qgb']
-                        specdata[7]*=units[specname]['Qgb']
-                        specdata[8]*=units[specname]['Pgb']
-                        specdata[9]*=units[specname]['Pgb']
+                        specdata[0]*=(units['nref']*units['rhostar'])**2
+                        specdata[1]*=(units['vref']*units['rhostar'])**2
+                        specdata[2]*=(units['Tref']*units['rhostar'])**2
+                        specdata[3]*=(units['Tref']*units['rhostar'])**2
+                        specdata[4]*=(units['Ggb'])
+                        specdata[5]*=(units['Ggb'])
+                        specdata[6]*=(units['Qgb'])
+                        specdata[7]*=(units['Qgb'])
+                        specdata[8]*=(units['Pgb'])
+                        specdata[9]*=(units['Pgb'])
 
-                     nrgdata[inrgfkey][ctime][specstype[ispecs]]=specdata
+                     nrgdata[inrgfkey][ctime][specstype[ispecs]] = {}
+
+                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['n']        = specdata[0]
+                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['upara']    = specdata[1]
+                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['Tpara']    = specdata[2]
+                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['Tperp']    = specdata[3]
+                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['PFluses']  = specdata[4]
+                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['PFluxem']  = specdata[5]
+                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['HFluxes']  = specdata[6]
+                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['HFluxem']  = specdata[7]
+                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['Visocses'] = specdata[8]
+                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['Viscosem'] = specdata[9]
               except ValueError:
                   break
         nrgfhand.close()
@@ -460,7 +478,7 @@ def read_omega(omegafpath):
     omegadata = {'kymin':npy.array(kymin),'gamma':npy.array(gamma),'omega':npy.array(omega)}
     return omegadata 
 
-def omega2hz(genefpath):
+def omega_to_hz(genefpath):
    #Developed by Ehab Hassan on 2019-05-16
     if   "omega" in genefpath.strip():
          omegaflist=[genefpath.strip()]
@@ -581,8 +599,17 @@ def read_mom(momfpath,specs='',timeslot=-1):
     return momdata
 
 
-def read_field(fieldfpath,timeslot=-1):
+def read_field(fieldfpath,timeslot=None,fieldfmt=None):
    #Developed by Ehab Hassan on 2019-03-13
+    '''
+    fieldfmt argument takes three choices:
+    fieldfmt = 'original' returns the fields as read from file
+    fieldfmt = 'central'  returns the fields at the central point
+    fieldfmt = 'overall'  returns the fields with fixed phase
+    '''
+
+    if fieldfmt not in ['central','overall']: fieldfmt = 'original'
+
     if   "field_" in fieldfpath.strip():
          fieldflist=[fieldfpath.strip()]
     else: 
@@ -601,14 +628,61 @@ def read_field(fieldfpath,timeslot=-1):
         par0.Read_Pars(ifieldf[:-10]+"parameters_"+ifieldf[-4:])
         pars = par0.pardict
         field = fieldfile(ifieldf,pars)
-        field.set_time(field.tfld[timeslot])
+
+        if timeslot == None: t_ind = -1
+        else: t_ind = np.argmin(abs(npy.array(field.tfld)-timeslot))
+        field.set_time(field.tfld[t_ind])
+
+        if 'x_local' in pars:
+           if pars['x_local']:
+              x_local = True
+           else:
+              x_local = False
+        else:
+           x_local = True
+
+        if fieldfmt=='original':
+           phi  = field.phi()
+           apar = field.apar()
+
+        elif fieldfmt in ['central','overall']:
+           if x_local:
+              if 'n0_global' in pars:
+                 n0_global = int(pars['n0_global'])
+                 q0        = float(pars['q0'])
+                 phase     = -npy.e**(-2.0*npy.pi*(0.0+1.0J)*n0_global*q0)
+              else:
+                 shat      = float(pars['shat'])
+                 kymin     = float(pars['kymin'])
+                 lx        = float(pars['lx'])
+                 phase     = -npy.e**(-npy.pi*(0.0+1.0J)*shat*kymin*lx)
+
+              if   fieldfmt=='central':
+                   nx   = 1
+                   nz   = field.nz
+                   phi  = npy.zeros(nz,dtype='complex128')
+                   apar = npy.zeros(nz,dtype='complex128')
+              elif fieldfmt=='overall':
+                   nx   = field.nx
+                   nz   = field.nz
+                   phi  = npy.zeros(nx*nz,dtype='complex128')
+                   apar = npy.zeros(nx*nz,dtype='complex128')
+
+              phi3d  = field.phi()
+              apar3d = field.apar()
+
+              shatsgn = int(npy.sign(float(pars['shat'])))
+              for i in range(-nx/2+1,nx/2+1):
+                  phi[(i+nx/2-1)*nz:(i+nx/2)*nz]=phi3d[:,0,i*shatsgn]*phase**i
+                  if int(field.nfields)>1  and float(pars['beta'])!=0:
+                     apar[(i+nx/2-1)*nz:(i+nx/2)*nz]=apar3d[:,0,i*shatsgn]*phase**i
 
         fielddata[ifieldf]['t']       = field.tfld
         fielddata[ifieldf]['nx']      = field.nx
         fielddata[ifieldf]['ny']      = field.ny
         fielddata[ifieldf]['nz']      = field.nz
-        fielddata[ifieldf]['phi']     = field.phi()
-        fielddata[ifieldf]['apar']    = field.apar()
+        fielddata[ifieldf]['phi']     = phi
+        fielddata[ifieldf]['apar']    = apar
         fielddata[ifieldf]['nfields'] = field.nfields
 
     return fielddata
@@ -767,7 +841,7 @@ def field_info(field,param={}):
 
     return field_info
 
-def find_mode_frequency(fieldfpath):
+def find_mode_frequency(fieldfpath,bgn_t=None,end_t=None):
    #Developed by Ehab Hassan on 2019-04-18
     if "field_" not in fieldfpath:
        if fieldfpath[-1]!="/": fieldfpath+="/"
@@ -778,7 +852,7 @@ def find_mode_frequency(fieldfpath):
     frequency = {}
     for ifieldf in fieldflist:
         if os.path.isfile(ifieldf):
-           field   = read_field(ifieldf)
+           field   = read_field(ifieldf,fieldfmt='overall')
            param   = read_parameters(ifieldf[:-10]+"parameters"+ifieldf[-5:])
            tlist   = field[ifieldf]['t']
            nx      = field[ifieldf]['nx']
@@ -786,35 +860,75 @@ def find_mode_frequency(fieldfpath):
            nz      = field[ifieldf]['nz']
            nfields = field[ifieldf]['nfields']
 
-           (iz,ix) = npy.unravel_index(np.argmax(abs(field[ifieldf]['phi'][:,0,:])),(nz,nx))
+           if bgn_t == None: bgn_t  = tlist[-1]*0.9
+           if end_t == None: end_t  = tlist[-1]
+           bgn_t_ind = npy.argmin(abs(npy.array(tlist)-bgn_t))
+           end_t_ind = npy.argmin(abs(npy.array(tlist)-end_t))
+           ntimes    = end_t_ind-bgn_t_ind
+
            if nfields>1:
-              time=npy.empty(0,dtype='complex128')
-              phi =npy.empty(0,dtype='complex128')
-              apar=npy.empty(0,dtype='complex128')
+              time  = npy.empty(0,dtype='complex128')
+              phi   = npy.empty(0,dtype='complex128')
+              apr   = npy.empty(0,dtype='complex128')
+              phi_t = []
+              apr_t = []
            else:
-              time=npy.empty(0,dtype='complex128')
-              phi =npy.empty(0,dtype='complex128')
+              time  = npy.empty(0,dtype='complex128')
+              phi   = npy.empty(0,dtype='complex128')
+              phi_t = []
 
-           for tind in range(npy.size(tlist)/2,npy.size(tlist)):
-               field = read_field(ifieldf,timeslot=tind)
-               (iz,ix) = npy.unravel_index(np.argmax(abs(field[ifieldf]['phi'][:,0,:])),(nz,nx))
-               time = npy.append(time,tlist[tind])
-               phi  = npy.append(phi,field[ifieldf]['phi'][iz,0,ix])
+           for tind in range(bgn_t_ind,end_t_ind):
+               field = read_field(ifieldf,timeslot=tlist[tind],fieldfmt='overall')
+               time  = npy.append(time,tlist[tind])
+
+               phi_t.append(field[ifieldf]['phi'])
                if nfields>1:
-                  (iz,ix) = np.unravel_index(np.argmax(abs(field[ifieldf]['apar'][:,0,:])),(nz,nx))
-                  apar = npy.append(apar,field[ifieldf]['apar'][iz,0,ix])
+                  apr_t.append(field[ifieldf]['apar'])
 
-           dt     = npy.diff(time)
-           time   = npy.delete(time,0)
-           omega1 = npy.log(phi/np.roll(phi,1))
-           omega1 = npy.delete(omega1,0)
-           omega1/= dt
-           omega2 = npy.log(apar/np.roll(apar,1))
-           omega2 = npy.delete(omega2,0)
-           omega2/= dt
-           gamma_avg = 0.5*(npy.average(npy.real(omega1))+npy.average(npy.real(omega2)))
-           omega_avg = 0.5*(npy.average(npy.imag(omega1))+npy.average(npy.imag(omega2)))
-           frequency["mode"+ifieldf[-5:]]={'ky':param['box']['kymin'],'omega':omega_avg,'gamma':gamma_avg}
+           phi_t = npy.array(phi_t)
+           apr_t = npy.array(apr_t)
+
+           comega_t   = []
+           weight_t   = []
+           comega_avg = npy.empty(0,dtype='complex128')
+
+           max_t_ind,max_z_ind = npy.shape(phi_t)
+
+           for tind in range(1,max_t_ind):
+               for zind in range(max_z_ind):
+                   comega_t.append(cmath.log((phi_t[tind,zind]/phi_t[tind-1,zind]))/(tlist[tind]-tlist[tind-1]))
+                   weight_t.append(abs(phi_t[tind,zind])+abs(phi_t[tind-1,zind]))
+               comega_diffs = npy.array([comega_t[i*max_z_ind:(i+1)*max_z_ind] for i in range(npy.size(comega_t)//max_z_ind)],dtype='complex128')
+               weight = npy.array([weight_t[i*max_z_ind:(i+1)*max_z_ind] for i in range(npy.size(weight_t)//max_z_ind)],dtype='float128')
+               comega_avg = npy.append(comega_avg,npy.sum(comega_diffs[:,tind]*weight[:,tind])/npy.sum(weight[:,tind]))
+               gamma = comega_avg[tind-1].real
+               omega = comega_avg[tind-1].imag
+               gamma_std = npy.sum(weight[:,tind-1]*(gamma-comega_diffs[:,tind-1].real)**2)/npy.sum(weight[:,tind-1])
+               omega_std = npy.sum(weight[:,tind-1]*(omega-comega_diffs[:,tind-1].imag)**2)/npy.sum(weight[:,tind-1])
+               print tlist[tind],gamma,omega,gamma_std,omega_std
+           
+          #My Traditional Method
+          #for tind in range(bgn_t_ind,end_t_ind):
+          #    field = read_field(ifieldf,timeslot=tind,fieldfmt='original')
+          #    time  = npy.append(time,tlist[tind])
+
+          #    (iphiz,iphix) = npy.unravel_index(np.argmax(abs(field[ifieldf]['phi'][:,0,:])),(nz,nx))
+          #    phi  = npy.append(phi,field[ifieldf]['phi'][iphiz,0,iphix])
+          #    if nfields>1:
+          #       (iaprz,iaprx) = np.unravel_index(np.argmax(abs(field[ifieldf]['apar'][:,0,:])),(nz,nx))
+          #       apr = npy.append(apr,field[ifieldf]['apar'][iaprz,0,iaprx])
+
+          #dt        = npy.diff(time)
+          #time      = npy.delete(time,0)
+          #phi_omega = npy.log(phi/np.roll(phi,1))
+          #phi_omega = npy.delete(phi_omega,0)
+          #phi_omega/= dt
+          #apr_omega = npy.log(apr/np.roll(apr,1))
+          #apr_omega = npy.delete(apr_omega,0)
+          #apr_omega/= dt
+          #gamma_avg = 0.5*(npy.average(npy.real(phi_omega))+npy.average(npy.real(apr_omega)))
+          #omega_avg = 0.5*(npy.average(npy.imag(phi_omega))+npy.average(npy.imag(apr_omega)))
+          #frequency["mode"+ifieldf[-5:]]={'ky':param['box']['kymin'],'omega':omega_avg,'gamma':gamma_avg,'phi_omega':phi_omega,'apr_omega':apr_omega}
 
     return frequency
 
@@ -1070,32 +1184,43 @@ def units_conversion(paramfpath='',parameters={}):
     if paramfpath!='' and not parameters:
          parameters = read_parameters(parafpath.strip())
 
-    units        = {}
+    units               = {}
 
-    units['nref']  = parameters['units']['nref']*1.0e19
-    units['Lref']  = parameters['units']['Lref']
-    units['Bref']  = parameters['units']['Bref']
-    units['Tref']  = parameters['units']['Tref']*1.0e3
-    units['mref']  = parameters['units']['mref']*1.6726e-27
+    units['nref']       = parameters['units']['nref']*1.0e19
+    units['Lref']       = parameters['units']['Lref']
+    units['Bref']       = parameters['units']['Bref']
+    units['Tref']       = parameters['units']['Tref']*1.60218e-19*1.0e3
+    units['mref']       = parameters['units']['mref']*1.6726e-27
 
-    nspecs = parameters['box']['n_spec']
-    for ispecs in range(nspecs):
-        specname                      = 'species'+str(ispecs+1)
-        units[specname]               = {}
-        units[specname]['qspec']      = abs(parameters[specname]['charge'])
-        units[specname]['nspec']      = units['nref']*parameters[specname]['dens']
-        units[specname]['Tspec']      = units['Tref']*parameters[specname]['temp']
-        units[specname]['mspec']      = units['mref']*parameters[specname]['mass']
-        units[specname]['pspec']      = units[specname]['nspec']*units[specname]['Tspec']
-        units[specname]['vspec']      = npy.sqrt(2*units['Tref']/units['mref'])
-       #units[specname]['vspec']      = npy.sqrt(2*units[specname]['Tspec']/units[specname]['mspec'])
-        units[specname]['cspec']      = npy.sqrt(units[specname]['Tspec']/units['mref'])
-        units[specname]['gyrofreq']   = units[specname]['qspec']*units['Bref']/units[specname]['mspec']
-        units[specname]['gyroradius'] = units[specname]['cspec']/units[specname]['gyrofreq']
-        units[specname]['rhostar']    = units[specname]['gyroradius']/units['Lref']
-        units[specname]['Ggb']        = units[specname]['cspec']*units[specname]['nspec']*units[specname]['rhostar']**2
-        units[specname]['Qgb']        = units[specname]['cspec']*units[specname]['pspec']*units[specname]['rhostar']**2
-        units[specname]['Pgb']        = units[specname]['nspec']*units[specname]['mspec']*(units[specname]['cspec']*units[specname]['rhostar'])**2
+    units['qref']       = 1.60218e-19
+    units['vref']       = npy.sqrt(1.0*units['Tref']/units['mref'])
+    units['cref']       = npy.sqrt(units['Tref']/units['mref'])
+    units['gyrofreq']   = units['qref']*units['Bref']/units['mref']
+    units['gyroradius'] = units['cref']/units['gyrofreq']
+    units['rhostar']    = units['gyroradius']/units['Lref']
+
+    units['pref']       = units['nref']*units['Tref']
+    units['Ggb']        = units['cref']*units['nref']*units['rhostar']**2
+    units['Qgb']        = units['cref']*units['pref']*units['rhostar']**2
+    units['Pgb']        = units['nref']*units['mref']*(units['cref']*units['rhostar'])**2
+
+   #nspecs = parameters['box']['n_spec']
+   #for ispecs in range(nspecs):
+   #    specname                      = 'species'+str(ispecs+1)
+   #    units[specname]               = {}
+   #    units[specname]['qspec']      = abs(parameters[specname]['charge'])*1.60218e-19
+   #    units[specname]['nspec']      = units['nref']*parameters[specname]['dens']
+   #    units[specname]['Tspec']      = units['Tref']*parameters[specname]['temp']
+   #    units[specname]['mspec']      = units['mref']*parameters[specname]['mass']
+   #    units[specname]['pspec']      = units[specname]['nspec']*units[specname]['Tspec']
+   #    units[specname]['vspec']      = npy.sqrt(2*units[specname]['Tspec']/units[specname]['mspec'])
+   #    units[specname]['cspec']      = npy.sqrt(units[specname]['Tspec']/units['mref'])
+   #    units[specname]['gyrofreq']   = units[specname]['qspec']*units['Bref']/units[specname]['mspec']
+   #    units[specname]['gyroradius'] = units[specname]['cspec']/units[specname]['gyrofreq']
+   #    units[specname]['rhostar']    = units[specname]['gyroradius']/units['Lref']
+   #    units[specname]['Ggb']        = units[specname]['cspec']*units[specname]['nspec']*units[specname]['rhostar']**2
+   #    units[specname]['Qgb']        = units[specname]['cspec']*units[specname]['pspec']*units[specname]['rhostar']**2
+   #    units[specname]['Pgb']        = units[specname]['nspec']*units[specname]['mspec']*(units[specname]['cspec']*units[specname]['rhostar'])**2
     return units
 
 

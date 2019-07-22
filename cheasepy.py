@@ -283,10 +283,13 @@ def CubicSplineIntegral(x,fxy,intaxis=0):
     return fy
 
 def read_cheaseh5(h5fpath):
-    import h5py
     from scipy.interpolate import CubicSpline,RectBivariateSpline
+    import h5py
 
     mu0 = 4.0e-7*np.pi
+
+    extendCHI  = False
+    reverseCHI = False
 
     CHEASEdata                = {}
 
@@ -295,8 +298,8 @@ def read_cheaseh5(h5fpath):
        sys.exit()
 
     hdffh = h5py.File(h5fpath,'r')
-    datag = hdffh[hdffh.keys()[0]]
-
+    hdffhKeys = list(hdffh.keys())[0]
+    datag = hdffh[hdffhKeys]
 
     CHEASEdata['NPSI']        = datag.attrs["NPSI"]
     CHEASEdata['NCHI']        = datag.attrs["NCHI"]
@@ -309,10 +312,14 @@ def read_cheaseh5(h5fpath):
     CHEASEdata['PSI']         = np.array(datag["grid"]["PSI"])
     CHEASEdata['rhopsi']      = np.sqrt(CHEASEdata['PSI']/CHEASEdata['PSI'][-1])
     CHEASEdata['rhotor']      = np.array(datag["var1d"]["rho_tor"])
-    CHEASEdata['drhodpsi']    = CubicSplineDerivative1D(x=CHEASEdata['PSI'],fx=CHEASEdata['rhopsi'])
 
     CHEASEdata['CHI']         = np.array(datag["grid"]["CHI"])
-    CHEASEdata['CHI']         = np.append(CHEASEdata['CHI'],2.0*np.pi)
+    if CHEASEdata['CHI'][0]>CHEASEdata['CHI'][1]:
+       CHEASEdata['CHI']      = CHEASEdata["CHI"][::-1]
+       reverseCHI             = True
+    if min(abs(CHEASEdata['CHI']-2.0*np.pi))>=min(np.diff(CHEASEdata['CHI'])):
+       CHEASEdata['CHI']      = np.append(CHEASEdata['CHI'],2.0*np.pi)
+       extendCHI              = True
 
     CHEASEdata['PSIN']        = (CHEASEdata['PSI']-CHEASEdata['PSI'][0])/(CHEASEdata['PSI'][-1]-CHEASEdata['PSI'][0])
     CHEASEdata['CHIN']        = (CHEASEdata['CHI']-CHEASEdata['CHI'][0])/(CHEASEdata['CHI'][-1]-CHEASEdata['CHI'][0])
@@ -383,19 +390,20 @@ def read_cheaseh5(h5fpath):
     CHEASEdata['dChidR']      = np.array(datag["var2d"]["dChidR"])
     CHEASEdata['dPsidR']      = np.array(datag["var2d"]["dPsidR"])
 
-    CHEASEdata['R']           = np.vstack((CHEASEdata['R'],CHEASEdata['R'][0,:]))
-    CHEASEdata['Z']           = np.vstack((CHEASEdata['Z'],CHEASEdata['Z'][0,:]))
-    CHEASEdata['B']           = np.vstack((CHEASEdata['B'],CHEASEdata['B'][0,:]))
-    CHEASEdata['J']           = np.vstack((CHEASEdata['J'],CHEASEdata['J'][0,:]))
-    CHEASEdata['g11']         = np.vstack((CHEASEdata['g11'],CHEASEdata['g11'][0,:]))
-    CHEASEdata['g22']         = np.vstack((CHEASEdata['g22'],CHEASEdata['g22'][0,:]))
-    CHEASEdata['g33']         = np.vstack((CHEASEdata['g33'],CHEASEdata['g33'][0,:]))
-    CHEASEdata['dBdpsi']      = np.vstack((CHEASEdata['dBdpsi'],CHEASEdata['dBdpsi'][0,:]))
-    CHEASEdata['dBdchi']      = np.vstack((CHEASEdata['dBdchi'],CHEASEdata['dBdchi'][0,:]))
-    CHEASEdata['dChidZ']      = np.vstack((CHEASEdata['dChidZ'],CHEASEdata['dChidZ'][0,:]))
-    CHEASEdata['dPsidZ']      = np.vstack((CHEASEdata['dPsidZ'],CHEASEdata['dPsidZ'][0,:]))
-    CHEASEdata['dChidR']      = np.vstack((CHEASEdata['dChidR'],CHEASEdata['dChidR'][0,:]))
-    CHEASEdata['dPsidR']      = np.vstack((CHEASEdata['dPsidR'],CHEASEdata['dPsidR'][0,:]))
+    if extendCHI:
+       CHEASEdata['R']        = np.vstack((CHEASEdata['R'],CHEASEdata['R'][0,:]))
+       CHEASEdata['Z']        = np.vstack((CHEASEdata['Z'],CHEASEdata['Z'][0,:]))
+       CHEASEdata['B']        = np.vstack((CHEASEdata['B'],CHEASEdata['B'][0,:]))
+       CHEASEdata['J']        = np.vstack((CHEASEdata['J'],CHEASEdata['J'][0,:]))
+       CHEASEdata['g11']      = np.vstack((CHEASEdata['g11'],CHEASEdata['g11'][0,:]))
+       CHEASEdata['g22']      = np.vstack((CHEASEdata['g22'],CHEASEdata['g22'][0,:]))
+       CHEASEdata['g33']      = np.vstack((CHEASEdata['g33'],CHEASEdata['g33'][0,:]))
+       CHEASEdata['dBdpsi']   = np.vstack((CHEASEdata['dBdpsi'],CHEASEdata['dBdpsi'][0,:]))
+       CHEASEdata['dBdchi']   = np.vstack((CHEASEdata['dBdchi'],CHEASEdata['dBdchi'][0,:]))
+       CHEASEdata['dChidZ']   = np.vstack((CHEASEdata['dChidZ'],CHEASEdata['dChidZ'][0,:]))
+       CHEASEdata['dPsidZ']   = np.vstack((CHEASEdata['dPsidZ'],CHEASEdata['dPsidZ'][0,:]))
+       CHEASEdata['dChidR']   = np.vstack((CHEASEdata['dChidR'],CHEASEdata['dChidR'][0,:]))
+       CHEASEdata['dPsidR']   = np.vstack((CHEASEdata['dPsidR'],CHEASEdata['dPsidR'][0,:]))
 
    #THE DIMENSION OF ALL THE FOLLOWING QUNATITIES ARE (NRBOX,NZBOX)
     CHEASEdata['psiRZ']       = np.array(datag["var2d"]["psiRZ"])
@@ -405,22 +413,23 @@ def read_cheaseh5(h5fpath):
     CHEASEdata['ZN']          = CHEASEdata['Z']/CHEASEdata['R0EXP']
     CHEASEdata['BN']          = CHEASEdata['B']/CHEASEdata['B0EXP']
 
-    CHEASEdata['C0']          = CubicSplineIntegral(x=CHEASEdata['CHI'],fxy=CHEASEdata['J']/CHEASEdata['R'],                     intaxis=0)
-    CHEASEdata['C1']          = CubicSplineIntegral(x=CHEASEdata['CHI'],fxy=CHEASEdata['J'],                                     intaxis=0)
-    CHEASEdata['C2']          = CubicSplineIntegral(x=CHEASEdata['CHI'],fxy=CHEASEdata['J']/CHEASEdata['R']**2,                  intaxis=0)
-    CHEASEdata['C3']          = CubicSplineIntegral(x=CHEASEdata['CHI'],fxy=CHEASEdata['J']*CHEASEdata['g11']*CHEASEdata['g33'], intaxis=0)
+    CHEASEdata['C0']          = np.trapz(y=CHEASEdata['J']/CHEASEdata['R'],                    x=CHEASEdata['CHI'],axis=0)
+    CHEASEdata['C1']          = np.trapz(y=CHEASEdata['J'],                                    x=CHEASEdata['CHI'],axis=0)
+    CHEASEdata['C2']          = np.trapz(y=CHEASEdata['J']/CHEASEdata['R']**2,                 x=CHEASEdata['CHI'],axis=0)
+    CHEASEdata['C3']          = np.trapz(y=CHEASEdata['J']*CHEASEdata['g11']*CHEASEdata['g33'],x=CHEASEdata['CHI'],axis=0)
 
     CHEASEdata['y1']          = 1.0+CHEASEdata['C3']/CHEASEdata['C2']/CHEASEdata['T']**2/4.0/np.pi**2
 
     CHEASEdata['PN']          = mu0*CHEASEdata['P']/CHEASEdata['B0EXP']**2
 
-    CHEASEdata['<B2>']        = CubicSplineIntegral(x=CHEASEdata['CHI'],fxy=CHEASEdata['J']*CHEASEdata['B']**2,intaxis=0)/CHEASEdata['C1']
+    CHEASEdata['<B2>']        = np.trapz(y=CHEASEdata['J']*CHEASEdata['B']**2,x=CHEASEdata['CHI'],axis=0)/CHEASEdata['C1']
     CHEASEdata['<JdotB>']     =-CHEASEdata['T']*CHEASEdata['PPrime']-CHEASEdata['TPrime']*CHEASEdata['<B2>']/mu0
     CHEASEdata['JPRL']        = CHEASEdata['<JdotB>']/CHEASEdata['B0EXP']
     CHEASEdata['JPRLN']       = CHEASEdata['JPRL']*mu0*CHEASEdata['R0EXP']/CHEASEdata['B0EXP']
 
-    CHEASEdata['<T/R2>']      = CubicSplineIntegral(x=CHEASEdata['CHI'],fxy=CHEASEdata['J']*CHEASEdata['T']*CHEASEdata['g33'],intaxis=0)/CHEASEdata['C1']
-    CHEASEdata['IPRL']        = CHEASEdata['R0EXP']*CHEASEdata['<JdotB>']/CHEASEdata['<T/R2>']
+    CHEASEdata['<T/R2>']      = np.trapz(y=CHEASEdata['J']*CHEASEdata['T']*CHEASEdata['g33'],x=CHEASEdata['CHI'],axis=0)/CHEASEdata['C1']
+    CHEASEdata['IPRL']        = CHEASEdata['JPRL']*CHEASEdata['R0EXP']**2/CHEASEdata['<T/R2>']
+   #CHEASEdata['IPRL']        = CHEASEdata['R0EXP']*CHEASEdata['<JdotB>']/CHEASEdata['<T/R2>']
     CHEASEdata['IPRLN']       = CHEASEdata['IPRL']*mu0/CHEASEdata['R0EXP']/CHEASEdata['B0EXP']
 
     CHEASEdata['ISTR']        =-((CHEASEdata['C2']/CHEASEdata['C0'])*(CHEASEdata['TTPrime']/mu0))
@@ -431,13 +440,10 @@ def read_cheaseh5(h5fpath):
     CHEASEdata['JPHI']        =-(CHEASEdata['R']*CHEASEdata['PPrime'])-(CHEASEdata['TTPrime']/(mu0*CHEASEdata['R']))
     CHEASEdata['JPHIN']       = CHEASEdata['JPHI']*mu0*CHEASEdata['R0EXP']/CHEASEdata['B0EXP']
 
-    PSImin                    = CHEASEdata['PSI'][0]
-    PSImax                    = CHEASEdata['PSI'][-1]
-    CHImin                    = CHEASEdata['CHI'][0]
-    CHImax                    = CHEASEdata['CHI'][-1]
     fchipsi                   = CHEASEdata['JPHI']*CHEASEdata['J']/CHEASEdata['R']
-    CHEASEdata['ITOR']        = RectBivariateSpline(CHEASEdata['CHI'],CHEASEdata['PSI'],fchipsi).integral(CHImin,CHImax,PSImin,PSImax)
-   #CHEASEdata['ITOR']        = abs(RectBivariateSpline(CHEASEdata['CHI'],CHEASEdata['PSI'],fchipsi).integral(CHImin,CHImax,PSImin,PSImax))
+    CHEASEdata['JTOR']        = np.trapz(y=fchipsi,x=CHEASEdata['CHI'],axis=0)
+    CHEASEdata['JTORN']       = CHEASEdata['JTOR']*mu0*CHEASEdata['R0EXP']/CHEASEdata['B0EXP']
+    CHEASEdata['ITOR']        = np.trapz(y=CHEASEdata['JTOR'],x=CHEASEdata['PSI'],axis=0)
     CHEASEdata['ITORN']       = CHEASEdata['ITOR']*mu0/CHEASEdata['R0EXP']/CHEASEdata['B0EXP']
 
 
@@ -606,8 +612,8 @@ def write_expeq(h5fpath="",expeqfpath="",exptnzfpath="",setParam={}):
 
     if expeq['nsttp'][0] == 1 or expeq['nsttp'][0] == 'ttprime':
          if expeq['nrhotype'][0] == 1 or expeq['nrhotype'] == 'rhotor':
-            print 'Runtime FATAL Error: nrhotype (must) = 0 or rhopsi'
-            print 'CheasePy stopped running!'
+            print('Runtime FATAL Error: nrhotype (must) = 0 or rhopsi')
+            print('CheasePy stopped running!')
             sys.exit()
          if setParam['cheasemode'] in [2,3]:
             ITErr = (CHEASEdata['ITOR']-setParam['ITEXP'])/setParam['ITEXP']
@@ -863,7 +869,7 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
 
            PSINfig = plt.figure("PSIN")
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['rhopsiN'],label=caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title('$\psi vs \\rho(\psi)$ ')
            plt.xlabel('$\psi$')
            plt.ylabel('$\\rho(\psi)$')
@@ -871,7 +877,7 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
        
            EDENfig = plt.figure("Electron Density")
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['ne'],label=caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title('Electron Density Profiles')
            plt.xlabel('$\psi$')
            plt.ylabel('$n_e$')
@@ -881,7 +887,7 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
 
            GDNEfig = plt.figure("Electron Density Gradient")
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['nePrime'],label=caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title('Electron Density Gradient Profiles')
            plt.xlabel('$\psi$')
            plt.ylabel('$\\nabla{n_e}$')
@@ -889,7 +895,7 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
        
            ETMPfig = plt.figure("Electron Temperature")
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['Te'],label=caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title('Electron Temperature Profiles')
            plt.xlabel('$\psi$')
            plt.ylabel('$T_e$')
@@ -899,7 +905,7 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
 
            GDTEfig = plt.figure("Electron Temperature Gradient")
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['TePrime'],label=caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title('Electron Temperature Gradient Profiles')
            plt.xlabel('$\psi$')
            plt.ylabel('$\\nabla{T_e}$')
@@ -907,7 +913,7 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
        
            SFTYfig = plt.figure("Safety Factor (q)")
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['q'],label=caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title("Safety Factor Profiles")
            plt.xlabel('$\psi$')
            plt.ylabel("q")
@@ -917,7 +923,7 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['PN'],label=caselabel)
           #if 'pN' in EXPEQdataKeys:
           #   plt.plot(EXPEQdata['rhopsiN']**2,EXPEQdata['pN'],'--',label=caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title('Plasma Pressure Profiles')
            plt.xlabel('$\psi$')
            plt.ylabel('$P(\psi)$')
@@ -925,7 +931,7 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
        
            PPRMfig = plt.figure("P'")
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['PPrimeN'],label=caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title("P' Profiles")
            plt.xlabel('$\psi$')
            plt.ylabel("P'")
@@ -935,7 +941,7 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['TTPrimeN'],label=caselabel)
           #if 'ttprimeN' in EXPEQdataKeys:
           #   plt.plot(EXPEQdata['rhopsiN']**2,EXPEQdata['ttprimeN'],'--',label=caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title("TT' Profiles")
            plt.xlabel('$\psi$')
            plt.ylabel("TT'")
@@ -945,7 +951,7 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['ISTRN'],label=caselabel)
           #if 'istrN' in EXPEQdataKeys:
           #   plt.plot(EXPEQdata['rhopsiN']**2,EXPEQdata['istrN'],'--',label=caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title("I* Profiles")
            plt.xlabel('$\psi$')
            plt.ylabel("I*")
@@ -953,7 +959,7 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
        
            ICRTfig = plt.figure("Parallel Current")
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['IPRLN'],label=caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title('Parallel Current Profiles')
            plt.xlabel('$\psi$')
            plt.ylabel('$I_{||}$')
@@ -961,7 +967,7 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
        
            JCRTfig = plt.figure("Parallel Current Density")
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['JPRLN'],label=caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title('Parallel Current Density Profiles')
            plt.xlabel('$\psi$')
            plt.ylabel('$J_{||}$')
@@ -969,7 +975,7 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
        
            SCRTfig = plt.figure("Bootstrap Currents")
            plt.plot(CHEASEdata['PSIN'],CHEASEdata['JBSN'],label='$J_{BS}$-'+caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title('Bootstrap Current Density Profiles')
            plt.xlabel('$\psi$')
            plt.ylabel('$J_{BS}$')
@@ -978,21 +984,21 @@ def plot_cheasedata(OSPATH,reportpath='',skipfigs=1):
            (CHEASEdata['PSIN2D'],CHEASEdata['CHIN2D']) = np.meshgrid(CHEASEdata['PSIN'],CHEASEdata['CHIN'])
            BF2Dfig = plt.figure("Magnetic Field, B($\psi$,$\chi$)")
            plt.contour(CHEASEdata['CHIN2D'],CHEASEdata['PSIN2D'],CHEASEdata['BN'],label=caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title('Magnetic Field Profiles')
            plt.xlabel('$\chi$')
            plt.ylabel('$\psi$')
        
            JPHIfig = plt.figure("Toroidal Current")
            plt.contour(CHEASEdata['CHIN2D'],CHEASEdata['PSIN2D'],CHEASEdata['JPHIN'],cmap=plt.cm.hot)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title('Toroidal Current Profiles')
            plt.xlabel('$\psi$')
            plt.ylabel('$J_{\phi}$')
        
            BFRZfig = plt.figure("Magnetic Field, B(R,Z}")
            plt.contour(CHEASEdata['RN'],CHEASEdata['ZN'],CHEASEdata['BN'],label=caselabel)
-           plt.suptitle(shotnam[0][2:-6])
+#          plt.suptitle(shotnam[0][2:-6])
            plt.title('Magnetic Field Profiles, B(R,Z}')
            plt.xlabel('$R$')
            plt.ylabel('$Z$')
@@ -1294,7 +1300,7 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={}):
                  selection = cheaseVals['runmode']
                  print('Selected Option: %d' %selection)
               else:
-                 selection = input('Selected Option: ')
+                 selection = int(input('Selected Option: '))
               if    selection in [1,2,3,4]:
                     if    selection == 3:
                        if glob('./NGA'):                   os.system('rm NGA')
@@ -1342,13 +1348,25 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={}):
     else:                              iprofiles_src = 0  
 
     if selection == 1:
+       if glob('./EXPEQ'):  EXPEQexist  = True
+       else:                EXPEQexist  = False
+
+       if glob('./EXPTNZ'): EXPTNZexist = True
+       else:                EXPTNZexist = False
+
        if 'removeinputs' in cheaseVals:
           if type(cheaseVals['removeinputs'])==str:
              removeinputs = cheaseVals['removeinputs'].lower()
           else:
              removeinputs = cheaseVals['removeinputs']
        else:
-          removeinputs = raw_input(CRED+'Do you want to remove the avaiable shot EXPEQ and EXPTNZ? (yes/no)? '+CEND).lower()
+          if EXPEQexist and EXPTNZexist:
+             try:
+                removeinputs = str(input(CRED+'Do you want to remove the avaiable shot EXPEQ and EXPTNZ? (yes/no)? '+CEND)).lower()
+             except NameError:
+                removeinputs = raw_input(CRED+'Do you want to remove the avaiable shot EXPEQ and EXPTNZ? (yes/no)? '+CEND).lower()
+          else:
+             removeinputs = True
  
        while True:
              print(CYLW+'Select CHEASE running mode:'+CEND)
@@ -1360,7 +1378,7 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={}):
                    cheasemode = cheaseVals['cheasemode']
                    print('Selected Option: %d' %cheasemode)
                 else:
-                   cheasemode = input('Selected Option: ')
+                   cheasemode = int(input('Selected Option: '))
                 if    cheasemode in [1,2,3]: break
                 else: raise(NameError)
              except NameError:
@@ -1368,16 +1386,20 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={}):
                 continue
     
        namelistParam           = {}
-       print(CRED+'List of files from previous run(s):'+CEND)
-       os.system('ls')
        if 'removeoutputs' in cheaseVals:
           if type(cheaseVals['removeoutputs'])==str:
              removeoutputs = cheaseVals['removeoutputs'].lower()
           else:
              removeoutputs = cheaseVals['removeoutputs']
           print(CBLU+'Remove output (h5, pdf, dat, OUT) files of previous runs (yes/no)? '+str(removeoutputs)+CEND)
+       elif removeinputs in ['yes','y',1,True]:
+          removeoutputs = True
        else:
-          removeoutputs = raw_input(CBLU+'Remove output (h5, pdf, dat, OUT) files of previous runs (yes/no)? '+CEND).lower()
+          try:
+             removeoutputs = str(input(CBLU+'Remove output (h5, pdf, dat, OUT) files of previous runs (yes/no)? '+CEND)).lower()
+          except NameError:
+             removeoutputs = raw_input(CBLU+'Remove output (h5, pdf, dat, OUT) files of previous runs (yes/no)? '+CEND).lower()
+
        if removeoutputs in ['yes','y',1,True]:
           if glob('./NGA'):                   os.system('rm NGA')
           if glob('./NDES'):                  os.system('rm NDES')
@@ -1404,7 +1426,7 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={}):
                       shotrec = cheaseVals['shotrec']
                       print('Select Shot Number: %d' %shotrec)
                    else:
-                      shotrec = input('Select Shot Number: ')
+                      shotrec = int(input('Select Shot Number: '))
                    if shotrec-1 in range(len(shotlist)):
                       print(CGRN+'Chease runs the %s shot.' % shotlist[shotrec-1][8:]+CEND)
                       break
@@ -1436,19 +1458,7 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={}):
              else:
                   raise IOError('Profiles (EXPTNZ or Profiles) files NOT FOUND in the given path!')
           os.system('ls')
-          if 'runchease' in cheaseVals:
-             if type(cheaseVals['runchease'])==str:
-                runchease = cheaseVals['runchease'].lower()
-             else:
-                runchease = cheaseVals['runchease']
-             print(CBLU+'Do you want to continue? (yes/no)? '+str(runchease)+CEND)
-          else:
-             runchease = raw_input(CBLU+'Do you want to continue? (yes/no)? '+CEND).lower()
-          if runchease not in ['yes','y',1,True]: sys.exit()
-      #elif raw_input(CRED+'Do you want to remove the avaiable shot EXPEQ and EXPTNZ? (yes/no)? '+CEND).lower() in ['yes','y']:
        elif removeinputs in ['yes','y',1,True]:
-          if 'removeinputs' in cheaseVals:
-             print(CRED+'Do you want to remove the avaiable shot EXPEQ and EXPTNZ? (yes/no)? '+str(removeinputs)+CEND)
           if glob('./*_EQDSK'):               os.system('rm *_EQDSK')
           if glob('./*_EXPTNZ'):              os.system('rm *_EXPTNZ')
           if glob('./*_Profiles'):            os.system('rm *_Profiles')
@@ -1463,7 +1473,7 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={}):
                       shotrec = cheaseVals['shotrec']
                       print('Select Shot Number: %d' %shotrec)
                    else:
-                      shotrec = input('Select Shot Number: ')
+                      shotrec = int(input('Select Shot Number: '))
                    if shotrec-1 in range(len(shotlist)):
                       print(CGRN+'Chease runs the %s shot.' % shotlist[shotrec-1][8:]+CEND)
                       break
@@ -1495,25 +1505,29 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={}):
              else:
                  raise IOError('Profiles (EXPTNZ or Profiles) files NOT FOUND in the given path!')
           os.system('ls')
-          if 'runchease' in cheaseVals:
-             if type(cheaseVals['runchease'])==str:
-                runchease = cheaseVals['runchease'].lower()
-             else:
-                runchease = cheaseVals['runchease']
-             print(CBLU+'Do you want to continue? (yes/no)? '+str(runchease)+CEND)
-          else:
-             runchease = raw_input(CBLU+'Do you want to continue? (yes/no)? '+CEND).lower()
-          if runchease not in ['yes','y',1,True]: sys.exit()
        else:
           namelist = namelistcreate('chease_parameters.csv',0,namelistParam)
+
+       if 'runchease' in cheaseVals:
+          if type(cheaseVals['runchease'])==str:
+             runchease = cheaseVals['runchease'].lower()
+          else:
+             runchease = cheaseVals['runchease']
+          print(CBLU+'Do you want to continue? (yes/no)? '+str(runchease)+CEND)
+       else:
+          if   sys.version_info[0] > 3:
+             runchease = str(input(CBLU+'Do you want to continue? (yes/no)? '+CEND)).lower()
+          elif sys.version_info[0] < 3:
+             runchease = raw_input(CBLU+'Do you want to continue? (yes/no)? '+CEND).lower()
+       if runchease not in ['yes','y',1,True]: sys.exit()
 
        EQDSKfname = glob('./*_EQDSK')
        if   int(namelist['NEQDSK'][0]) == 1:
             print('Reading from EQDSK file.')
             os.system('cp *_EQDSK  EXPEQ')
             eqdskdata=efittools.read_eqdsk(EQDSKfname[0])
-            namelistParam['R0EXP'] = eqdskdata['RCTR']
-            namelistParam['B0EXP'] = eqdskdata['BCTR']
+            namelistParam['R0EXP'] = abs(eqdskdata['RCTR'])
+            namelistParam['B0EXP'] = abs(eqdskdata['BCTR'])
        elif int(namelist['NEQDSK'][0]) == 0:
             print('Reading from EXPEQ file.')
             if len(glob('./EXPEQ'))==0:
@@ -1563,8 +1577,8 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={}):
             it=0
        else:
             it=int(OGYROPSIfname[-1][-6:-3])+1
-       exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % it)
-      #exit_status = os.system('./chease_hdf5 chease_namelist')
+      #exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % it)
+       exit_status = os.system('./chease_hdf5 chease_namelist')
        if abs(exit_status) > 0: sys.exit()
        if os.path.isfile('./chease_namelist'): os.system('mv ./chease_namelist ./chease_namelist_iter%03d' % it)
        if os.path.isfile('./ogyropsi.dat'): os.system('mv ./ogyropsi.dat ogyropsi_iter%03d.dat' % it)
@@ -1578,7 +1592,10 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={}):
        #expeqParam['nppfun']    = [NPPFUN_Namelist,  Data_Source]
        #expeqParam['nrhomesh']  = [NRHOMESH_Namelist,Data_Source]
        #Data_Source = 0 (ogyropsi_iterxxx.h5), 1 (EXPEQ_iterxxx.OUT), 2 (EXPTNZ_iterxxx.OUT)
-       expeqParam['nsttp']      = [int(namelist['NSTTP'][0]),current_src]
+       if 'NPROPT' in namelist:
+          expeqParam['nsttp']   = [int(namelist['NPROPT'][0]),current_src]
+       else:
+          expeqParam['nsttp']   = [int(namelist['NSTTP'][0]),current_src]
        expeqParam['nppfun']     = [int(namelist['NPPFUN'][0]),pressure_src]
        expeqParam['nrhotype']   = [int(namelist['NRHOMESH'][0]),rhopsi_src]
        expeqParam['profiles']   = [eprofiles_src,iprofiles_src]
@@ -1599,19 +1616,18 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={}):
        namelistParam['NCSCAL']   = 4
     
        ITErr = (cheasedata['ITOR']-ITEXP)/ITEXP
-       print 'Iter  = ', 0
-       print 'ITOR  = ', cheasedata['ITOR']
-       print 'ITEXP = ', ITEXP
-       print 'ITErr = ', abs(ITErr)
+       print('Iter  = ', 0)
+       print('ITOR  = ', cheasedata['ITOR'])
+       print('ITEXP = ', ITEXP)
+       print('ITErr = ', abs(ITErr))
     
        it+=1
-       ITErr = (cheasedata['ITOR']-ITEXP)/ITEXP
        while (abs(ITErr) > 1.0e-6):
            if (cheasemode == 1) and (it >= iterTotal+1): break
            namelist = namelistcreate('chease_parameters.csv',min(len(namelist['fname'])-1,it),namelistParam)
            os.system('cp chease_namelist chease_namelist_iter%3d' % (min(len(namelist['fname'])-1,it)))
-           exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % it)
-          #exit_status = os.system('./chease_hdf5 chease_namelist')
+          #exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % it)
+           exit_status = os.system('./chease_hdf5 chease_namelist')
            if abs(exit_status) > 0: sys.exit()
            if os.path.isfile('./ogyropsi.dat'): os.system('mv ./ogyropsi.dat ogyropsi_iter%03d.dat' % it)
            if os.path.isfile('./ogyropsi.h5'): os.system('mv ./ogyropsi.h5 ogyropsi_iter%03d.h5' % it)
@@ -1629,10 +1645,10 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={}):
            exptnzflag               = write_exptnz('ogyropsi_iter%03d.h5' % it,'EXPTNZ_iter%03d.OUT' % it,setParam=exptnzParam)
     
            ITErr = (cheasedata['ITOR']-ITEXP)/ITEXP
-           print 'Iter  = ', it
-           print 'ITOR = ', cheasedata['ITOR']
-           print 'ITEXP = ', ITEXP
-           print 'ITErr = ', abs(ITErr)
+           print('Iter  = ', it)
+           print('ITOR = ', cheasedata['ITOR'])
+           print('ITEXP = ', ITEXP)
+           print('ITErr = ', abs(ITErr))
     
            it+=1
     
