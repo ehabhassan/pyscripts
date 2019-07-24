@@ -37,6 +37,216 @@ def findall(inlist,item):
 def str2bool(vin):
     return (vin.strip()).lower() in ('t','.t.','true','.true.')
 
+
+def plot_nrg(nrgdata,reportpath='',mergeplots=False):
+   #Developed by Ehab Hassan on 2019-07-22
+    inrgf=nrgdata.keys()[0]
+    if    inrgf[-3:] == 'dat': inrgfpath = inrgf[:-7]
+    else:                      inrgfpath = inrgf[:-8]
+    if 'report' not in reportpath:
+       if not os.path.isdir(inrgfpath+"report"):
+          os.system('mkdir '+inrgfpath+"report")
+          reportpath = inrgfpath+"report/"
+       else:
+          reportpath = inrgfpath+"report/"
+    elif reportpath[-1] != "/":
+       reportpath += "/"
+
+    time      = nrgdata[inrgf]['time']
+    specstype = nrgdata[inrgf].keys()
+    specstype.remove('time')
+
+    for inrgf in nrgdata:
+        if 'dat' in inrgf:
+           isimfpath = inrgf[:-7]
+           inrgfpath = inrgf[-7:]
+           inrgfext  = inrgf[-4:]
+        else:
+           isimfpath = inrgf[:-8]
+           inrgfpath = inrgf[-8:]
+           inrgfext  = inrgf[-5:]
+
+        parameters = genetools.read_parameters("%sparameters%s" %(isimfpath,inrgfext))
+        if 'n0_global' in parameters['box']:
+           titletxt = '(k_y=%6.3f,n_0=%5d)' % (parameters['box']['kymin'],parameters['box']['n0_global'])
+        else:
+           titletxt = '(k_y=%6.3f)' % (parameters['box']['kymin'])
+
+        time = nrgdata[inrgf]['time']
+        for ispecs in specstype:
+            nfig   = plt.figure('n-'+inrgfpath)
+            axhand = nfig.add_subplot(1,1,1)
+            axhand.plot(time,nrgdata[inrgf][ispecs]['n'],label=ispecs)
+            axhand.set_title('n%s' %(titletxt))
+            axhand.set_xlabel('Time')
+            axhand.set_ylabel('Density')
+            axhand.legend()
+
+            uparafig = plt.figure('upara-'+inrgfpath)
+            axhand = uparafig.add_subplot(1,1,1)
+            axhand.plot(time,nrgdata[inrgf][ispecs]['upara'],label=ispecs)
+            axhand.set_title('$U_{||}%s$' %(titletxt))
+            axhand.set_xlabel('Time')
+            axhand.set_ylabel('Parallel Velocity')
+            axhand.legend()
+
+            if mergeplots:
+               Tfig = plt.figure('T-'+inrgfpath)
+               axhand = Tfig.add_subplot(1,1,1)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['Tpara'],linestyle='-', label='$T_{\\parallel,%s}$' % ispecs)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['Tperp'],linestyle='--',label='$T_{\\perp,%s}$' % ispecs)
+               axhand.set_title('$T_{\\parallel,\\perp}%s$' %(titletxt))
+               axhand.set_xlabel('Time')
+               axhand.set_ylabel('Temperature')
+               axhand.set_yscale('log')
+               axhand.legend()
+            else:
+               Tparafig = plt.figure('Tpara-'+inrgfpath)
+               axhand = Tparafig.add_subplot(1,1,1)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['Tpara'],label=ispecs)
+               axhand.set_title('$T_{\\parallel}%s$' %(titletxt))
+               axhand.set_xlabel('Time')
+               axhand.set_ylabel('Parallel Temperature')
+               axhand.legend()
+
+               Tperpfig = plt.figure('Tperp-'+inrgfpath)
+               axhand = Tperpfig.add_subplot(1,1,1)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['Tperp'],label=ispecs)
+               axhand.set_title('$T_{\\perp}%s$' %(titletxt))
+               axhand.set_xlabel('Time')
+               axhand.set_ylabel('Transverse Temperature')
+               axhand.legend()
+
+            if mergeplots:
+               PFluxfig = plt.figure('PFlux-'+inrgfpath)
+               axhand = PFluxfig.add_subplot(1,1,1)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['PFluxes'],linestyle='-', label='$\\Gamma_{es,%s}$' % ispecs)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['PFluxem'],linestyle='--',label='$\\Gamma_{em,%s}$' % ispecs)
+               axhand.set_title('$\\Gamma_{es,em}%s$' %(titletxt))
+               axhand.set_xlabel('Time')
+               axhand.set_ylabel('Particle Flux')
+               axhand.set_yscale('log')
+               axhand.legend()
+            else:
+               PFluxesfig = plt.figure('PFluxes-'+inrgfpath)
+               axhand = PFluxesfig.add_subplot(1,1,1)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['PFluxes'],label=ispecs)
+               axhand.set_title('$\\Gamma_{es}%s$' %(titletxt))
+               axhand.set_xlabel('Time')
+               axhand.set_ylabel('Electrostatic Particle Flux')
+               axhand.legend()
+
+               PFluxemfig = plt.figure('PFluxem-'+inrgfpath)
+               axhand = PFluxemfig.add_subplot(1,1,1)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['PFluxem'],label=ispecs)
+               axhand.set_title('$\\Gamma_{em}%s$' %(titletxt))
+               axhand.set_xlabel('Time')
+               axhand.set_ylabel('Electromagnetic Particle Flux')
+               axhand.legend()
+
+            if mergeplots:
+               HFluxfig = plt.figure('HFlux-'+inrgfpath)
+               axhand = HFluxfig.add_subplot(1,1,1)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['HFluxes'],linestyle='-', label='$Q_{es,%s}$' % ispecs)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['HFluxem'],linestyle='--',label='$Q_{em,%s}$' % ispecs)
+               axhand.set_title('$Q_{es,em}%s$' %(titletxt))
+               axhand.set_xlabel('Time')
+               axhand.set_ylabel('Heat Flux')
+               axhand.set_yscale('log')
+               axhand.legend()
+            else:
+               HFluxesfig = plt.figure('HFluxes-'+inrgfpath)
+               axhand = HFluxesfig.add_subplot(1,1,1)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['HFluxes'],label=ispecs)
+               axhand.set_title('$Q_{es}%s$' %(titletxt))
+               axhand.set_xlabel('Time')
+               axhand.set_ylabel('Electrostatic Heat Flux')
+               axhand.legend()
+
+               HFluxemfig = plt.figure('HFluxem-'+inrgfpath)
+               axhand = HFluxemfig.add_subplot(1,1,1)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['HFluxem'],label=ispecs)
+               axhand.set_title('$Q_{em}%s$' %(titletxt))
+               axhand.set_xlabel('Time')
+               axhand.set_ylabel('Electromagnetic Heat Flux')
+               axhand.legend()
+
+            if mergeplots:
+               PFluxfig = plt.figure('Viscos-'+inrgfpath)
+               axhand = PFluxfig.add_subplot(1,1,1)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['Viscoses'],linestyle='-', label='$\\Pi_{es,%s}$' % ispecs)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['Viscosem'],linestyle='--',label='$\\Pi_{em,%s}$' % ispecs)
+               axhand.set_title('$\\Pi_{es,em}%s$' %(titletxt))
+               axhand.set_xlabel('Time')
+               axhand.set_ylabel('Stress Tensor')
+               axhand.set_yscale('log')
+               axhand.legend()
+            else:
+               Viscosesfig = plt.figure('Viscoses-'+inrgfpath)
+               axhand = Viscosesfig.add_subplot(1,1,1)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['Viscoses'],label=ispecs)
+               axhand.set_title('$\\Pi_{es}%s$' %(titletxt))
+               axhand.set_xlabel('Time')
+               axhand.set_ylabel('Electrostatic Stress Tensor')
+               axhand.legend()
+
+               Viscosemfig = plt.figure('Viscosem-'+inrgfpath)
+               axhand = Viscosemfig.add_subplot(1,1,1)
+               axhand.plot(time,nrgdata[inrgf][ispecs]['Viscosem'],label=ispecs)
+               axhand.set_title('$\\Pi_{em}%s$' %(titletxt))
+               axhand.set_xlabel('Time')
+               axhand.set_ylabel('Electromagnetic Stress Tensor')
+               axhand.legend()
+
+        nfig.savefig(reportpath+'n_%s.png' % (inrgfpath))
+        plt.close(nfig)
+
+        uparafig.savefig(reportpath+'upara_%s.png' % (inrgfpath))
+        plt.close(uparafig)
+
+        if mergeplots:
+           Tfig.savefig(reportpath+'T_%s.png' % (inrgfpath))
+           plt.close(Tfig)
+        else:
+           Tparafig.savefig(reportpath+'Tpara_%s.png' % (inrgfpath))
+           plt.close(Tparafig)
+
+           Tperpfig.savefig(reportpath+'Tperp_%s.png' % (inrgfpath))
+           plt.close(Tperpfig)
+
+        if mergeplots:
+           PFluxfig.savefig(reportpath+'PFlux_%s.png' % (inrgfpath))
+           plt.close(PFluxfig)
+        else:
+           PFluxesfig.savefig(reportpath+'PFluxes_%s.png' % (inrgfpath))
+           plt.close(PFluxesfig)
+
+           PFluxemfig.savefig(reportpath+'PFluxem_%s.png' % (inrgfpath))
+           plt.close(PFluxemfig)
+
+        if mergeplots:
+           HFluxfig.savefig(reportpath+'HFlux_%s.png' % (inrgfpath))
+           plt.close(HFluxfig)
+        else:
+           HFluxesfig.savefig(reportpath+'HFluxes_%s.png' % (inrgfpath))
+           plt.close(HFluxesfig)
+
+           HFluxemfig.savefig(reportpath+'HFluxem_%s.png' % (inrgfpath))
+           plt.close(HFluxemfig)
+
+        if mergeplots:
+           Viscosfig.savefig(reportpath+'Viscos_%s.png' % (inrgfpath))
+           plt.close(Viscosfig)
+        else:
+           Viscosesfig.savefig(reportpath+'Viscoses_%s.png' % (inrgfpath))
+           plt.close(Viscosesfig)
+
+           Viscosemfig.savefig(reportpath+'Viscosem_%s.png' % (inrgfpath))
+           plt.close(Viscosemfig)
+
+    return 1 
+    
+
 def plot_scandata(scandata,params={},normalize=True):
    #Developed by Ehab Hassan on 2019-02-05
     #Modified by Ehab Hassan on 2019-03-11
