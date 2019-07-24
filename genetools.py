@@ -5,7 +5,6 @@ import os
 import sys
 import glob
 import math
-import cmath
 import numpy as npy
 
 import efittools
@@ -353,7 +352,9 @@ def read_nrg(nrgfpath,nspecs=0,parameters={},normalized=True):
        parameters = read_parameters(nrgflist[0][:-7]+'parameters'+nrgflist[0][-4:])
     else: 
        if nrgfpath[-1] != "/": nrgfpath+="/"
-       nrgflist = sorted(glob.glob(nrgfpath+"nrg*"))
+       nrgflist = sorted(glob.glob(nrgfpath+"nrg_*"))
+       if nrgflist==[]:
+          nrgflist = sorted(glob.glob(nrgfpath+"nrg.*"))
        if "nrg_" in nrgflist[0]:
           parameters = read_parameters(nrgflist[0][:-8]+'parameters'+nrgflist[0][-5:])
        elif "nrg.dat" in nrgflist[0]:
@@ -373,18 +374,34 @@ def read_nrg(nrgfpath,nspecs=0,parameters={},normalized=True):
         if not os.path.isfile(inrgf):
            print(inrgf+' FILE NOT FOUND. Exit!'); sys.exit()
 
-        if "nrg.dat" in inrgf:
-           inrgfkey = inrgf[-7:]
-        else:
-           inrgfkey = inrgf[-8:]
+       #if "nrg.dat" in inrgf:
+       #   inrgfkey = inrgf[-7:]
+       #else:
+       #   inrgfkey = inrgf[-8:]
 
+        inrgfkey = inrgf
         nrgdata[inrgfkey] = {}
         nrgfhand = open(inrgf,'r')
+
+        nrgdata[inrgfkey]['time']=npy.empty(0,dtype=float)
+        for ispecs in specstype:
+            nrgdata[inrgfkey][ispecs]={}
+            nrgdata[inrgfkey][ispecs]['n']=npy.empty(0,dtype=float)
+            nrgdata[inrgfkey][ispecs]['upara']=npy.empty(0,dtype=float)
+            nrgdata[inrgfkey][ispecs]['Tpara']=npy.empty(0,dtype=float)
+            nrgdata[inrgfkey][ispecs]['Tperp']=npy.empty(0,dtype=float)
+            nrgdata[inrgfkey][ispecs]['PFluxes']=npy.empty(0,dtype=float)
+            nrgdata[inrgfkey][ispecs]['PFluxem']=npy.empty(0,dtype=float)
+            nrgdata[inrgfkey][ispecs]['HFluxes']=npy.empty(0,dtype=float)
+            nrgdata[inrgfkey][ispecs]['HFluxem']=npy.empty(0,dtype=float)
+            nrgdata[inrgfkey][ispecs]['Viscoses']=npy.empty(0,dtype=float)
+            nrgdata[inrgfkey][ispecs]['Viscosem']=npy.empty(0,dtype=float)
+
         while True:
               try:
                  ctime = float(nrgfhand.readline())
-                 nrgdata[inrgfkey][ctime]={}
-                 for ispecs in range(nspecs):
+                 nrgdata[inrgfkey]['time']=npy.append(nrgdata[inrgfkey]['time'],ctime)
+                 for ispecs in specstype:
                      linedata = nrgfhand.readline().split()
                      specdata = [float(item) for item in linedata]
                      if not normalized:
@@ -399,18 +416,17 @@ def read_nrg(nrgfpath,nspecs=0,parameters={},normalized=True):
                         specdata[8]*=(units['Pgb'])
                         specdata[9]*=(units['Pgb'])
 
-                     nrgdata[inrgfkey][ctime][specstype[ispecs]] = {}
+                     nrgdata[inrgfkey][ispecs]['n']=npy.append(nrgdata[inrgfkey][ispecs]['n'],specdata[0])
+                     nrgdata[inrgfkey][ispecs]['upara']=npy.append(nrgdata[inrgfkey][ispecs]['upara'],specdata[1])
+                     nrgdata[inrgfkey][ispecs]['Tpara']=npy.append(nrgdata[inrgfkey][ispecs]['Tpara'],specdata[2])
+                     nrgdata[inrgfkey][ispecs]['Tperp']=npy.append(nrgdata[inrgfkey][ispecs]['Tperp'],specdata[3])
+                     nrgdata[inrgfkey][ispecs]['PFluxes']=npy.append(nrgdata[inrgfkey][ispecs]['PFluxes'],specdata[4])
+                     nrgdata[inrgfkey][ispecs]['PFluxem']=npy.append(nrgdata[inrgfkey][ispecs]['PFluxem'],specdata[5])
+                     nrgdata[inrgfkey][ispecs]['HFluxes']=npy.append(nrgdata[inrgfkey][ispecs]['HFluxes'],specdata[6])
+                     nrgdata[inrgfkey][ispecs]['HFluxem']=npy.append(nrgdata[inrgfkey][ispecs]['HFluxem'],specdata[7])
+                     nrgdata[inrgfkey][ispecs]['Viscoses']=npy.append(nrgdata[inrgfkey][ispecs]['Viscoses'],specdata[8])
+                     nrgdata[inrgfkey][ispecs]['Viscosem']=npy.append(nrgdata[inrgfkey][ispecs]['Viscosem'],specdata[9])
 
-                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['n']        = specdata[0]
-                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['upara']    = specdata[1]
-                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['Tpara']    = specdata[2]
-                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['Tperp']    = specdata[3]
-                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['PFluses']  = specdata[4]
-                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['PFluxem']  = specdata[5]
-                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['HFluxes']  = specdata[6]
-                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['HFluxem']  = specdata[7]
-                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['Visocses'] = specdata[8]
-                     nrgdata[inrgfkey][ctime][specstype[ispecs]]['Viscosem'] = specdata[9]
               except ValueError:
                   break
         nrgfhand.close()
@@ -656,6 +672,7 @@ def read_field(fieldfpath,timeslot=None,fieldfmt=None):
                  kymin     = float(pars['kymin'])
                  lx        = float(pars['lx'])
                  phase     = -npy.e**(-npy.pi*(0.0+1.0J)*shat*kymin*lx)
+                #phase     = -1
 
               if   fieldfmt=='central':
                    nx   = 1
@@ -841,7 +858,7 @@ def field_info(field,param={}):
 
     return field_info
 
-def find_mode_frequency(fieldfpath,bgn_t=None,end_t=None):
+def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None):
    #Developed by Ehab Hassan on 2019-04-18
     if "field_" not in fieldfpath:
        if fieldfpath[-1]!="/": fieldfpath+="/"
@@ -860,7 +877,7 @@ def find_mode_frequency(fieldfpath,bgn_t=None,end_t=None):
            nz      = field[ifieldf]['nz']
            nfields = field[ifieldf]['nfields']
 
-           if bgn_t == None: bgn_t  = tlist[-1]*0.9
+           if bgn_t == None: bgn_t  = tlist[-1]*fraction
            if end_t == None: end_t  = tlist[-1]
            bgn_t_ind = npy.argmin(abs(npy.array(tlist)-bgn_t))
            end_t_ind = npy.argmin(abs(npy.array(tlist)-end_t))
@@ -877,7 +894,7 @@ def find_mode_frequency(fieldfpath,bgn_t=None,end_t=None):
               phi   = npy.empty(0,dtype='complex128')
               phi_t = []
 
-           for tind in range(bgn_t_ind,end_t_ind):
+           for tind in range(bgn_t_ind,end_t_ind+1):
                field = read_field(ifieldf,timeslot=tlist[tind],fieldfmt='overall')
                time  = npy.append(time,tlist[tind])
 
@@ -886,26 +903,76 @@ def find_mode_frequency(fieldfpath,bgn_t=None,end_t=None):
                   apr_t.append(field[ifieldf]['apar'])
 
            phi_t = npy.array(phi_t)
-           apr_t = npy.array(apr_t)
-
-           comega_t   = []
-           weight_t   = []
-           comega_avg = npy.empty(0,dtype='complex128')
+           if nfields>1:
+              apr_t = npy.array(apr_t)
 
            max_t_ind,max_z_ind = npy.shape(phi_t)
 
-           for tind in range(1,max_t_ind):
+           z0=[]
+           for zind in range(max_z_ind):
+            if abs(phi_t[0,zind])==0.0:
+             z0.append(zind)
+
+           phi_t = npy.delete(phi_t,z0,axis=1)
+           if nfields>1:
+              apr_t = npy.delete(apr_t,z0,axis=1)
+
+           max_t_ind,max_z_ind = npy.shape(phi_t)
+
+           comega_phi_t   = npy.empty((max_t_ind-1,max_z_ind),dtype='complex128')
+           weight_phi_t   = npy.empty((max_t_ind-1,max_z_ind),dtype='complex128')
+           gamma_phi_avg  = npy.empty(0,dtype='float')
+           omega_phi_avg  = npy.empty(0,dtype='float')
+           gamma_phi_std  = npy.empty(0,dtype='float')
+           omega_phi_std  = npy.empty(0,dtype='float')
+
+           if nfields>1:
+              comega_apr_t   = npy.empty((max_t_ind-1,max_z_ind),dtype='complex128')
+              weight_apr_t   = npy.empty((max_t_ind-1,max_z_ind),dtype='complex128')
+              gamma_apr_avg  = npy.empty(0,dtype='float')
+              omega_apr_avg  = npy.empty(0,dtype='float')
+              gamma_apr_std  = npy.empty(0,dtype='float')
+              omega_apr_std  = npy.empty(0,dtype='float')
+
+           for tind in range(0,max_t_ind-1):
                for zind in range(max_z_ind):
-                   comega_t.append(cmath.log((phi_t[tind,zind]/phi_t[tind-1,zind]))/(tlist[tind]-tlist[tind-1]))
-                   weight_t.append(abs(phi_t[tind,zind])+abs(phi_t[tind-1,zind]))
-               comega_diffs = npy.array([comega_t[i*max_z_ind:(i+1)*max_z_ind] for i in range(npy.size(comega_t)//max_z_ind)],dtype='complex128')
-               weight = npy.array([weight_t[i*max_z_ind:(i+1)*max_z_ind] for i in range(npy.size(weight_t)//max_z_ind)],dtype='float128')
-               comega_avg = npy.append(comega_avg,npy.sum(comega_diffs[:,tind]*weight[:,tind])/npy.sum(weight[:,tind]))
-               gamma = comega_avg[tind-1].real
-               omega = comega_avg[tind-1].imag
-               gamma_std = npy.sum(weight[:,tind-1]*(gamma-comega_diffs[:,tind-1].real)**2)/npy.sum(weight[:,tind-1])
-               omega_std = npy.sum(weight[:,tind-1]*(omega-comega_diffs[:,tind-1].imag)**2)/npy.sum(weight[:,tind-1])
-               print tlist[tind],gamma,omega,gamma_std,omega_std
+                   comega_phi_t[tind,zind] = npy.log(phi_t[tind+1,zind]/phi_t[tind,zind])/(tlist[tind+1]-tlist[tind])
+                   weight_phi_t[tind,zind] = abs(phi_t[tind+1,zind])+abs(phi_t[tind,zind])
+                   if nfields>1:
+                      comega_apr_t[tind,zind] = npy.log(apr_t[tind+1,zind]/apr_t[tind,zind])/(tlist[tind+1]-tlist[tind])
+                      weight_apr_t[tind,zind] = abs(apr_t[tind+1,zind])+abs(apr_t[tind,zind])
+
+               comega_phi_avg = npy.sum(comega_phi_t[tind,:]*weight_phi_t[tind,:])/npy.sum(weight_phi_t[tind,:])
+               gamma_phi_avg = npy.append(gamma_phi_avg,comega_phi_avg.real)
+               omega_phi_avg = npy.append(omega_phi_avg,comega_phi_avg.imag)
+               gamma_phi_std = npy.append(gamma_phi_std,npy.sqrt(npy.sum(weight_phi_t[tind,:]*(gamma_phi_avg[tind]-comega_phi_t[tind,:].real)**2)/npy.sum(weight_phi_t[tind,:])))
+               omega_phi_std = npy.append(omega_phi_std,npy.sqrt(npy.sum(weight_phi_t[tind,:]*(omega_phi_avg[tind]-comega_phi_t[tind,:].imag)**2)/npy.sum(weight_phi_t[tind,:])))
+
+               if nfields>1:
+                  comega_apr_avg = npy.sum(comega_apr_t[tind,:]*weight_apr_t[tind,:])/npy.sum(weight_apr_t[tind,:])
+                  gamma_apr_avg = npy.append(gamma_apr_avg,comega_apr_avg.real)
+                  omega_apr_avg = npy.append(omega_apr_avg,comega_apr_avg.imag)
+                  gamma_apr_std = npy.append(gamma_apr_std,npy.sqrt(npy.sum(weight_apr_t[tind,:]*(gamma_apr_avg[tind]-comega_apr_t[tind,:].real)**2)/npy.sum(weight_apr_t[tind,:])))
+                  omega_apr_std = npy.append(omega_apr_std,npy.sqrt(npy.sum(weight_apr_t[tind,:]*(omega_apr_avg[tind]-comega_apr_t[tind,:].imag)**2)/npy.sum(weight_apr_t[tind,:])))
+
+           gamma_phi_avg = npy.average(gamma_phi_avg[:-1])
+           gamma_phi_std = npy.average(gamma_phi_std[:-1].real)
+           omega_phi_avg = npy.average(omega_phi_avg[:-1])
+           omega_phi_std = npy.average(omega_phi_std[:-1].real)
+
+           if nfields>1:
+              gamma_apr_avg = npy.average(gamma_apr_avg[:-1])
+              gamma_apr_std = npy.average(gamma_apr_std[:-1].real)
+              omega_apr_avg = npy.average(omega_apr_avg[:-1])
+              omega_apr_std = npy.average(omega_apr_std[:-1].real)
+
+           frequency["mode"+ifieldf[-5:]]={}
+           frequency["mode"+ifieldf[-5:]]['ky']=param['box']['kymin']
+           frequency["mode"+ifieldf[-5:]]['omega_phi']=omega_phi_avg
+           frequency["mode"+ifieldf[-5:]]['gamma_phi']=gamma_phi_avg
+           if nfields>1:
+              frequency["mode"+ifieldf[-5:]]['omega_apr']=omega_apr_avg
+              frequency["mode"+ifieldf[-5:]]['gamma_apr']=gamma_apr_avg
            
           #My Traditional Method
           #for tind in range(bgn_t_ind,end_t_ind):
@@ -1004,7 +1071,6 @@ def mode_info(modesfpath):
         nrgdata   = read_nrg(modesfpath+"nrg_%04d" % (imode+1))
         paramdata = read_parameters(modesfpath+"parameters_%04d" % (imode+1))
         field     = read_field(modesfpath+"field_%04d" % (imode+1))
-       #fieldplot = plot_field(field,paramdata)
         fieldinfo = field_info(field,paramdata)
 
         iky = omegadata['kymin'][imode]
@@ -1055,15 +1121,13 @@ def mode_info(modesfpath):
         else:
              mode_info[iky]['glabal_factor'] = npy.nan
 
-
-        tslots = nrgdata['nrg_%04d' % (imode+1)].keys()
-        tind   = tslots.index(max(tslots))
-        if   len(nrgdata['nrg_%04d' % (imode+1)].keys()) >= 3:
-              mode_info[iky]['Qem/Qes']  = nrgdata['nrg_%04d' % (imode+1)][tslots[tind]]['i'][7]
-              mode_info[iky]['Qem/Qes'] /= (abs(nrgdata['nrg_%04d' % (imode+1)][tslots[tind]]['i'][6])+abs(nrgdata['nrg_%04d' % (imode+1)][tslots[tind]]['e'][6]))
-        elif len(nrgdata['nrg_%04d' % (imode+1)].keys()) == 2:
-              mode_info[iky]['Qem/Qes']  = nrgdata['nrg_%04d' % (imode+1)][tslots[tind]]['e'][7]
-              mode_info[iky]['Qem/Qes'] /= abs(nrgdata['nrg_%04d' % (imode+1)][tslots[tind]]['e'][6])
+        inrgf  = nrgdata.keys()[0]
+        if   len(nrgdata[inrgf].keys()) >= 3:
+              mode_info[iky]['Qem/Qes']  = nrgdata[inrgf]['i']['HFluxem'][-1]
+              mode_info[iky]['Qem/Qes'] /= (abs(nrgdata[inrgf]['i']['HFluxes'][-1])+abs(nrgdata[inrgf]['e']['HFluxes'][-1]))
+        elif len(nrgdata[inrgf].keys()) >= 2:
+              mode_info[iky]['Qem/Qes']  = nrgdata[inrgf]['e']['HFluxem'][-1]
+              mode_info[iky]['Qem/Qes'] /= abs(nrgdata[inrgf]['e']['HFluxes'][-1])
 
         mode_info[iky]['Type']=mode_type(mode_info[iky],paramdata)
 
@@ -1101,28 +1165,25 @@ def flux_info(simfpath):
     else:
        kyminlist = [paramdata['box']['kymin']]
     for imode in range(len(kyminlist)):
-       #iky = paramdata['box']['kymin'][imode]
         iky = kyminlist[imode]
 
-        nrgid     = "nrg_%04d" % (imode+1)
-        nrgdata   = read_nrg(simfpath+nrgid)
-
-        tslots = nrgdata[nrgid].keys()
-        tind   = tslots.index(max(tslots))
+        nrgid   = "nrg_%04d" % (imode+1)
+        nrgdata = read_nrg(simfpath+nrgid)
+        nrgid   = nrgdata.keys()[0]
 
         flux_info[iky]={}
         for ispecs in range(paramdata['box']['n_spec']):
              specid    = 'species'+str(ispecs+1)
              specname  = paramdata[specid]['name']
-             PFlux_es  = nrgdata[nrgid][tslots[tind]][specname][4]
-             PFlux_em  = nrgdata[nrgid][tslots[tind]][specname][5]
+             PFlux_es  = nrgdata[nrgid][specname]['PFluxes'][-1]
+             PFlux_em  = nrgdata[nrgid][specname]['PFluxem'][-1]
              PFlux     = PFlux_es + PFlux_em
-             HFlux_es  = nrgdata[nrgid][tslots[tind]][specname][6]
+             HFlux_es  = nrgdata[nrgid][specname]['HFluxes'][-1]
              if type(paramdata[specid]['temp'])==list:
                 HFlux_es -= (3./2.)*PFlux_es*max(paramdata[specid]['temp'])
              else:
                 HFlux_es -= (3./2.)*PFlux_es*paramdata[specid]['temp']
-             HFlux_em  = nrgdata[nrgid][tslots[tind]][specname][7]
+             HFlux_em  = nrgdata[nrgid][specname]['HFluxem'][-1]
              if type(paramdata[specid]['temp'])==list:
                 HFlux_em -= (3./2.)*PFlux_em*max(paramdata[specid]['temp'])
              else:
