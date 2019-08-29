@@ -284,6 +284,8 @@ def read_parameters(paramfpath):
                               geneparam[pkey][skey] = long(items[1])
                          elif skey in ['nonlinear','hypz_compensation','x_local','calc_dt','include_f0_contr','bpar','delzonal','delzonal_fields','arakawa_zv','check qn gradients']:
                               geneparam[pkey][skey] = str2bool(items[1])
+                         elif skey in ['hyp_z_with_dz_prefactor','hyp_v_with_dv_prefactor']:
+                              geneparam[pkey][skey] = str2bool(items[1])
                          elif skey in ['comp_type','timescheme','coll_split_scheme','which_ev','init_cond','collision_op','coll_cons_model']:
                               geneparam[pkey][skey] = items[1].strip()[1:-1]
                          elif skey in ['lv_antenna_freq','lv_antenna_initamp','lv_antenna_amp','ev_shift']:
@@ -303,6 +305,8 @@ def read_parameters(paramfpath):
                          elif skey in ['ntimesteps']:
                               geneparam[pkey][skey].append(long(items[1]))
                          elif skey in ['nonlinear','hypz_compensation','x_local','calc_dt','include_f0_contr','bpar','delzonal','delzonal_fields','arakawa_zv','check qn gradients']:
+                              geneparam[pkey][skey].append(str2bool(items[1]))
+                         elif skey in ['hyp_z_with_dz_prefactor','hyp_v_with_dv_prefactor']:
                               geneparam[pkey][skey].append(str2bool(items[1]))
                          elif skey in ['comp_type','timescheme','coll_split_scheme','which_ev','init_cond','collision_op','coll_cons_model']:
                               geneparam[pkey][skey].append(items[1].strip()[1:-1])
@@ -324,6 +328,9 @@ def read_parameters(paramfpath):
                          elif skey in ['nonlinear','hypz_compensation','x_local','calc_dt','include_f0_contr','bpar','delzonal','delzonal_fields','arakawa_zv','check qn gradients']:
                               if geneparam[pkey][skey] != str2bool(items[1]):
                                  geneparam[pkey][skey]  = [geneparam[pkey][skey],str2bool(items[1])]
+                         elif skey in ['hyp_z_with_dz_prefactor','hyp_v_with_dv_prefactor']:
+                              if geneparam[pkey][skey] != str2bool(items[1]):
+                                 geneparam[pkey][skey]  = [geneparam[pkey][skey],str2bool(items[1])]
                          elif skey in ['comp_type','timescheme','coll_split_scheme','which_ev','init_cond','collision_op','coll_cons_model']:
                               if geneparam[pkey][skey] != items[1].strip()[1:-1]:
                                  geneparam[pkey][skey]  = [geneparam[pkey][skey],items[1].strip()[1:-1]]
@@ -341,6 +348,7 @@ def read_parameters(paramfpath):
                                  geneparam[pkey][skey]  = [geneparam[pkey][skey],float(items[1])]
 
     return geneparam
+
 
 def read_nrg(nrgfpath,nspecs=0,parameters={},normalized=True):
    #Developed by Ehab Hassan on 2019-03-12
@@ -374,11 +382,6 @@ def read_nrg(nrgfpath,nspecs=0,parameters={},normalized=True):
         if not os.path.isfile(inrgf):
            print(inrgf+' FILE NOT FOUND. Exit!'); sys.exit()
 
-       #if "nrg.dat" in inrgf:
-       #   inrgfkey = inrgf[-7:]
-       #else:
-       #   inrgfkey = inrgf[-8:]
-
         inrgfkey = inrgf
         nrgdata[inrgfkey] = {}
         nrgfhand = open(inrgf,'r')
@@ -401,6 +404,8 @@ def read_nrg(nrgfpath,nspecs=0,parameters={},normalized=True):
               try:
                  ctime = float(nrgfhand.readline())
                  nrgdata[inrgfkey]['time']=npy.append(nrgdata[inrgfkey]['time'],ctime)
+                 if not normalized:
+                    nrgdata[inrgfkey]['time']*=(units['Lref']/units['cref'])
                  for ispecs in specstype:
                      linedata = nrgfhand.readline().split()
                      specdata = [float(item) for item in linedata]
@@ -432,6 +437,78 @@ def read_nrg(nrgfpath,nspecs=0,parameters={},normalized=True):
         nrgfhand.close()
 
     return nrgdata
+
+
+def read_neoclass(neoclassfpath,nspecs=0,parameters={},normalized=True):
+   #Developed by Ehab Hassan on 2019-03-12
+    if "neoclass_" in neoclassfpath.strip():
+       neoclassflist=[neoclassfpath.strip()]
+       parameters = read_parameters(neoclassflist[0][:-13]+'parameters'+neoclassflist[0][-5:])
+    elif "neoclass.dat" in neoclassfpath.strip():
+       neoclassflist=[neoclassfpath.strip()]
+       parameters = read_parameters(neoclassflist[0][:-12]+'parameters'+neoclassflist[0][-4:])
+    else:
+       if neoclassfpath[-1] != "/": neoclassfpath+="/"
+       neoclassflist = sorted(glob.glob(neoclassfpath+"neoclass_*"))
+       if neoclassflist==[]:
+          neoclassflist = sorted(glob.glob(neoclassfpath+"neoclass.*"))
+       if "neoclass_" in neoclassflist[0]:
+          parameters = read_parameters(neoclassflist[0][:-13]+'parameters'+neoclassflist[0][-5:])
+       elif "neoclass.dat" in neoclassflist[0]:
+          parameters = read_parameters(neoclassflist[0][:-12]+'parameters'+neoclassflist[0][-4:])
+
+    nspecs    = parameters['box']['n_spec']
+    specstype = []
+    for ispec in range(1,nspecs+1):
+        specname = 'species'+str(ispec)
+        specstype.append(parameters[specname]['name'])
+
+    if not normalized:
+       units = units_conversion(parameters=parameters)
+
+    neoclassdata = {}
+    for ineoclassf in neoclassflist:
+        if not os.path.isfile(ineoclassf):
+           print(ineoclassf+' FILE NOT FOUND. Exit!'); sys.exit()
+
+        ineoclassfkey = ineoclassf
+        neoclassdata[ineoclassfkey] = {}
+        neoclassfhand = open(ineoclassf,'r')
+        pagetitle = neoclassfhand.readline()
+
+        neoclassdata[ineoclassfkey]['time']=npy.empty(0,dtype=float)
+        for ispecs in specstype:
+            neoclassdata[ineoclassfkey][ispecs]={}
+            neoclassdata[ineoclassfkey][ispecs]['PFlux']=npy.empty(0,dtype=float)
+            neoclassdata[ineoclassfkey][ispecs]['HFlux']=npy.empty(0,dtype=float)
+            neoclassdata[ineoclassfkey][ispecs]['Viscos']=npy.empty(0,dtype=float)
+            neoclassdata[ineoclassfkey][ispecs]['JBS']=npy.empty(0,dtype=float)
+
+        while True:
+              try:
+                 ctime = float(neoclassfhand.readline())
+                 neoclassdata[ineoclassfkey]['time']=npy.append(neoclassdata[ineoclassfkey]['time'],ctime)
+                 if not normalized:
+                    neoclassdata[ineoclassfkey]['time']*=(units['Lref']/units['cref'])
+                 for ispecs in specstype:
+                     linedata = neoclassfhand.readline().split()
+                     specdata = [float(item) for item in linedata]
+                     if not normalized:
+                        specdata[0]*=(units['Ggb'])
+                        specdata[1]*=(units['Qgb'])
+                        specdata[2]*=(units['Pgb'])
+                        specdata[3]*=(units['nref']*units['cref']*units['Bref']*units['rhostar'])
+
+                     neoclassdata[ineoclassfkey][ispecs]['PFlux']=npy.append(neoclassdata[ineoclassfkey][ispecs]['PFlux'],specdata[0])
+                     neoclassdata[ineoclassfkey][ispecs]['HFlux']=npy.append(neoclassdata[ineoclassfkey][ispecs]['HFlux'],specdata[1])
+                     neoclassdata[ineoclassfkey][ispecs]['Viscos']=npy.append(neoclassdata[ineoclassfkey][ispecs]['Viscos'],specdata[2])
+                     neoclassdata[ineoclassfkey][ispecs]['JBS']=npy.append(neoclassdata[ineoclassfkey][ispecs]['JBS'],specdata[3])
+
+              except ValueError:
+                  break
+        neoclassfhand.close()
+
+    return neoclassdata
 
 
 def read_scanfile(scanfpath):
@@ -620,17 +697,19 @@ def read_field(fieldfpath,timeslot=None,fieldfmt=None):
     '''
     fieldfmt argument takes three choices:
     fieldfmt = 'original' returns the fields as read from file
-    fieldfmt = 'central'  returns the fields at the central point
-    fieldfmt = 'overall'  returns the fields with fixed phase
+    fieldfmt = 'local-central' returns the fields at the central point
+    fieldfmt = 'local-flatten' returns the fields flattened over all dimensions
+    fieldfmt = 'global-modes'  returns the fields and the global modes
     '''
 
-    if fieldfmt not in ['central','overall']: fieldfmt = 'original'
+    fieldfmttypes = ['local-central','local-flatten','global-modes','global-flatten']
+    if fieldfmt not in fieldfmttypes: fieldfmt = 'original'
 
-    if   "field_" in fieldfpath.strip():
+    if   "field" in fieldfpath.strip():
          fieldflist=[fieldfpath.strip()]
     else: 
          if fieldfpath[-1] != "/": fieldfpath+="/"
-         fieldflist = sorted(glob.glob(fieldfpath+"field_*"))
+         fieldflist = sorted(glob.glob(fieldfpath+"field*"))
 
     fielddata={}
     for ifieldf in fieldflist:
@@ -641,7 +720,10 @@ def read_field(fieldfpath,timeslot=None,fieldfmt=None):
         fielddata[ifieldf] = {}
 
         par0 = Parameters()
-        par0.Read_Pars(ifieldf[:-10]+"parameters_"+ifieldf[-4:])
+        if 'field.dat' in ifieldf:
+           par0.Read_Pars(ifieldf[:-9]+"parameters"+ifieldf[-4:])
+        else:
+           par0.Read_Pars(ifieldf[:-10]+"parameters"+ifieldf[-5:])
         pars = par0.pardict
         field = fieldfile(ifieldf,pars)
 
@@ -650,7 +732,7 @@ def read_field(fieldfpath,timeslot=None,fieldfmt=None):
         field.set_time(field.tfld[t_ind])
 
         if 'x_local' in pars:
-           if pars['x_local']:
+           if pars['x_local'].lower() in ['t','true']:
               x_local = True
            else:
               x_local = False
@@ -661,8 +743,31 @@ def read_field(fieldfpath,timeslot=None,fieldfmt=None):
            phi  = field.phi()
            apar = field.apar()
 
-        elif fieldfmt in ['central','overall']:
+           zgrid = npy.arange(field.nx*field.nz)/float(field.nx*field.nz-1)*float(2.0*field.nx-(2.0/field.nz))-float(field.nx)
+
+           fielddata[ifieldf]['t']       = field.tfld
+           fielddata[ifieldf]['nx']      = field.nx
+           fielddata[ifieldf]['ny']      = field.ny
+           fielddata[ifieldf]['nz']      = field.nz
+           fielddata[ifieldf]['phi']     = phi
+           fielddata[ifieldf]['apar']    = apar
+           fielddata[ifieldf]['zgrid']   = zgrid
+           fielddata[ifieldf]['nfields'] = field.nfields
+
+        elif fieldfmt in fieldfmttypes:
+           phi3d  = field.phi()
+           apar3d = field.apar()
+
            if x_local:
+              if   fieldfmt=='local-central': nx = 1
+              elif fieldfmt=='local-flatten': nx = field.nx
+              ny   = field.ny
+              nz   = field.nz
+              phi  = npy.zeros(nx*nz,dtype='complex128')
+              apar = npy.zeros(nx*nz,dtype='complex128')
+
+              zgrid = npy.arange(nx*nz)/float(nx*nz-1)*(2.0*nx-(2.0/nz))-nx
+
               if 'n0_global' in pars:
                  n0_global = int(pars['n0_global'])
                  q0        = float(pars['q0'])
@@ -672,35 +777,124 @@ def read_field(fieldfpath,timeslot=None,fieldfmt=None):
                  kymin     = float(pars['kymin'])
                  lx        = float(pars['lx'])
                  phase     = -npy.e**(-npy.pi*(0.0+1.0J)*shat*kymin*lx)
-                #phase     = -1
-
-              if   fieldfmt=='central':
-                   nx   = 1
-                   nz   = field.nz
-                   phi  = npy.zeros(nz,dtype='complex128')
-                   apar = npy.zeros(nz,dtype='complex128')
-              elif fieldfmt=='overall':
-                   nx   = field.nx
-                   nz   = field.nz
-                   phi  = npy.zeros(nx*nz,dtype='complex128')
-                   apar = npy.zeros(nx*nz,dtype='complex128')
-
-              phi3d  = field.phi()
-              apar3d = field.apar()
-
               shatsgn = int(npy.sign(float(pars['shat'])))
-              for i in range(-nx/2+1,nx/2+1):
-                  phi[(i+nx/2-1)*nz:(i+nx/2)*nz]=phi3d[:,0,i*shatsgn]*phase**i
-                  if int(field.nfields)>1  and float(pars['beta'])!=0:
-                     apar[(i+nx/2-1)*nz:(i+nx/2)*nz]=apar3d[:,0,i*shatsgn]*phase**i
 
-        fielddata[ifieldf]['t']       = field.tfld
-        fielddata[ifieldf]['nx']      = field.nx
-        fielddata[ifieldf]['ny']      = field.ny
-        fielddata[ifieldf]['nz']      = field.nz
-        fielddata[ifieldf]['phi']     = phi
-        fielddata[ifieldf]['apar']    = apar
-        fielddata[ifieldf]['nfields'] = field.nfields
+              for iy in range(ny):
+                for ix in range(nx/2):
+                  phi[(ix+nx/2)*nz:(ix+nx/2+1)*nz]=phi3d[:,iy,ix*shatsgn]*phase**ix
+                  if ix < nx/2:
+                     phi[(nx/2-ix-1)*nz:(nx/2-ix)*nz]=phi3d[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                  if int(field.nfields)>1  and float(pars['beta'])!=0:
+                     apar[(ix+nx/2)*nz:(ix+nx/2+1)*nz]=apar3d[:,iy,ix*shatsgn]*phase**ix
+                     if ix < nx/2:
+                        apar[(nx/2-ix-1)*nz:(nx/2-ix)*nz]=apar3d[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+
+              fielddata[ifieldf]['t']       = field.tfld
+              fielddata[ifieldf]['nx']      = field.nx
+              fielddata[ifieldf]['ny']      = field.ny
+              fielddata[ifieldf]['nz']      = field.nz
+              fielddata[ifieldf]['phi']     = phi
+              fielddata[ifieldf]['apar']    = apar
+              fielddata[ifieldf]['zgrid']   = zgrid
+              fielddata[ifieldf]['nfields'] = field.nfields
+
+           elif not x_local:
+              gpars,geometry = read_geometry_global(ifieldf[:-10]+pars['magn_geometry'][1:-1]+'_'+ifieldf[-4:])
+              n0_global      = int(pars['n0_global'])
+              q              = geometry['q']
+              phase          = 2.0*npy.pi*(0.0+1.0J)*n0_global*q
+
+              nx    = field.nx
+              ny    = field.ny
+              nz    = field.nz
+              zgrid = npy.arange(nz)/float(nz-1)*(2.0-(2.0/nz))-1.0
+              if 'lx_a' in field.pars:
+                  xgrid = npy.arange(nx)/float(nx-1)*float(pars['lx_a'])+float(pars['x0'])-float(pars['lx_a'])/2.0
+              else:
+                  xgrid = npy.arange(nx)/float(nx-1)*float(pars['lx'])-float(pars['lx'])/2.0
+
+              phi           = npy.empty((nz+4,ny,nx),dtype = 'complex128')
+              phi[2:-2,:,:] = phi3d
+             #phi[2:-2,:,:] = phi3d*float(pars['rhostar'])
+              for iy in range(ny):
+                for ix in range(nx):
+                  phi[-2,iy,ix] = phi[ 2,iy,ix]*npy.exp(-phase[ix])
+                  phi[-1,iy,ix] = phi[ 3,iy,ix]*npy.exp(-phase[ix])
+                  phi[ 0,iy,ix] = phi[-4,iy,ix]*npy.exp( phase[ix])
+                  phi[ 1,iy,ix] = phi[-3,iy,ix]*npy.exp( phase[ix])
+              if field.nfields>1:
+                 apar = npy.empty((nz,ny,nx),dtype = 'complex128')
+                 apar = apar3d
+             #   apar = apar3d*float(pars['rhostar'])
+
+              fielddata[ifieldf]['t']       = field.tfld
+              fielddata[ifieldf]['nx']      = field.nx
+              fielddata[ifieldf]['ny']      = field.ny
+              fielddata[ifieldf]['nz']      = field.nz
+              fielddata[ifieldf]['phi']     = phi 
+              fielddata[ifieldf]['apar']    = apar 
+              fielddata[ifieldf]['xgrid']   = xgrid
+              fielddata[ifieldf]['zgrid']   = zgrid
+              fielddata[ifieldf]['nfields'] = field.nfields
+
+              if fieldfmt=='global-flatten':
+                 phix = npy.empty(nx*(nz+4),dtype = 'complex128')
+                 if field.nfields>1:
+                    aparx = npy.empty(nx*nz,dtype = 'complex128')
+                 if 'n0_global' in pars:
+                    n0_global = int(pars['n0_global'])
+                    q0        = float(gpars['q0'])
+                    phase     = -npy.e**(-2.0*npy.pi*(0.0+1.0J)*n0_global*q0)
+                 else:
+                    shat      = float(pars['shat'])
+                    kymin     = float(pars['kymin'])
+                    lx        = float(pars['lx'])
+                    phase     = -npy.e**(-npy.pi*(0.0+1.0J)*shat*kymin*lx)
+                 shatsgn = int(npy.sign(float(gpars['shat'])))
+
+                 for iy in range(ny):
+                   for ix in range(nx/2):
+                     phix[(ix+nx/2)*(nz+4):(ix+nx/2+1)*(nz+4)]=phi[:,iy,ix*shatsgn]*phase**ix
+                     if ix < nx/2:
+                        phix[(nx/2-ix-1)*(nz+4):(nx/2-ix)*(nz+4)]=phi[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                     if int(field.nfields)>1  and float(pars['beta'])!=0:
+                        aparx[(ix+nx/2)*nz:(ix+nx/2+1)*nz]=apar[:,iy,ix*shatsgn]*phase**ix
+                        if ix < nx/2:
+                           aparx[(nx/2-ix-1)*nz:(nx/2-ix)*nz]=apar[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                 fielddata[ifieldf]['phi']     = phix
+                 fielddata[ifieldf]['apar']    = aparx
+
+              elif fieldfmt=='global-modes':
+                 min_mode     = math.ceil( npy.min(q)*n0_global)
+                 max_mode     = math.floor(npy.max(q)*n0_global)
+                 mode_aray    = npy.arange(min_mode,max_mode+1)
+                 mode_zgrid   = npy.arange(max_mode*20)/float(max_mode*20)*2.0-1.0
+                 n_mode_zgrid = npy.size(mode_zgrid)
+
+                 phi_theta = npy.empty((n_mode_zgrid,ny,nx),dtype = 'complex128')
+                 phi_modes = npy.empty((n_mode_zgrid,ny,nx),dtype = 'complex128')
+                 if field.nfields>1:
+                    apar_theta = npy.empty((n_mode_zgrid,ny,nx),dtype = 'complex128')
+                    apar_modes = npy.zeros((n_mode_zgrid,ny,nx),dtype = 'complex128')
+
+                 zgridx = npy.arange(nz+4)/float(nz+4-1)*(2.0+3.0*(2.0/nz))-(1.0+2.0*(2.0/nz))
+
+                 for iy in range(ny):
+                   for ix in range(nx):
+                     phi_theta[:,iy,ix] = interp(zgridx,npy.real(phi[:,iy,ix]),mode_zgrid)
+                     phi_theta[:,iy,ix] = phi_theta[:,iy,ix]*npy.exp(phase[ix]*mode_zgrid)
+                     phi_modes[:,iy,ix] = npy.fft.fft(phi_theta[:,iy,ix])
+
+                     if field.nfields>1:
+                        apar_theta[:,iy,ix] = interp(zgrid,npy.real(apar[:,iy,ix]),mode_zgrid)
+                        apar_theta[:,iy,ix] = apar_theta[:,iy,ix]*npy.exp(phase[ix]*mode_zgrid)
+                        apar_modes[:,iy,ix] = npy.fft.fft(apar_theta[:,iy,ix])
+
+                 fielddata[ifieldf]['zgridx']     = zgridx
+                 fielddata[ifieldf]['phi_theta']  = phi_theta
+                 fielddata[ifieldf]['phi_modes']  = phi_modes
+                 fielddata[ifieldf]['apar_theta'] = apar_theta
+                 fielddata[ifieldf]['apar_modes'] = apar_modes
 
     return fielddata
 
@@ -858,30 +1052,42 @@ def field_info(field,param={}):
 
     return field_info
 
-def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None):
+def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='standard'):
    #Developed by Ehab Hassan on 2019-04-18
-    if "field_" not in fieldfpath:
+    if "field" not in fieldfpath:
        if fieldfpath[-1]!="/": fieldfpath+="/"
-       fieldflist = glob.glob(fieldfpath+"field_*")
+       fieldflist = glob.glob(fieldfpath+"field*")
     else:
        fieldflist = [fieldfpath]
 
     frequency = {}
     for ifieldf in fieldflist:
         if os.path.isfile(ifieldf):
-           field   = read_field(ifieldf,fieldfmt='overall')
-           param   = read_parameters(ifieldf[:-10]+"parameters"+ifieldf[-5:])
+           if 'field.dat' in ifieldf:
+              param   = read_parameters(ifieldf[:-9]+"parameters"+ifieldf[-4:])
+           else:
+              param   = read_parameters(ifieldf[:-10]+"parameters"+ifieldf[-5:])
+           if 'x_local' in param['general']:
+              if param['general']['x_local']: x_local = True
+              else:                           x_local = False
+           else:                              x_local = True
+
+           if 'field.dat' in ifieldf:
+              modeid = "mode"+ifieldf[-4:]
+           else:
+              modeid = "mode"+ifieldf[-5:]
+
+           field = read_field(ifieldf,fieldfmt='original')
+          #if x_local:
+          #   field = read_field(ifieldf,fieldfmt='local-flatten')
+          #else:
+          #   field = read_field(ifieldf,fieldfmt='global-flatten')
+
            tlist   = field[ifieldf]['t']
            nx      = field[ifieldf]['nx']
            ny      = field[ifieldf]['ny']
            nz      = field[ifieldf]['nz']
            nfields = field[ifieldf]['nfields']
-
-           if bgn_t == None: bgn_t  = tlist[-1]*fraction
-           if end_t == None: end_t  = tlist[-1]
-           bgn_t_ind = npy.argmin(abs(npy.array(tlist)-bgn_t))
-           end_t_ind = npy.argmin(abs(npy.array(tlist)-end_t))
-           ntimes    = end_t_ind-bgn_t_ind
 
            if nfields>1:
               time  = npy.empty(0,dtype='complex128')
@@ -894,109 +1100,132 @@ def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None):
               phi   = npy.empty(0,dtype='complex128')
               phi_t = []
 
-           for tind in range(bgn_t_ind,end_t_ind+1):
-               field = read_field(ifieldf,timeslot=tlist[tind],fieldfmt='overall')
-               time  = npy.append(time,tlist[tind])
+           if bgn_t == None: bgn_t  = tlist[-1]*fraction
+           if end_t == None: end_t  = tlist[-1]
+           bgn_t_ind = npy.argmin(abs(npy.array(tlist)-bgn_t))
+           end_t_ind = npy.argmin(abs(npy.array(tlist)-end_t))
+           ntimes    = end_t_ind-bgn_t_ind
+           print ntimes
 
-               phi_t.append(field[ifieldf]['phi'])
-               if nfields>1:
-                  apr_t.append(field[ifieldf]['apar'])
+           frequency[modeid]={}
+           frequency[modeid]['ky']=param['box']['kymin']
 
-           phi_t = npy.array(phi_t)
-           if nfields>1:
-              apr_t = npy.array(apr_t)
+           if method.lower() in ['standard','quick']:
+              for tind in range(bgn_t_ind,end_t_ind):
+                  field = read_field(ifieldf,timeslot=tind,fieldfmt='original')
+                  time  = npy.append(time,tlist[tind])
 
-           max_t_ind,max_z_ind = npy.shape(phi_t)
+                  (iphiz,iphix) = npy.unravel_index(np.argmax(abs(field[ifieldf]['phi'][:,0,:])),(nz,nx))
+                  phi  = npy.append(phi,field[ifieldf]['phi'][iphiz,0,iphix])
+                  if nfields>1:
+                     (iaprz,iaprx) = np.unravel_index(np.argmax(abs(field[ifieldf]['apar'][:,0,:])),(nz,nx))
+                     apr = npy.append(apr,field[ifieldf]['apar'][iaprz,0,iaprx])
 
-           z0=[]
-           for zind in range(max_z_ind):
-            if abs(phi_t[0,zind])==0.0:
-             z0.append(zind)
+              dt        = npy.diff(time)
+              time      = npy.delete(time,0)
 
-           phi_t = npy.delete(phi_t,z0,axis=1)
-           if nfields>1:
-              apr_t = npy.delete(apr_t,z0,axis=1)
+              omega_phi     = npy.log(phi/np.roll(phi,1))
+              omega_phi     = npy.delete(phi_omega,0)
+              omega_phi    /= dt
+              omega_phi_avg = npy.average(npy.real(omega_phi))
+              gamma_phi_avg = npy.average(npy.imag(omega_phi))
 
-           max_t_ind,max_z_ind = npy.shape(phi_t)
+              frequency[modeid]['omega_phi'] = omega_phi_avg
+              frequency[modeid]['gamma_phi'] = gamma_phi_avg
 
-           comega_phi_t   = npy.empty((max_t_ind-1,max_z_ind),dtype='complex128')
-           weight_phi_t   = npy.empty((max_t_ind-1,max_z_ind),dtype='complex128')
-           gamma_phi_avg  = npy.empty(0,dtype='float')
-           omega_phi_avg  = npy.empty(0,dtype='float')
-           gamma_phi_std  = npy.empty(0,dtype='float')
-           omega_phi_std  = npy.empty(0,dtype='float')
+              omega_apr     = npy.log(apr/np.roll(apr,1))
+              omega_apr     = npy.delete(apr_omega,0)
+              omega_apr    /= dt
+              omega_apr_avg = npy.average(npy.real(omega_apr))
+              gamma_apr_avg = npy.average(npy.imag(omega_apr))
 
-           if nfields>1:
-              comega_apr_t   = npy.empty((max_t_ind-1,max_z_ind),dtype='complex128')
-              weight_apr_t   = npy.empty((max_t_ind-1,max_z_ind),dtype='complex128')
-              gamma_apr_avg  = npy.empty(0,dtype='float')
-              omega_apr_avg  = npy.empty(0,dtype='float')
-              gamma_apr_std  = npy.empty(0,dtype='float')
-              omega_apr_std  = npy.empty(0,dtype='float')
+              frequency[modeid]['omega_apr'] = omega_apr_avg
+              frequency[modeid]['gamma_apr'] = gamma_apr_avg
 
-           for tind in range(0,max_t_ind-1):
-               for zind in range(max_z_ind):
-                   comega_phi_t[tind,zind] = npy.log(phi_t[tind+1,zind]/phi_t[tind,zind])/(tlist[tind+1]-tlist[tind])
-                   weight_phi_t[tind,zind] = abs(phi_t[tind+1,zind])+abs(phi_t[tind,zind])
-                   if nfields>1:
-                      comega_apr_t[tind,zind] = npy.log(apr_t[tind+1,zind]/apr_t[tind,zind])/(tlist[tind+1]-tlist[tind])
-                      weight_apr_t[tind,zind] = abs(apr_t[tind+1,zind])+abs(apr_t[tind,zind])
+           elif method.lower() in ['extended','thorough']:
+              for tind in range(bgn_t_ind,end_t_ind+1):
+                  if x_local:
+                     field = read_field(ifieldf,timeslot=tlist[tind],fieldfmt='local-flatten')
+                  else:
+                     field = read_field(ifieldf,timeslot=tlist[tind],fieldfmt='global-flatten')
+                  time  = npy.append(time,tlist[tind])
 
-               comega_phi_avg = npy.sum(comega_phi_t[tind,:]*weight_phi_t[tind,:])/npy.sum(weight_phi_t[tind,:])
-               gamma_phi_avg = npy.append(gamma_phi_avg,comega_phi_avg.real)
-               omega_phi_avg = npy.append(omega_phi_avg,comega_phi_avg.imag)
-               gamma_phi_std = npy.append(gamma_phi_std,npy.sqrt(npy.sum(weight_phi_t[tind,:]*(gamma_phi_avg[tind]-comega_phi_t[tind,:].real)**2)/npy.sum(weight_phi_t[tind,:])))
-               omega_phi_std = npy.append(omega_phi_std,npy.sqrt(npy.sum(weight_phi_t[tind,:]*(omega_phi_avg[tind]-comega_phi_t[tind,:].imag)**2)/npy.sum(weight_phi_t[tind,:])))
+                  phi_t.append(field[ifieldf]['phi'])
+                  if nfields>1:
+                     apr_t.append(field[ifieldf]['apar'])
 
-               if nfields>1:
-                  comega_apr_avg = npy.sum(comega_apr_t[tind,:]*weight_apr_t[tind,:])/npy.sum(weight_apr_t[tind,:])
-                  gamma_apr_avg = npy.append(gamma_apr_avg,comega_apr_avg.real)
-                  omega_apr_avg = npy.append(omega_apr_avg,comega_apr_avg.imag)
-                  gamma_apr_std = npy.append(gamma_apr_std,npy.sqrt(npy.sum(weight_apr_t[tind,:]*(gamma_apr_avg[tind]-comega_apr_t[tind,:].real)**2)/npy.sum(weight_apr_t[tind,:])))
-                  omega_apr_std = npy.append(omega_apr_std,npy.sqrt(npy.sum(weight_apr_t[tind,:]*(omega_apr_avg[tind]-comega_apr_t[tind,:].imag)**2)/npy.sum(weight_apr_t[tind,:])))
+              phi_t = npy.array(phi_t)
+              max_t_ind,max_z_ind = npy.shape(phi_t)
 
-           gamma_phi_avg = npy.average(gamma_phi_avg[:-1])
-           gamma_phi_std = npy.average(gamma_phi_std[:-1].real)
-           omega_phi_avg = npy.average(omega_phi_avg[:-1])
-           omega_phi_std = npy.average(omega_phi_std[:-1].real)
+              z0=[]
+              for zind in range(max_z_ind):
+                  if abs(phi_t[0,zind])==0.0:
+                     z0.append(zind)
+              phi_t = npy.delete(phi_t,z0,axis=1)
+              max_t_ind,max_z_ind = npy.shape(phi_t)
 
-           if nfields>1:
-              gamma_apr_avg = npy.average(gamma_apr_avg[:-1])
-              gamma_apr_std = npy.average(gamma_apr_std[:-1].real)
-              omega_apr_avg = npy.average(omega_apr_avg[:-1])
-              omega_apr_std = npy.average(omega_apr_std[:-1].real)
+              comega_phi_t   = npy.empty((max_t_ind-1,max_z_ind),dtype='complex128')
+              weight_phi_t   = npy.empty((max_t_ind-1,max_z_ind),dtype='complex128')
+              gamma_phi_avg  = npy.empty(0,dtype='float')
+              omega_phi_avg  = npy.empty(0,dtype='float')
+              gamma_phi_std  = npy.empty(0,dtype='float')
+              omega_phi_std  = npy.empty(0,dtype='float')
 
-           frequency["mode"+ifieldf[-5:]]={}
-           frequency["mode"+ifieldf[-5:]]['ky']=param['box']['kymin']
-           frequency["mode"+ifieldf[-5:]]['omega_phi']=omega_phi_avg
-           frequency["mode"+ifieldf[-5:]]['gamma_phi']=gamma_phi_avg
-           if nfields>1:
-              frequency["mode"+ifieldf[-5:]]['omega_apr']=omega_apr_avg
-              frequency["mode"+ifieldf[-5:]]['gamma_apr']=gamma_apr_avg
+              for tind in range(0,max_t_ind-1):
+                  for zind in range(max_z_ind):
+                      comega_phi_t[tind,zind] = npy.log(phi_t[tind+1,zind]/phi_t[tind,zind])/(tlist[tind+1]-tlist[tind])
+                      weight_phi_t[tind,zind] = abs(phi_t[tind+1,zind])+abs(phi_t[tind,zind])
+
+                  comega_phi_avg = npy.sum(comega_phi_t[tind,:]*weight_phi_t[tind,:])/npy.sum(weight_phi_t[tind,:])
+                  gamma_phi_avg  = npy.append(gamma_phi_avg,comega_phi_avg.real)
+                  omega_phi_avg  = npy.append(omega_phi_avg,comega_phi_avg.imag)
+                  gamma_phi_std  = npy.append(gamma_phi_std,npy.sqrt(npy.sum(weight_phi_t[tind,:]*(gamma_phi_avg[tind]-comega_phi_t[tind,:].real)**2)/npy.sum(weight_phi_t[tind,:])))
+                  omega_phi_std  = npy.append(omega_phi_std,npy.sqrt(npy.sum(weight_phi_t[tind,:]*(omega_phi_avg[tind]-comega_phi_t[tind,:].imag)**2)/npy.sum(weight_phi_t[tind,:])))
+
+              gamma_phi_avg = npy.average(gamma_phi_avg[:-1])
+              gamma_phi_std = npy.average(gamma_phi_std[:-1].real)
+              omega_phi_avg = npy.average(omega_phi_avg[:-1])
+              omega_phi_std = npy.average(omega_phi_std[:-1].real)
+
+              frequency[modeid]['omega_phi']=omega_phi_avg
+              frequency[modeid]['gamma_phi']=gamma_phi_avg
+
+              if nfields>1:
+                 apr_t = npy.array(apr_t)
+                 max_t_ind,max_z_ind = npy.shape(apr_t)
+                 z0=[]
+                 for zind in range(max_z_ind):
+                     if abs(apr_t[0,zind])==0.0:
+                        z0.append(zind)
+                 apr_t = npy.delete(apr_t,z0,axis=1)
+                 max_t_ind,max_z_ind = npy.shape(apr_t)
+
+                 comega_apr_t   = npy.empty((max_t_ind-1,max_z_ind),dtype='complex128')
+                 weight_apr_t   = npy.empty((max_t_ind-1,max_z_ind),dtype='complex128')
+                 gamma_apr_avg  = npy.empty(0,dtype='float')
+                 omega_apr_avg  = npy.empty(0,dtype='float')
+                 gamma_apr_std  = npy.empty(0,dtype='float')
+                 omega_apr_std  = npy.empty(0,dtype='float')
+
+                 for tind in range(0,max_t_ind-1):
+                     for zind in range(max_z_ind):
+                         comega_apr_t[tind,zind] = npy.log(apr_t[tind+1,zind]/apr_t[tind,zind])/(tlist[tind+1]-tlist[tind])
+                         weight_apr_t[tind,zind] = abs(apr_t[tind+1,zind])+abs(apr_t[tind,zind])
+
+                     comega_apr_avg = npy.sum(comega_apr_t[tind,:]*weight_apr_t[tind,:])/npy.sum(weight_apr_t[tind,:])
+                     gamma_apr_avg  = npy.append(gamma_apr_avg,comega_apr_avg.real)
+                     omega_apr_avg  = npy.append(omega_apr_avg,comega_apr_avg.imag)
+                     gamma_apr_std  = npy.append(gamma_apr_std,npy.sqrt(npy.sum(weight_apr_t[tind,:]*(gamma_apr_avg[tind]-comega_apr_t[tind,:].real)**2)/npy.sum(weight_apr_t[tind,:])))
+                     omega_apr_std  = npy.append(omega_apr_std,npy.sqrt(npy.sum(weight_apr_t[tind,:]*(omega_apr_avg[tind]-comega_apr_t[tind,:].imag)**2)/npy.sum(weight_apr_t[tind,:])))
+
+                 gamma_apr_avg = npy.average(gamma_apr_avg[:-1])
+                 gamma_apr_std = npy.average(gamma_apr_std[:-1].real)
+                 omega_apr_avg = npy.average(omega_apr_avg[:-1])
+                 omega_apr_std = npy.average(omega_apr_std[:-1].real)
+
+                 frequency[modeid]['omega_apr']=omega_apr_avg
+                 frequency[modeid]['gamma_apr']=gamma_apr_avg
            
-          #My Traditional Method
-          #for tind in range(bgn_t_ind,end_t_ind):
-          #    field = read_field(ifieldf,timeslot=tind,fieldfmt='original')
-          #    time  = npy.append(time,tlist[tind])
-
-          #    (iphiz,iphix) = npy.unravel_index(np.argmax(abs(field[ifieldf]['phi'][:,0,:])),(nz,nx))
-          #    phi  = npy.append(phi,field[ifieldf]['phi'][iphiz,0,iphix])
-          #    if nfields>1:
-          #       (iaprz,iaprx) = np.unravel_index(np.argmax(abs(field[ifieldf]['apar'][:,0,:])),(nz,nx))
-          #       apr = npy.append(apr,field[ifieldf]['apar'][iaprz,0,iaprx])
-
-          #dt        = npy.diff(time)
-          #time      = npy.delete(time,0)
-          #phi_omega = npy.log(phi/np.roll(phi,1))
-          #phi_omega = npy.delete(phi_omega,0)
-          #phi_omega/= dt
-          #apr_omega = npy.log(apr/np.roll(apr,1))
-          #apr_omega = npy.delete(apr_omega,0)
-          #apr_omega/= dt
-          #gamma_avg = 0.5*(npy.average(npy.real(phi_omega))+npy.average(npy.real(apr_omega)))
-          #omega_avg = 0.5*(npy.average(npy.imag(phi_omega))+npy.average(npy.imag(apr_omega)))
-          #frequency["mode"+ifieldf[-5:]]={'ky':param['box']['kymin'],'omega':omega_avg,'gamma':gamma_avg,'phi_omega':phi_omega,'apr_omega':apr_omega}
-
     return frequency
 
 def mode_type(modeinfo,parameters):
@@ -1243,7 +1472,7 @@ def calc_tau(psi,profilepath='',iterdbpath=''):
 def units_conversion(paramfpath='',parameters={}):
    #Developed by Ehab Hassan on 2019-05-27
     if paramfpath!='' and not parameters:
-         parameters = read_parameters(parafpath.strip())
+         parameters = read_parameters(paramfpath.strip())
 
     units               = {}
 
@@ -1265,24 +1494,46 @@ def units_conversion(paramfpath='',parameters={}):
     units['Qgb']        = units['cref']*units['pref']*units['rhostar']**2
     units['Pgb']        = units['nref']*units['mref']*(units['cref']*units['rhostar'])**2
 
-   #nspecs = parameters['box']['n_spec']
-   #for ispecs in range(nspecs):
-   #    specname                      = 'species'+str(ispecs+1)
-   #    units[specname]               = {}
-   #    units[specname]['qspec']      = abs(parameters[specname]['charge'])*1.60218e-19
-   #    units[specname]['nspec']      = units['nref']*parameters[specname]['dens']
-   #    units[specname]['Tspec']      = units['Tref']*parameters[specname]['temp']
-   #    units[specname]['mspec']      = units['mref']*parameters[specname]['mass']
-   #    units[specname]['pspec']      = units[specname]['nspec']*units[specname]['Tspec']
-   #    units[specname]['vspec']      = npy.sqrt(2*units[specname]['Tspec']/units[specname]['mspec'])
-   #    units[specname]['cspec']      = npy.sqrt(units[specname]['Tspec']/units['mref'])
-   #    units[specname]['gyrofreq']   = units[specname]['qspec']*units['Bref']/units[specname]['mspec']
-   #    units[specname]['gyroradius'] = units[specname]['cspec']/units[specname]['gyrofreq']
-   #    units[specname]['rhostar']    = units[specname]['gyroradius']/units['Lref']
-   #    units[specname]['Ggb']        = units[specname]['cspec']*units[specname]['nspec']*units[specname]['rhostar']**2
-   #    units[specname]['Qgb']        = units[specname]['cspec']*units[specname]['pspec']*units[specname]['rhostar']**2
-   #    units[specname]['Pgb']        = units[specname]['nspec']*units[specname]['mspec']*(units[specname]['cspec']*units[specname]['rhostar'])**2
     return units
+
+def calculate_surface_area(geometry,parameters):
+    if   type(parameters)==str:
+         paramdata = read_parameters(parameters.strip())
+    else:
+         paramdata = parameters.copy()
+
+    if 'x_local' in paramdata['general']:
+       if paramdata['general']['x_local']: x_local = True
+       else:                               x_local = False
+    else:                                  x_local = True
+
+    if type(geometry)==str:
+       if x_local:
+          params,geomdata = read_geometry_local(geometry.strip())
+       else:
+          params,geomdata = read_geometry_global(geometry.strip())
+    else:
+       geomdata = geometry.copy()
+
+    surface_area = 0.0
+
+    surface_area = (2.0*npy.pi*paramdata['units']['Lref'])**2
+    if x_local:
+       if paramdata['geometry']['norm_flux_projection']:
+          surface_area *= npy.sum(geomdata['gjacobian']*npy.sqrt(geomdata['ggxx']))
+       else:
+          surface_area *= npy.sum(geomdata['gjacobian'])
+       surface_area *= npy.abs(params['Cy'])
+       surface_area /= paramdata['box']['nz0']
+    else:
+       if paramdata['geometry']['norm_flux_projection']:
+           surface_area *= npy.sum(npy.sum(geomdata['gjacobian'][paramdata['box']['nx0']/2,:]*npy.sqrt(geomdata['ggxx'][paramdata['box']['nx0']/2,:])),2)
+       else:
+           surface_area *= npy.sum(npy.sum(geomdata['gjacobian'][paramdata['box']['nx0']/2,:]),2)
+       surface_area *= npy.abs(params['Cy'][paramdata['box']['nx0']/2])
+       surface_area /= paramdata['box']['nz0']
+
+    return surface_area
 
 
 def merge_runs(runspathlist,destination='./'):

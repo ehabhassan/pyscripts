@@ -485,8 +485,8 @@ def create_report(genefpath="./"):
 
     print('Processing TEX to PDF ...')
    #os.system('pdflatex -interaction=batchmode -output-directory='+reportpath+" "+reportpath+texfname)
-   #os.system('pdflatex -output-directory='+reportpath+" "+reportpath+texfname+" > /dev/null")
-    os.system('pdflatex -output-directory='+reportpath+" "+reportpath+texfname)
+    os.system('pdflatex -output-directory='+reportpath+" "+reportpath+texfname+" > /dev/null")
+   #os.system('pdflatex -output-directory='+reportpath+" "+reportpath+texfname)
     print('GENE Report Created.')
 
 

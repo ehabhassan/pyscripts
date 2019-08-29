@@ -38,7 +38,7 @@ def str2bool(vin):
     return (vin.strip()).lower() in ('t','.t.','true','.true.')
 
 
-def plot_nrg(nrgdata,reportpath='',mergeplots=False):
+def plot_nrg(nrgdata,reportpath='',setParam={}):
    #Developed by Ehab Hassan on 2019-07-22
     inrgf=nrgdata.keys()[0]
     if    inrgf[-3:] == 'dat': inrgfpath = inrgf[:-7]
@@ -51,6 +51,26 @@ def plot_nrg(nrgdata,reportpath='',mergeplots=False):
           reportpath = inrgfpath+"report/"
     elif reportpath[-1] != "/":
        reportpath += "/"
+
+    if  'mergeplots' in setParam:
+         mergeplots = setParam['mergeplots']
+    else:
+         mergeplots = False
+
+    if  'logplots' in setParam:
+         logplots = setParam['logplots']
+    else:
+         logplots = False
+
+    if  'display' in setParam:
+         display = setParam['display']
+    else:
+         display = False
+
+    area_ref = {}
+    area_ref['0.94']      = 37.293
+    area_ref['0.960473']  = 37.217
+    area_ref['0.9725256'] = 37.080
 
     time      = nrgdata[inrgf]['time']
     specstype = nrgdata[inrgf].keys()
@@ -72,180 +92,343 @@ def plot_nrg(nrgdata,reportpath='',mergeplots=False):
         else:
            titletxt = '(k_y=%6.3f)' % (parameters['box']['kymin'])
 
+        geomfpath  = "%stracer_efit%s" %(isimfpath,inrgfext)
+        area = genetools.calculate_surface_area(parameters=parameters,geometry=geomfpath)
+        print area
+
+        bgnind = 1
         time = nrgdata[inrgf]['time']
         for ispecs in specstype:
             nfig   = plt.figure('n-'+inrgfpath)
             axhand = nfig.add_subplot(1,1,1)
-            axhand.plot(time,nrgdata[inrgf][ispecs]['n'],label=ispecs)
+            dens = nrgdata[inrgf][ispecs]['n']
+            axhand.plot(time[bgnind:],dens[bgnind:],label=ispecs)
             axhand.set_title('n%s' %(titletxt))
             axhand.set_xlabel('Time')
             axhand.set_ylabel('Density')
+            if logplots: axhand.set_yscale('symlog')
             axhand.legend()
 
             uparafig = plt.figure('upara-'+inrgfpath)
             axhand = uparafig.add_subplot(1,1,1)
-            axhand.plot(time,nrgdata[inrgf][ispecs]['upara'],label=ispecs)
+            upara = nrgdata[inrgf][ispecs]['upara']
+            axhand.plot(time[bgnind:],upara[bgnind:],label=ispecs)
             axhand.set_title('$U_{||}%s$' %(titletxt))
             axhand.set_xlabel('Time')
             axhand.set_ylabel('Parallel Velocity')
+            if logplots: axhand.set_yscale('symlog')
             axhand.legend()
 
             if mergeplots:
                Tfig = plt.figure('T-'+inrgfpath)
                axhand = Tfig.add_subplot(1,1,1)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['Tpara'],linestyle='-', label='$T_{\\parallel,%s}$' % ispecs)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['Tperp'],linestyle='--',label='$T_{\\perp,%s}$' % ispecs)
+               Tpara = nrgdata[inrgf][ispecs]['Tpara']
+               axhand.plot(time[bgnind:],Tpara[bgnind:],linestyle='-', label='$T_{\\parallel,%s}$' % ispecs)
+               Tperp = nrgdata[inrgf][ispecs]['Tperp']
+               axhand.plot(time[bgnind:],Tperp[bgnind:],linestyle='--',label='$T_{\\perp,%s}$' % ispecs)
                axhand.set_title('$T_{\\parallel,\\perp}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Temperature')
-               axhand.set_yscale('log')
+               if logplots: axhand.set_yscale('symlog')
                axhand.legend()
             else:
                Tparafig = plt.figure('Tpara-'+inrgfpath)
                axhand = Tparafig.add_subplot(1,1,1)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['Tpara'],label=ispecs)
+               Tpara = nrgdata[inrgf][ispecs]['Tpara']
+               axhand.plot(time[bgnind:],Tpara[bgnind:],label=ispecs)
                axhand.set_title('$T_{\\parallel}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Parallel Temperature')
+               if logplots: axhand.set_yscale('symlog')
                axhand.legend()
 
                Tperpfig = plt.figure('Tperp-'+inrgfpath)
                axhand = Tperpfig.add_subplot(1,1,1)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['Tperp'],label=ispecs)
+               Tperp = nrgdata[inrgf][ispecs]['Tperp']
+               axhand.plot(time[bgnind:],Tperp[bgnind:],label=ispecs)
                axhand.set_title('$T_{\\perp}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Transverse Temperature')
+               if logplots: axhand.set_yscale('symlog')
                axhand.legend()
 
             if mergeplots:
                PFluxfig = plt.figure('PFlux-'+inrgfpath)
                axhand = PFluxfig.add_subplot(1,1,1)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['PFluxes'],linestyle='-', label='$\\Gamma_{es,%s}$' % ispecs)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['PFluxem'],linestyle='--',label='$\\Gamma_{em,%s}$' % ispecs)
+               PFluxes = nrgdata[inrgf][ispecs]['PFluxes']*area/1.0e6
+               axhand.plot(time[bgnind:],PFluxes[bgnind:],linestyle='-',label='$\\Gamma_{es,%s}$=%7.5e' % (ispecs,PFluxes[-1]))
+               PFluxem = nrgdata[inrgf][ispecs]['PFluxem']*area/1.0e6
+               axhand.plot(time[bgnind:],PFluxem[bgnind:],linestyle=':',label='$\\Gamma_{em,%s}$=%7.5e' % (ispecs,PFluxem[-1]))
                axhand.set_title('$\\Gamma_{es,em}%s$' %(titletxt))
                axhand.set_xlabel('Time')
-               axhand.set_ylabel('Particle Flux')
-               axhand.set_yscale('log')
+               axhand.set_ylabel('Particle Flux (MW/keV)')
+               if logplots: axhand.set_yscale('symlog')
                axhand.legend()
             else:
                PFluxesfig = plt.figure('PFluxes-'+inrgfpath)
                axhand = PFluxesfig.add_subplot(1,1,1)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['PFluxes'],label=ispecs)
+               PFluxes = nrgdata[inrgf][ispecs]['PFluxes']*area/1.0e6
+               axhand.plot(time[bgnind:],PFluxes[bgnind:],label='$\\Gamma_{es,%s}$=%7.5e' % (ispecs,PFluxes[-1]))
                axhand.set_title('$\\Gamma_{es}%s$' %(titletxt))
                axhand.set_xlabel('Time')
-               axhand.set_ylabel('Electrostatic Particle Flux')
+               axhand.set_ylabel('Electrostatic Particle Flux (MW/keV)')
+               if logplots: axhand.set_yscale('symlog')
                axhand.legend()
 
                PFluxemfig = plt.figure('PFluxem-'+inrgfpath)
                axhand = PFluxemfig.add_subplot(1,1,1)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['PFluxem'],label=ispecs)
+               PFluxem = nrgdata[inrgf][ispecs]['PFluxem']*area/1.0e6
+               axhand.plot(time[bgnind:],PFluxem[bgnind:],label='$\\Gamma_{em,%s}$=%7.5e' % (ispecs,PFluxem[-1]))
                axhand.set_title('$\\Gamma_{em}%s$' %(titletxt))
                axhand.set_xlabel('Time')
-               axhand.set_ylabel('Electromagnetic Particle Flux')
+               axhand.set_ylabel('Electromagnetic Particle Flux (MW/keV)')
+               if logplots: axhand.set_yscale('symlog')
                axhand.legend()
 
             if mergeplots:
                HFluxfig = plt.figure('HFlux-'+inrgfpath)
                axhand = HFluxfig.add_subplot(1,1,1)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['HFluxes'],linestyle='-', label='$Q_{es,%s}$' % ispecs)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['HFluxem'],linestyle='--',label='$Q_{em,%s}$' % ispecs)
+               HFluxes = nrgdata[inrgf][ispecs]['HFluxes']*area/1.0e6
+               axhand.plot(time[bgnind:],HFluxes[bgnind:],linestyle='-',label='$Q_{es,%s}$=%7.5e' % (ispecs,HFluxes[-1]))
+               HFluxem = nrgdata[inrgf][ispecs]['HFluxem']*area/1.0e6
+               axhand.plot(time[bgnind:],HFluxem[bgnind:],linestyle=':',label='$Q_{em,%s}$=%7.5e' % (ispecs,HFluxem[-1]))
                axhand.set_title('$Q_{es,em}%s$' %(titletxt))
                axhand.set_xlabel('Time')
-               axhand.set_ylabel('Heat Flux')
-               axhand.set_yscale('log')
+               axhand.set_ylabel('Heat Flux (MW)')
+               if logplots: axhand.set_yscale('symlog')
                axhand.legend()
             else:
                HFluxesfig = plt.figure('HFluxes-'+inrgfpath)
                axhand = HFluxesfig.add_subplot(1,1,1)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['HFluxes'],label=ispecs)
+               HFluxes = nrgdata[inrgf][ispecs]['HFluxes']*area/1.0e6
+               axhand.plot(time[bgnind:],HFluxes[bgnind:],label='$Q_{es,%s}$=%7.5e' % (ispecs,HFluxes[-1]))
                axhand.set_title('$Q_{es}%s$' %(titletxt))
                axhand.set_xlabel('Time')
-               axhand.set_ylabel('Electrostatic Heat Flux')
+               axhand.set_ylabel('Electrostatic Heat Flux (MW)')
+               if logplots: axhand.set_yscale('symlog')
                axhand.legend()
 
                HFluxemfig = plt.figure('HFluxem-'+inrgfpath)
                axhand = HFluxemfig.add_subplot(1,1,1)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['HFluxem'],label=ispecs)
+               HFluxem = nrgdata[inrgf][ispecs]['HFluxem']*area/1.0e6
+               axhand.plot(time[bgnind:],HFluxem[bgnind:],label='$Q_{em,%s}$=%7.5e' % (ispecs,HFluxem[-1]))
                axhand.set_title('$Q_{em}%s$' %(titletxt))
                axhand.set_xlabel('Time')
-               axhand.set_ylabel('Electromagnetic Heat Flux')
+               axhand.set_ylabel('Electromagnetic Heat Flux (MW)')
+               if logplots: axhand.set_yscale('symlog')
                axhand.legend()
 
             if mergeplots:
-               PFluxfig = plt.figure('Viscos-'+inrgfpath)
-               axhand = PFluxfig.add_subplot(1,1,1)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['Viscoses'],linestyle='-', label='$\\Pi_{es,%s}$' % ispecs)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['Viscosem'],linestyle='--',label='$\\Pi_{em,%s}$' % ispecs)
+               Viscosfig = plt.figure('Viscos-'+inrgfpath)
+               axhand = Viscosfig.add_subplot(1,1,1)
+               Viscoses = nrgdata[inrgf][ispecs]['Viscoses']*area
+               axhand.plot(time[bgnind:],Viscoses[bgnind:],linestyle='-',label='$\\Pi_{es,%s}$=%7.5e' % (ispecs,Viscoses[-1]))
+               Viscosem = nrgdata[inrgf][ispecs]['Viscosem']*area
+               axhand.plot(time[bgnind:],Viscosem[bgnind:],linestyle=':',label='$\\Pi_{em,%s}$=%7.5e' % (ispecs,Viscosem[-1]))
                axhand.set_title('$\\Pi_{es,em}%s$' %(titletxt))
                axhand.set_xlabel('Time')
-               axhand.set_ylabel('Stress Tensor')
-               axhand.set_yscale('log')
+               axhand.set_ylabel('Stress Tensor (N.m)')
+               if logplots: axhand.set_yscale('symlog')
                axhand.legend()
             else:
                Viscosesfig = plt.figure('Viscoses-'+inrgfpath)
                axhand = Viscosesfig.add_subplot(1,1,1)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['Viscoses'],label=ispecs)
+               Viscoses = nrgdata[inrgf][ispecs]['Viscoses']*area
+               axhand.plot(time[bgnind:],Viscoses[bgnind:],label='$\\Pi_{es,%s}$=%7.5e' % (ispecs,Viscoses[-1]))
                axhand.set_title('$\\Pi_{es}%s$' %(titletxt))
                axhand.set_xlabel('Time')
-               axhand.set_ylabel('Electrostatic Stress Tensor')
+               axhand.set_ylabel('Electrostatic Stress Tensor(N.m)')
+               if logplots: axhand.set_yscale('symlog')
                axhand.legend()
 
                Viscosemfig = plt.figure('Viscosem-'+inrgfpath)
                axhand = Viscosemfig.add_subplot(1,1,1)
-               axhand.plot(time,nrgdata[inrgf][ispecs]['Viscosem'],label=ispecs)
+               Viscosem = nrgdata[inrgf][ispecs]['Viscosem']*area
+               axhand.plot(time[bgnind:],Viscosem[bgnind:],label='$\\Pi_{em,%s}$=%7.5e' % (ispecs,Viscosem[-1]))
                axhand.set_title('$\\Pi_{em}%s$' %(titletxt))
                axhand.set_xlabel('Time')
-               axhand.set_ylabel('Electromagnetic Stress Tensor')
+               axhand.set_ylabel('Electromagnetic Stress Tensor(N.m)')
+               if logplots: axhand.set_yscale('symlog')
                axhand.legend()
 
+        if display: plt.show()
+
+        figlist = []
+
+        figlist.append(nfig)
         nfig.savefig(reportpath+'n_%s.png' % (inrgfpath))
         plt.close(nfig)
 
+        figlist.append(uparafig)
         uparafig.savefig(reportpath+'upara_%s.png' % (inrgfpath))
         plt.close(uparafig)
 
         if mergeplots:
+           figlist.append(Tfig)
            Tfig.savefig(reportpath+'T_%s.png' % (inrgfpath))
            plt.close(Tfig)
         else:
+           figlist.append(Tparafig)
            Tparafig.savefig(reportpath+'Tpara_%s.png' % (inrgfpath))
            plt.close(Tparafig)
 
+           figlist.append(Tperpfig)
            Tperpfig.savefig(reportpath+'Tperp_%s.png' % (inrgfpath))
            plt.close(Tperpfig)
 
         if mergeplots:
+           figlist.append(PFluxfig)
            PFluxfig.savefig(reportpath+'PFlux_%s.png' % (inrgfpath))
            plt.close(PFluxfig)
         else:
+           figlist.append(PFluxesfig)
            PFluxesfig.savefig(reportpath+'PFluxes_%s.png' % (inrgfpath))
            plt.close(PFluxesfig)
 
+           figlist.append(PFluxemfig)
            PFluxemfig.savefig(reportpath+'PFluxem_%s.png' % (inrgfpath))
            plt.close(PFluxemfig)
 
         if mergeplots:
+           figlist.append(HFluxfig)
            HFluxfig.savefig(reportpath+'HFlux_%s.png' % (inrgfpath))
            plt.close(HFluxfig)
         else:
+           figlist.append(PFluxesfig)
            HFluxesfig.savefig(reportpath+'HFluxes_%s.png' % (inrgfpath))
            plt.close(HFluxesfig)
 
+           figlist.append(PFluxemfig)
            HFluxemfig.savefig(reportpath+'HFluxem_%s.png' % (inrgfpath))
            plt.close(HFluxemfig)
 
         if mergeplots:
+           figlist.append(Viscosfig)
            Viscosfig.savefig(reportpath+'Viscos_%s.png' % (inrgfpath))
            plt.close(Viscosfig)
         else:
+           figlist.append(Viscosesfig)
            Viscosesfig.savefig(reportpath+'Viscoses_%s.png' % (inrgfpath))
            plt.close(Viscosesfig)
 
+           figlist.append(Viscosemfig)
            Viscosemfig.savefig(reportpath+'Viscosem_%s.png' % (inrgfpath))
            plt.close(Viscosemfig)
 
-    return 1 
-    
+    return figlist 
+
+
+def plot_neoclass(neoclassdata,reportpath='',setParam={}):
+   #Developed by Ehab Hassan on 2019-08-20
+    ineoclassf=neoclassdata.keys()[0]
+    if    ineoclassf[-3:] == 'dat': ineoclassfpath = ineoclassf[:-12]
+    else:                           ineoclassfpath = ineoclassf[:-13]
+    if 'report' not in reportpath:
+       if not os.path.isdir(ineoclassfpath+"report"):
+          os.system('mkdir '+ineoclassfpath+"report")
+          reportpath = ineoclassfpath+"report/"
+       else:
+          reportpath = ineoclassfpath+"report/"
+    elif reportpath[-1] != "/":
+       reportpath += "/"
+
+    if  'logplots' in setParam:
+         logplots = setParam['logplots']
+    else:
+         logplots = False
+
+    if  'display' in setParam:
+         display = setParam['display']
+    else:
+         display = False
+
+    time      = neoclassdata[ineoclassf]['time']
+    specstype = neoclassdata[ineoclassf].keys()
+    specstype.remove('time')
+
+    for ineoclassf in neoclassdata:
+        if 'dat' in ineoclassf:
+           isimfpath = ineoclassf[:-12]
+           ineoclassfpath = ineoclassf[-12:]
+           ineoclassfext  = ineoclassf[-4:]
+        else:
+           isimfpath = ineoclassf[:-13]
+           ineoclassfpath = ineoclassf[-13:]
+           ineoclassfext  = ineoclassf[-5:]
+
+        paramfpath = "%sparameters%s"  %(isimfpath,ineoclassfext)
+        parameters = genetools.read_parameters(paramfpath)
+        if 'x0' in parameters['box']:
+           titletxt = '(x_0=%7.5f)' % parameters['box']['x0']
+
+        geomfpath  = "%stracer_efit%s" %(isimfpath,ineoclassfext)
+        area = genetools.calculate_surface_area(parameters=parameters,geometry=geomfpath)
+
+        bgnind = 3000
+        time = neoclassdata[ineoclassf]['time']
+        for ispecs in specstype:
+            PFluxfig = plt.figure('PFlux-'+ineoclassfpath)
+            axhand = PFluxfig.add_subplot(1,1,1)
+            PFlux = neoclassdata[ineoclassf][ispecs]['PFlux']*area/1.0e6
+            axhand.plot(time[bgnind:],PFlux[bgnind:],linestyle='-', label='$\\Gamma_{neo,%s}$=%9.7E (MW/keV)' % (ispecs,PFlux[-1]))
+            axhand.set_title('$\\Gamma_{neo}%s$' %(titletxt))
+            axhand.set_xlabel('Time (seconds)')
+            axhand.set_ylabel('Particle Flux (MW/keV)')
+            if logplots: axhand.set_yscale('symlog')
+            axhand.legend()
+
+            HFluxfig = plt.figure('HFlux-'+ineoclassfpath)
+            axhand = HFluxfig.add_subplot(1,1,1)
+            HFlux = neoclassdata[ineoclassf][ispecs]['HFlux']*area/1.0e6
+            axhand.plot(time[bgnind:],HFlux[bgnind:],linestyle='-', label='$Q_{neo,%s}$=%9.7E (MW)' % (ispecs,HFlux[-1]))
+            axhand.set_title('$Q_{neo}%s$' %(titletxt))
+            axhand.set_xlabel('Time (seconds)')
+            axhand.set_ylabel('Heat Flux (MW)')
+            if logplots: axhand.set_yscale('symlog')
+            axhand.legend()
+
+            Viscosfig = plt.figure('Viscos-'+ineoclassfpath)
+            axhand = Viscosfig.add_subplot(1,1,1)
+            Viscos = neoclassdata[ineoclassf][ispecs]['Viscos']*area
+            axhand.plot(time[bgnind:],Viscos[bgnind:],linestyle='-', label='$\\Pi_{neo,%s}$=%9.7E (N.m)' % (ispecs,Viscos[-1]))
+            axhand.set_title('$\\Pi_{neo}%s$' %(titletxt))
+            axhand.set_xlabel('Time (seconds)')
+            axhand.set_ylabel('Stress Tensor (N.m)')
+            if logplots: axhand.set_yscale('symlog')
+            axhand.legend()
+
+            JBSfig = plt.figure('JBS-'+ineoclassfpath)
+            axhand = JBSfig.add_subplot(1,1,1)
+            JBS = neoclassdata[ineoclassf][ispecs]['JBS']
+            axhand.plot(time[bgnind:],JBS[bgnind:],linestyle='-', label='$J_{bs,neo,%s}$=%9.7E (A)' % (ispecs,JBS[-1]))
+            axhand.set_title('$J_{bs,neo}%s$' %(titletxt))
+            axhand.set_xlabel('Time (seconds)')
+            axhand.set_ylabel('Booststrap Current (Ampere)')
+            if logplots: axhand.set_yscale('symlog')
+            axhand.legend()
+
+        figlist = []
+
+        if display: plt.show()
+
+        figlist.append(PFluxfig)
+        PFluxfig.savefig(reportpath+'PFlux_%s.png' % (ineoclassfpath))
+        plt.close(PFluxfig)
+
+        figlist.append(HFluxfig)
+        HFluxfig.savefig(reportpath+'HFlux_%s.png' % (ineoclassfpath))
+        plt.close(HFluxfig)
+
+        figlist.append(Viscosfig)
+        Viscosfig.savefig(reportpath+'Viscos_%s.png' % (ineoclassfpath))
+        plt.close(Viscosfig)
+
+        figlist.append(JBSfig)
+        JBSfig.savefig(reportpath+'JBS_%s.png' % (ineoclassfpath))
+        plt.close(JBSfig)
+
+        return figlist
+
 
 def plot_scandata(scandata,params={},normalize=True):
    #Developed by Ehab Hassan on 2019-02-05
@@ -477,7 +660,7 @@ def plot_mom(mom,param={},reportpath=''):
 
     return
 
-def plot_field(field,param={},reportpath=''):
+def plot_field(field,param={},reportpath='',setParam={}):
    #Developed by Ehab Hassan on 2019-03-14
     ifieldf=field.keys()[0]
     if 'report' not in reportpath:
@@ -488,6 +671,9 @@ def plot_field(field,param={},reportpath=''):
           reportpath = ifieldf[:-10]+"report/"
     elif reportpath[-1] != "/":
        reportpath += "/"
+
+    if 'display' in setParam: display = True
+    else:                     display = False
 
     for ifieldf in field:
         if not param.keys():
@@ -533,28 +719,24 @@ def plot_field(field,param={},reportpath=''):
            apar1d = apar1d/apar[nz/2,0,0]
 
            phinds = (abs(phi1d)>=1.0e-4)
-           figure = plt.figure('Phi_'+ifieldf[-4:])
-           axhand = figure.add_subplot(1,1,1)
+           PHIfig = plt.figure('Phi_'+ifieldf[-4:])
+           axhand = PHIfig.add_subplot(1,1,1)
            axhand.plot(zgrid[phinds],npy.real(phi1d[phinds]),color='red',label=r'$Re[\phi]$')
            axhand.plot(zgrid[phinds],npy.imag(phi1d[phinds]),color='blue',label=r'$Im[\phi]$')
            axhand.plot(zgrid[phinds],npy.abs(phi1d[phinds]),color='black',label=r'$|\phi|$')
            axhand.set_title(r'$\phi(k_y=%1.3f)$' % float(param['box']['kymin']) )
            axhand.set_xlabel(r'$z/\pi$',size=18)
            axhand.legend()
-           figure.savefig(reportpath+'phi_mode_%s.png' % (ifieldf[-4:]))
-           plt.close(figure)
 
            aparinds = (abs(apar1d)>=1.0e-4)
-           figure = plt.figure('Apar_'+ifieldf[-4:])
-           axhand = figure.add_subplot(1,1,1)
+           APARfig = plt.figure('Apar_'+ifieldf[-4:])
+           axhand = APARfig.add_subplot(1,1,1)
            axhand.plot(zgrid[aparinds],npy.real(apar1d[aparinds]),color='red',label=r'$Re[A_{||}]$')
            axhand.plot(zgrid[aparinds],npy.imag(apar1d[aparinds]),color='blue',label=r'$Im[A_{||}]$')
            axhand.plot(zgrid[aparinds],npy.abs(apar1d[aparinds]),color='black',label=r'$|A_{||}|$')
            axhand.set_title(r'$A_{||}(k_y=%1.3f)$' % float(param['box']['kymin']))
            axhand.set_xlabel(r'$z/\pi$',size=18)
            axhand.legend()
-           figure.savefig(reportpath+'apar_mode_%s.png' % (ifieldf[-4:]))
-           plt.close(figure)
 
            if os.path.isfile(ifieldf[:-10]+'omega'+ifieldf[-5:]):
                om = np.genfromtxt(ifieldf[:-10]+'omega'+ifieldf[-5:])
@@ -570,8 +752,8 @@ def plot_field(field,param={},reportpath=''):
 
            genlist = list(zip(abs(npy.real(gradphi))>=1.0e-6,abs(npy.real(omega_complex*apar1d))>=1.0e-6,abs(npy.imag(gradphi))>=1.0e-6,abs(npy.imag(omega_complex*apar1d))>=1.0e-6))
            geninds = [(i or j or k or l) for (i,j,k,l) in genlist]
-           figure = plt.figure('wApar_dPhi_'+ifieldf[-4:])
-           axhand = figure.add_subplot(1,1,1)
+           wAPARfig = plt.figure('wApar_dPhi_'+ifieldf[-4:])
+           axhand = wAPARfig.add_subplot(1,1,1)
            axhand.plot(zgrid[geninds],npy.real(gradphi)[geninds],'-',color = 'red',label=r'$Re[\nabla \phi]$')
            axhand.plot(zgrid[geninds],npy.imag(gradphi)[geninds],'-.',color = 'red',label=r'$Im[\nabla \phi]$')
            axhand.plot(zgrid[geninds],-npy.real(omega_complex*apar1d)[geninds],'-',color = 'black',label=r'$Re[\omega A_{||}]$')
@@ -579,8 +761,15 @@ def plot_field(field,param={},reportpath=''):
            axhand.set_title(r'$\nabla\phi,\partial_tA_{||}(k_y=%1.3f)$' % float(param['box']['kymin']))
            axhand.set_xlabel(r'$z/\pi$',size=18)
            axhand.legend()
-           figure.savefig(reportpath+'wApar_dPhi_mode_%s.png' % (ifieldf[-4:]))
+
+           if display: plt.show()
+
+           PHIfig.savefig(reportpath+'phi_mode_%s.png' % (ifieldf[-4:]))
+           plt.close(PHIfig)
+           figure.savefig(reportpath+'apar_mode_%s.png' % (ifieldf[-4:]))
            plt.close(figure)
+           wAPARfig.savefig(reportpath+'wApar_dPhi_mode_%s.png' % (ifieldf[-4:]))
+           plt.close(wAPARfig)
 
         elif not x_local:
            nx      = field[ifieldf]['nx']
@@ -632,30 +821,28 @@ def plot_field(field,param={},reportpath=''):
            imax = np.unravel_index(np.argmax(abs(phi)),(nz,nx))
            plot_ballooning = True
            if plot_ballooning:
-              figure = plt.figure('Phi_'+ifieldf[-4:])
-              axhand = figure.add_subplot(3,1,1)
+              PHI2Dfig = plt.figure('Phi_'+ifieldf[-4:])
+              axhand = PHI2Dfig.add_subplot(3,1,1)
               cp=axhand.contourf(xgrid,zgrid,npy.abs(phi_bnd[:,0,:]),70)
               for i in range(len(qrats)):
                   ix = np.argmin(abs(geometry['q']-qrats[i])) 
                   axhand.axvline(xgrid[ix],color='white')
               axhand.plot(xgrid[imax[1]],zgrid[imax[0]],'x')
-              cbar=figure.colorbar(cp)
+              cbar=PHI2Dfig.colorbar(cp)
               cbar.set_label(r'$|\phi|$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
               axhand.set_title(r'Electric Potential ($\phi$)',fontsize=13)
-              axhand = figure.add_subplot(3,1,2)
+              axhand = PHI2Dfig.add_subplot(3,1,2)
               cp=axhand.contourf(xgrid,zgrid,npy.real(phi_bnd[:,0,:]),70)
-              cbar=figure.colorbar(cp)
+              cbar=PHI2Dfig.colorbar(cp)
               cbar.set_label(r'$Re[\phi]$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
-              axhand = figure.add_subplot(3,1,3)
+              axhand = PHI2Dfig.add_subplot(3,1,3)
               cp=axhand.contourf(xgrid,zgrid,npy.imag(phi_bnd[:,0,:]),70)
-              cbar=figure.colorbar(cp)
+              cbar=PHI2Dfig.colorbar(cp)
               cbar.set_label(r'$Im[\phi]$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
               axhand.set_xlabel(r'$\rho_{tor}$',fontsize=13)
-              figure.savefig(reportpath+'phi_mode_%s_2d.png' % (ifieldf[-4:]))
-              plt.close(figure)
 
 #          if plot_ballooning:
 #              plt.xlabel(r'$z/\pi$',fontsize=13)
@@ -668,8 +855,8 @@ def plot_field(field,param={},reportpath=''):
 
            plot_theta = True
            if plot_theta:
-              figure = plt.figure('Phi_'+ifieldf[-4:])
-              axhand = figure.add_subplot(1,1,1)
+              PHI1Dfig = plt.figure('Phi_'+ifieldf[-4:])
+              axhand = PHI1Dfig.add_subplot(1,1,1)
               for i in range(int(mmin),int(mmax)+1):
                   axhand.plot(xgrid,npy.abs(phi_m[i,0,:]))
               for i in range(len(qrats)):
@@ -678,8 +865,6 @@ def plot_field(field,param={},reportpath=''):
               axhand.set_xlabel(r'$\rho_{tor}$',fontsize=13)
               axhand.set_ylabel(r'$\phi_{m}$',fontsize=13)
               axhand.set_title(r'$\phi_m$')
-              figure.savefig(reportpath+'phi_mode_%s.png' % (ifieldf[-4:]))
-              plt.close(figure)
 
            zgrid = np.arange(nz)/float(nz-1)*(2.0-(2.0/nz))-1.0
 
@@ -695,8 +880,8 @@ def plot_field(field,param={},reportpath=''):
                apar_m[:,i] = npy.fft.fft(apar_theta[:,i])
 
            if plot_theta:
-              figure = plt.figure('Apar_'+ifieldf[-4:])
-              axhand = figure.add_subplot(1,1,1)
+              APAR1Dfig = plt.figure('Apar_'+ifieldf[-4:])
+              axhand = APAR1Dfig.add_subplot(1,1,1)
               for i in range(int(mmin),int(mmax)+1):
                   axhand.plot(xgrid,npy.abs(apar_m[i,:]))
               for i in range(len(qrats)):
@@ -705,33 +890,29 @@ def plot_field(field,param={},reportpath=''):
               axhand.set_xlabel(r'$\rho_{tor}$',fontsize=13)
               axhand.set_ylabel(r'$A_{||m}$',fontsize=13)
               axhand.set_title(r'$A_{||m}$')
-              figure.savefig(reportpath+'apar_mode_%s.png' % (ifieldf[-4:]))
-              plt.close(figure)
 
            if plot_ballooning:
-              figure = plt.figure('Apar'+ifieldf[-4:])
-              axhand = figure.add_subplot(3,1,1)
+              APAR2Dfig = plt.figure('Apar'+ifieldf[-4:])
+              axhand = APAR2Dfig.add_subplot(3,1,1)
               cp=axhand.contourf(xgrid,zgrid,npy.abs(apar[:,0,:]),70)
               for i in range(len(qrats)):
                   ix = npy.argmin(abs(geometry['q']-qrats[i])) 
                   axhand.axvline(xgrid[ix],color='white')
-              cbar=figure.colorbar(cp)
+              cbar=APAR2Dfig.colorbar(cp)
               cbar.set_label(r'$|A_{||}|$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
               axhand.set_title(r'Magnetic Potential ($A_{||}$)',fontsize=13)
-              axhand = figure.add_subplot(3,1,2)
+              axhand = APAR2Dfig.add_subplot(3,1,2)
               cp=axhand.contourf(xgrid,zgrid,npy.real(apar[:,0,:]),70)
-              cbar=figure.colorbar(cp)
+              cbar=APAR2Dfig.colorbar(cp)
               cbar.set_label(r'$Re[A_{||}]$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
-              axhand = figure.add_subplot(3,1,3)
+              axhand = APAR2Dfig.add_subplot(3,1,3)
               cp=axhand.contourf(xgrid,zgrid,npy.imag(apar[:,0,:]),70)
-              cbar=figure.colorbar(cp)
+              cbar=APAR2Dfig.colorbar(cp)
               cbar.set_label(r'$Im[A_{||}]$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
               axhand.set_xlabel(r'$\rho_{tor}$',fontsize=13)
-              figure.savefig(reportpath+'apar_mode_%s_2d.png' % (ifieldf[-4:]))
-              plt.close(figure)
 
            if os.path.isfile(ifieldf[:-10]+'omega'+ifieldf[-5:]):
                om = np.genfromtxt(ifieldf[:-10]+'omega'+ifieldf[-5:])
@@ -751,7 +932,7 @@ def plot_field(field,param={},reportpath=''):
                  prof_file = param['geometry']['geomdir'][:-5]+'PROFILES/'+param['geometry']['geomfile'][:-5]+'Profiles'
                  geom_file = param['geometry']['geomdir']+'/'+param['geometry']['geomfile']
               if os.path.isfile(prof_file) and os.path.isfile(geom_file):
-                 profs,units = efittools.read_profiles(prof_file,setParam={'rhotor':param['box']['nx0'],'eqdskfpath':geom_file})
+                 profs,units = efittools.read_profiles_file(prof_file,setParam={'rhotor':param['box']['nx0'],'eqdskfpath':geom_file})
               else:
                  raise IOError('Profile and/or Geometry files NOT FOUND in the given path!')
               omegator0 = interp(rhot_idb['VROT'],profs_idb['VROT'],profs['rhotor'])
@@ -772,61 +953,81 @@ def plot_field(field,param={},reportpath=''):
            phi_cont = np.sum(npy.abs(gradphi[2:-2,:,:]))
 
            if 'ExBrate' in param['external_contr'] and param['external_contr']['ExBrate'] == -1111 and plot_ballooning: 
-              figure = plt.figure('real_Epar'+ifieldf[-4:])
-              axhand = figure.add_subplot(3,1,1)
+              REPAR2Dfig = plt.figure('real_Epar'+ifieldf[-4:])
+              axhand = REPAR2Dfig.add_subplot(3,1,1)
               cp=axhand.contourf(xgrid,zgrid,npy.real(gradphi[2:-2,0,:]),70,vmin = npy.min(np.real(gradphi[2:-2,0,:])),vmax = npy.max(np.real(gradphi[2:-2,0,:])))
               for i in range(len(qrats)):
                   ix = npy.argmin(abs(geometry['q']-qrats[i])) 
                   axhand.axvline(xgrid[ix],color='white')
               axhand.plot(xgrid[imax[1]],zgrid[imax[0]],'x')
-              cbar=figure.colorbar(cp)
+              cbar=REPAR2Dfig.colorbar(cp)
               cbar.set_label(r'$Re(grad phi)$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
               axhand.set_title(r'Parallel Electric Field ($Re[E_{||}]$)',fontsize=13)
-              axhand = figure.add_subplot(3,1,2)
+              axhand = REPAR2Dfig.add_subplot(3,1,2)
               cp=axhand.contourf(xgrid,zgrid,-npy.real(apar_cont_2D[:,0,:]),70,vmin = npy.min(np.real(gradphi[2:-2,0,:])),vmax = npy.max(np.real(gradphi[2:-2,0,:])))
-              cbar= figure.colorbar(cp)
+              cbar= REPAR2Dfig.colorbar(cp)
               cbar.set_label(r'$Re[ omega Apar]$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
-              axhand=figure.add_subplot(3,1,3)
+              axhand=REPAR2Dfig.add_subplot(3,1,3)
               cp=axhand.contourf(xgrid,zgrid,npy.real(gradphi[2:-2,0,:]+apar_cont_2D[:,0,:]),70,vmin = npy.min(npy.real(gradphi[2:-2,0,:])),vmax = npy.max(np.real(gradphi[2:-2,0,:])))
-              cbar=figure.colorbar(cp)
+              cbar=REPAR2Dfig.colorbar(cp)
               cbar.set_label(r'$Re[Diff]$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
               axhand.set_xlabel(r'$\rho_{tor}$',fontsize=13)
-              figure.savefig(reportpath+'real_Epar_mode_%s_2d.png' % (ifieldf[-4:]))
-              plt.close(figure)
            
-              figure = plt.figure('imag_Epar'+ifieldf[-4:])
-              axhand = figure.add_subplot(3,1,1)
+              IEPAR2Dfig = plt.figure('imag_Epar'+ifieldf[-4:])
+              axhand = IEPAR2Dfig.add_subplot(3,1,1)
               cp=axhand.contourf(xgrid,zgrid,npy.imag(gradphi[2:-2,0,:]),70,vmin = npy.min(npy.imag(gradphi[2:-2,0,:])),vmax = npy.max(npy.imag(gradphi[2:-2,0,:])))
               for i in range(len(qrats)):
                   ix = npy.argmin(abs(geometry['q']-qrats[i])) 
                   axhand.axvline(xgrid[ix],color='white')
               axhand.plot(xgrid[imax[1]],zgrid[imax[0]],'x')
-              cbar=figure.colorbar(cp)
+              cbar=IEPAR2Dfig.colorbar(cp)
               cbar.set_label(r'$Im(grad phi)$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
               axhand.set_title(r'Parallel Electric Field ($Im[E_{||}]$)',fontsize=13)
-              axhand = figure.add_subplot(3,1,2)
+              axhand = IEPAR2Dfig.add_subplot(3,1,2)
               cp=axhand.contourf(xgrid,zgrid,-npy.imag(apar_cont_2D[:,0,:]),70,vmin = npy.min(npy.imag(gradphi[2:-2,0,:])),vmax = npy.max(npy.imag(gradphi[2:-2,0,:])))
-              cbar=figure.colorbar(cp)
+              cbar=IEPAR2Dfig.colorbar(cp)
               cbar.set_label(r'$Im[ omega Apar]$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
-              axhand = figure.add_subplot(3,1,3)
+              axhand = IEPAR2Dfig.add_subplot(3,1,3)
               cp=axhand.contourf(xgrid,zgrid,npy.imag(gradphi[2:-2,0,:]+apar_cont_2D[:,0,:]),70,vmin = npy.min(npy.imag(gradphi[2:-2,0,:])),vmax = npy.max(npy.imag(gradphi[2:-2,0,:])))
-              cbar=figure.colorbar(cp)
+              cbar=IEPAR2Dfig.colorbar(cp)
               cbar.set_label(r'$Im[Diff]$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
               axhand.set_xlabel(r'$\rho_{tor}$',fontsize=13)
-              figure.savefig(reportpath+'imag_Epar_mode_%s_2d.png' % (ifieldf[-4:]))
-              plt.close(figure)
+
+              if display: plt.show()
+
+              PHI2Dfig.savefig(reportpath+'phi_mode_%s_2d.png' % (ifieldf[-4:]))
+              plt.close(PHI2Dfig)
+              PHI1Dfig.savefig(reportpath+'phi_mode_%s.png' % (ifieldf[-4:]))
+              plt.close(PHI1Dfig)
+              APAR1Dfig.savefig(reportpath+'apar_mode_%s.png' % (ifieldf[-4:]))
+              plt.close(APAR1Dfig)
+              APAR2Dfig.savefig(reportpath+'apar_mode_%s_2d.png' % (ifieldf[-4:]))
+              plt.close(APAR2Dfig)
+              REPAR2Dfig.savefig(reportpath+'real_Epar_mode_%s_2d.png' % (ifieldf[-4:]))
+              plt.close(REPAR2Dfig)
+              IEPAR2Dfig.savefig(reportpath+'imag_Epar_mode_%s_2d.png' % (ifieldf[-4:]))
+              plt.close(IEPAR2Dfig)
 
     return 1
 
-def plot_geometry(geometryfpath):
+def plot_geometry(geometryfpath,reportpath=''):
+    if 'report' not in reportpath:
+       if not os.path.isdir(geometryfpath[:-16]+"report"):
+          os.system('mkdir '+geometryfpath[:-16]+"report")
+          reportpath = geometryfpath[:-16]+"report/"
+       else:
+          reportpath = geometryfpath[:-16]+"report/"
+    elif reportpath[-1] != "/":
+       reportpath += "/"
+
     if type(geometryfpath)==str:
-       gfpathlist=[geoemtryfpath]
+       gfpathlist=[geometryfpath]
     elif type(geometryfpath)==list:
        gfpathlist=geometryfpath
 
@@ -921,6 +1122,10 @@ def plot_geometry(geometryfpath):
     geomfigs.savefig(GGfig)
     
     geomfigs.close()
+
+    gBfig.savefig(reportpath+'geometry_gB.png')
+    GLfig.savefig(reportpath+'geometry_GL.png')
+    GGfig.savefig(reportpath+'geometry_GG.png')
 
     return gBfig,GLfig,GGfig
 
