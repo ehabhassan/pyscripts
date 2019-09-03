@@ -403,9 +403,9 @@ def read_nrg(nrgfpath,nspecs=0,parameters={},normalized=True):
         while True:
               try:
                  ctime = float(nrgfhand.readline())
-                 nrgdata[inrgfkey]['time']=npy.append(nrgdata[inrgfkey]['time'],ctime)
                  if not normalized:
-                    nrgdata[inrgfkey]['time']*=(units['Lref']/units['cref'])
+                    ctime*=(units['Lref']/units['cref'])
+                 nrgdata[inrgfkey]['time']=npy.append(nrgdata[inrgfkey]['time'],ctime)
                  for ispecs in specstype:
                      linedata = nrgfhand.readline().split()
                      specdata = [float(item) for item in linedata]
