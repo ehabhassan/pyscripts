@@ -13,6 +13,8 @@ import argparse
 import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser(description='GENE Diagnostic Tools.')
+parser.add_argument('--quick',       '-quick',       action='store_const',const=1,help='Trace the Fastest Growing Mode')
+parser.add_argument('--siunits',     '-siunits',     action='store_const',const=1,help='Covert to the SI Units')
 parser.add_argument('--plotnrg',     '-plotnrg',     action='store_const',const=1,help='Plot the profiles in nrg_xxxx file')
 parser.add_argument('--display',     '-display',     action='store_const',const=1,help='Display the plots')
 parser.add_argument('--logscale',    '-logscale',    action='store_const',const=1,help='Plot in log scale')
@@ -26,6 +28,7 @@ if parser.parse_args():
    args = parser.parse_args()
    plotnrg   =    args.plotnrg
    display   =    args.display
+   siunits   =    args.siunits
    logscale  =    args.logscale
    plotgeom  =    args.plotgeom
    plotmodes =    args.plotmodes 
@@ -60,7 +63,10 @@ for mode in modeorder:
          fieldfpath = os.path.abspath(fieldfname)
          if not os.path.isfile(fieldfpath):
             print('File: %s is not in the given path.' % fieldfname); sys.exit()
-         modefreq = genetools.find_mode_frequency(fieldfpath)
+         if quick:
+            modefreq = genetools.find_mode_frequency(fieldfpath,method='fast-mode')
+         else:
+            modefreq = genetools.find_mode_frequency(fieldfpath,method='thorough')
          omegaref = conv_units['cref']/conv_units['Lref']
          print('From Electric Potential Field:')
          print('Omega = %7.4f (Normalized), %7.4f (Hz)' % (modefreq[modenumber]['omega_phi'],modefreq[modenumber]['omega_phi']*omegaref/(2.0*npy.pi)))
@@ -93,7 +99,10 @@ for mode in modeorder:
          if display:    plotParam['display']    = True
          if logscale:   plotParam['logplots']   = True
          if mergeplots: plotParam['mergeplots'] = True
-         nrgdata    = genetools.read_nrg(nrgfpath,normalized=False)
+         if siunits:
+            nrgdata    = genetools.read_nrg(nrgfpath,normalized=False)
+         else:
+            nrgdata    = genetools.read_nrg(nrgfpath,normalized=True)
          nrgplot    = geneplots.plot_nrg(nrgdata,setParam=plotParam)
          if display:
             for fig in nrgplot: fig.show()
@@ -108,7 +117,10 @@ for mode in modeorder:
          plotParam = {}
          if logscale: plotParam['logplots'] = True
          if display:  plotParam['display']  = True
-         neoclassdata    = genetools.read_neoclass(neoclassfpath,normalized=False)
+         if siunits:
+            neoclassdata    = genetools.read_neoclass(neoclassfpath,normalized=False)
+         else:
+            neoclassdata    = genetools.read_neoclass(neoclassfpath,normalized=True)
          neoclassplot    = geneplots.plot_neoclass(neoclassdata,setParam=plotParam)
     elif plotgeom:
          if   mode.isdigit():

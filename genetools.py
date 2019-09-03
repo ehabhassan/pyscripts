@@ -475,6 +475,7 @@ def read_neoclass(neoclassfpath,nspecs=0,parameters={},normalized=True):
         neoclassdata[ineoclassfkey] = {}
         neoclassfhand = open(ineoclassf,'r')
         pagetitle = neoclassfhand.readline()
+        print pagetitle
 
         neoclassdata[ineoclassfkey]['time']=npy.empty(0,dtype=float)
         for ispecs in specstype:
@@ -487,9 +488,10 @@ def read_neoclass(neoclassfpath,nspecs=0,parameters={},normalized=True):
         while True:
               try:
                  ctime = float(neoclassfhand.readline())
-                 neoclassdata[ineoclassfkey]['time']=npy.append(neoclassdata[ineoclassfkey]['time'],ctime)
                  if not normalized:
-                    neoclassdata[ineoclassfkey]['time']*=(units['Lref']/units['cref'])
+                    ctime*=(units['Lref']/units['cref'])
+                 neoclassdata[ineoclassfkey]['time']=npy.append(neoclassdata[ineoclassfkey]['time'],ctime)
+
                  for ispecs in specstype:
                      linedata = neoclassfhand.readline().split()
                      specdata = [float(item) for item in linedata]
@@ -498,7 +500,6 @@ def read_neoclass(neoclassfpath,nspecs=0,parameters={},normalized=True):
                         specdata[1]*=(units['Qgb'])
                         specdata[2]*=(units['Pgb'])
                         specdata[3]*=(units['nref']*units['cref']*units['Bref']*units['rhostar'])
-
                      neoclassdata[ineoclassfkey][ispecs]['PFlux']=npy.append(neoclassdata[ineoclassfkey][ispecs]['PFlux'],specdata[0])
                      neoclassdata[ineoclassfkey][ispecs]['HFlux']=npy.append(neoclassdata[ineoclassfkey][ispecs]['HFlux'],specdata[1])
                      neoclassdata[ineoclassfkey][ispecs]['Viscos']=npy.append(neoclassdata[ineoclassfkey][ispecs]['Viscos'],specdata[2])
@@ -728,7 +729,7 @@ def read_field(fieldfpath,timeslot=None,fieldfmt=None):
         field = fieldfile(ifieldf,pars)
 
         if timeslot == None: t_ind = -1
-        else: t_ind = np.argmin(abs(npy.array(field.tfld)-timeslot))
+        else:                t_ind = timeslot
         field.set_time(field.tfld[t_ind])
 
         if 'x_local' in pars:
@@ -1052,8 +1053,11 @@ def field_info(field,param={}):
 
     return field_info
 
-def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='standard'):
-   #Developed by Ehab Hassan on 2019-04-18
+def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='fast-mode'):
+    '''
+    Developed by Ehab Hassan on 2019-04-18
+    Modified  by Ehab Hassan on 2019-09-03
+    '''
     if "field" not in fieldfpath:
        if fieldfpath[-1]!="/": fieldfpath+="/"
        fieldflist = glob.glob(fieldfpath+"field*")
@@ -1077,17 +1081,21 @@ def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='st
            else:
               modeid = "mode"+ifieldf[-5:]
 
-           field = read_field(ifieldf,fieldfmt='original')
-          #if x_local:
-          #   field = read_field(ifieldf,fieldfmt='local-flatten')
-          #else:
-          #   field = read_field(ifieldf,fieldfmt='global-flatten')
+           par0 = Parameters()
+           if 'field.dat' in ifieldf:
+              par0.Read_Pars(ifieldf[:-9]+"parameters"+ifieldf[-4:])
+           else:
+              par0.Read_Pars(ifieldf[:-10]+"parameters"+ifieldf[-5:])
+           pars = par0.pardict
+           field = fieldfile(ifieldf,pars)
 
-           tlist   = field[ifieldf]['t']
-           nx      = field[ifieldf]['nx']
-           ny      = field[ifieldf]['ny']
-           nz      = field[ifieldf]['nz']
-           nfields = field[ifieldf]['nfields']
+           field.set_time(field.tfld[-1])
+
+           tlist   = field.tfld
+           nx      = field.nx
+           ny      = field.ny
+           nz      = field.nz
+           nfields = field.nfields
 
            if nfields>1:
               time  = npy.empty(0,dtype='complex128')
@@ -1100,32 +1108,39 @@ def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='st
               phi   = npy.empty(0,dtype='complex128')
               phi_t = []
 
-           if bgn_t == None: bgn_t  = tlist[-1]*fraction
            if end_t == None: end_t  = tlist[-1]
-           bgn_t_ind = npy.argmin(abs(npy.array(tlist)-bgn_t))
            end_t_ind = npy.argmin(abs(npy.array(tlist)-end_t))
+           if bgn_t == None: bgn_t  = tlist[-1]*fraction
+           bgn_t_ind = npy.argmin(abs(npy.array(tlist)-bgn_t))
            ntimes    = end_t_ind-bgn_t_ind
-           print ntimes
+          #if bgn_t == None:
+          #   while True:
+          #         bgn_t     = tlist[-1]*fraction
+          #         bgn_t_ind = npy.argmin(abs(npy.array(tlist)-bgn_t))
+          #         ntimes    = end_t_ind-bgn_t_ind
+          #         if    ntimes > 1500: fraction+=0.01; continue
+          #         else: break
+          #         bgn_t  = tlist[-1]*fraction
 
            frequency[modeid]={}
            frequency[modeid]['ky']=param['box']['kymin']
 
-           if method.lower() in ['standard','quick']:
+           if method.lower() in ['quick','fast-mode','standard']:
               for tind in range(bgn_t_ind,end_t_ind):
-                  field = read_field(ifieldf,timeslot=tind,fieldfmt='original')
+                  field.set_time(field.tfld[tind])
                   time  = npy.append(time,tlist[tind])
 
-                  (iphiz,iphix) = npy.unravel_index(np.argmax(abs(field[ifieldf]['phi'][:,0,:])),(nz,nx))
-                  phi  = npy.append(phi,field[ifieldf]['phi'][iphiz,0,iphix])
+                  (iphiz,iphix) = npy.unravel_index(np.argmax(abs(field.phi()[:,0,:])),(nz,nx))
+                  phi  = npy.append(phi,field.phi()[iphiz,0,iphix])
                   if nfields>1:
-                     (iaprz,iaprx) = np.unravel_index(np.argmax(abs(field[ifieldf]['apar'][:,0,:])),(nz,nx))
-                     apr = npy.append(apr,field[ifieldf]['apar'][iaprz,0,iaprx])
+                     (iaprz,iaprx) = npy.unravel_index(np.argmax(abs(field.apar()[:,0,:])),(nz,nx))
+                     apr  = npy.append(apr,field.apar()[iaprz,0,iaprx])
 
               dt        = npy.diff(time)
               time      = npy.delete(time,0)
 
               omega_phi     = npy.log(phi/np.roll(phi,1))
-              omega_phi     = npy.delete(phi_omega,0)
+              omega_phi     = npy.delete(omega_phi,0)
               omega_phi    /= dt
               omega_phi_avg = npy.average(npy.real(omega_phi))
               gamma_phi_avg = npy.average(npy.imag(omega_phi))
@@ -1134,7 +1149,7 @@ def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='st
               frequency[modeid]['gamma_phi'] = gamma_phi_avg
 
               omega_apr     = npy.log(apr/np.roll(apr,1))
-              omega_apr     = npy.delete(apr_omega,0)
+              omega_apr     = npy.delete(omega_apr,0)
               omega_apr    /= dt
               omega_apr_avg = npy.average(npy.real(omega_apr))
               gamma_apr_avg = npy.average(npy.imag(omega_apr))
@@ -1142,17 +1157,85 @@ def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='st
               frequency[modeid]['omega_apr'] = omega_apr_avg
               frequency[modeid]['gamma_apr'] = gamma_apr_avg
 
-           elif method.lower() in ['extended','thorough']:
+           elif method.lower() in ['slow','general-mode','thorough']:
               for tind in range(bgn_t_ind,end_t_ind+1):
-                  if x_local:
-                     field = read_field(ifieldf,timeslot=tlist[tind],fieldfmt='local-flatten')
-                  else:
-                     field = read_field(ifieldf,timeslot=tlist[tind],fieldfmt='global-flatten')
-                  time  = npy.append(time,tlist[tind])
+                field.set_time(field.tfld[tind])
+                time  = npy.append(time,tlist[tind])
 
-                  phi_t.append(field[ifieldf]['phi'])
+                if x_local:
+                  phi  = npy.zeros(nx*nz,dtype='complex128')
                   if nfields>1:
-                     apr_t.append(field[ifieldf]['apar'])
+                     apar = npy.zeros(nx*nz,dtype='complex128')
+
+                  if 'n0_global' in pars:
+                     n0_global = int(pars['n0_global'])
+                     q0        = float(pars['q0'])
+                     phase     = -npy.e**(-2.0*npy.pi*(0.0+1.0J)*n0_global*q0)
+                  else:
+                     shat      = float(pars['shat'])
+                     kymin     = float(pars['kymin'])
+                     lx        = float(pars['lx'])
+                     phase     = -npy.e**(-npy.pi*(0.0+1.0J)*shat*kymin*lx)
+                  shatsgn = int(npy.sign(float(pars['shat'])))
+
+                  for iy in range(ny):
+                    for ix in range(nx/2):
+                      phi[(ix+nx/2)*nz:(ix+nx/2+1)*nz]=field.phi()[:,iy,ix*shatsgn]*phase**ix
+                      if ix < nx/2:
+                         phi[(nx/2-ix-1)*nz:(nx/2-ix)*nz]=field.phi()[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                      if int(field.nfields)>1  and float(pars['beta'])!=0:
+                         apar[(ix+nx/2)*nz:(ix+nx/2+1)*nz]=field.apar()[:,iy,ix*shatsgn]*phase**ix
+                         if ix < nx/2:
+                            apar[(nx/2-ix-1)*nz:(nx/2-ix)*nz]=field.apar()[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                elif not x_local:
+                  gpars,geometry = read_geometry_global(ifieldf[:-10]+pars['magn_geometry'][1:-1]+'_'+ifieldf[-4:])
+                  n0_global      = int(pars['n0_global'])
+                  q              = geometry['q']
+                  phase          = 2.0*npy.pi*(0.0+1.0J)*n0_global*q
+
+                  phix           = npy.empty((nz+4,ny,nx),dtype = 'complex128')
+                  phix[2:-2,:,:] = field.phi()
+                  for iy in range(ny):
+                    for ix in range(nx):
+                      phix[-2,iy,ix] = phix[ 2,iy,ix]*npy.exp(-phase[ix])
+                      phix[-1,iy,ix] = phix[ 3,iy,ix]*npy.exp(-phase[ix])
+                      phix[ 0,iy,ix] = phix[-4,iy,ix]*npy.exp( phase[ix])
+                      phix[ 1,iy,ix] = phix[-3,iy,ix]*npy.exp( phase[ix])
+                  if field.nfields>1:
+                     aparx = npy.empty((nz,ny,nx),dtype = 'complex128')
+                     aparx = field.apar()
+
+                  phi = npy.empty(nx*(nz+4),dtype = 'complex128')
+                  if field.nfields>1:
+                     apar = npy.empty(nx*nz,dtype = 'complex128')
+                  if 'n0_global' in pars:
+                     n0_global = int(pars['n0_global'])
+                     q0        = float(gpars['q0'])
+                     phase     = -npy.e**(-2.0*npy.pi*(0.0+1.0J)*n0_global*q0)
+                  else:
+                     shat      = float(pars['shat'])
+                     kymin     = float(pars['kymin'])
+                     lx        = float(pars['lx'])
+                     phase     = -npy.e**(-npy.pi*(0.0+1.0J)*shat*kymin*lx)
+                  shatsgn = int(npy.sign(float(gpars['shat'])))
+
+                  phi  = npy.zeros(nx*(nz+4),dtype='complex128')
+                  if nfields>1:
+                     apar = npy.zeros(nx*(nz+4),dtype='complex128')
+
+                  for iy in range(ny):
+                    for ix in range(nx/2):
+                      phi[(ix+nx/2)*(nz+4):(ix+nx/2+1)*(nz+4)]=phix[:,iy,ix*shatsgn]*phase**ix
+                      if ix < nx/2:
+                         phi[(nx/2-ix-1)*(nz+4):(nx/2-ix)*(nz+4)]=phix[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                      if nfields>1  and float(pars['beta'])!=0:
+                         apar[(ix+nx/2)*nz:(ix+nx/2+1)*nz]=aparx[:,iy,ix*shatsgn]*phase**ix
+                         if ix < nx/2:
+                            apar[(nx/2-ix-1)*nz:(nx/2-ix)*nz]=aparx[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+
+                phi_t.append(phi)
+                if nfields>1:
+                   apr_t.append(apar)
 
               phi_t = npy.array(phi_t)
               max_t_ind,max_z_ind = npy.shape(phi_t)

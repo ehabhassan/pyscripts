@@ -38,7 +38,7 @@ def str2bool(vin):
     return (vin.strip()).lower() in ('t','.t.','true','.true.')
 
 
-def plot_nrg(nrgdata,reportpath='',setParam={}):
+def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={}):
    #Developed by Ehab Hassan on 2019-07-22
     inrgf=nrgdata.keys()[0]
     if    inrgf[-3:] == 'dat': inrgfpath = inrgf[:-7]
@@ -67,11 +67,6 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
     else:
          display = False
 
-    area_ref = {}
-    area_ref['0.94']      = 37.293
-    area_ref['0.960473']  = 37.217
-    area_ref['0.9725256'] = 37.080
-
     time      = nrgdata[inrgf]['time']
     specstype = nrgdata[inrgf].keys()
     specstype.remove('time')
@@ -94,15 +89,26 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
 
         geomfpath  = "%stracer_efit%s" %(isimfpath,inrgfext)
         area = genetools.calculate_surface_area(parameters=parameters,geometry=geomfpath)
-        print area
 
-        bgnind = 1
-        time = nrgdata[inrgf]['time']
+        time = npy.array(nrgdata[inrgf]['time'])
+        if 'nonlinear' in parameters['general']:
+           if parameters['general']['nonlinear']:
+              nonlinear = True
+              if bgn_t == None:
+                 bgn_t_ind = int(npy.size(time)*fraction)
+                 bgn_t = time[bgn_t_ind] 
+        else:
+           if bgn_t == None: bgn_t = time[0]
+        if end_t == None: end_t  = time[-1]
+        bgn_t_ind = npy.argmin(abs(npy.array(time)-bgn_t))
+        end_t_ind = npy.argmin(abs(npy.array(time)-end_t))
+        ntimes    = end_t_ind-bgn_t_ind+1
+
         for ispecs in specstype:
             nfig   = plt.figure('n-'+inrgfpath)
             axhand = nfig.add_subplot(1,1,1)
             dens = nrgdata[inrgf][ispecs]['n']
-            axhand.plot(time[bgnind:],dens[bgnind:],label=ispecs)
+            axhand.plot(time[bgn_t_ind:end_t_ind+1],dens[bgn_t_ind:end_t_ind+1],label=ispecs)
             axhand.set_title('n%s' %(titletxt))
             axhand.set_xlabel('Time')
             axhand.set_ylabel('Density')
@@ -112,7 +118,7 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
             uparafig = plt.figure('upara-'+inrgfpath)
             axhand = uparafig.add_subplot(1,1,1)
             upara = nrgdata[inrgf][ispecs]['upara']
-            axhand.plot(time[bgnind:],upara[bgnind:],label=ispecs)
+            axhand.plot(time[bgn_t_ind:end_t_ind+1],upara[bgn_t_ind:end_t_ind+1],label=ispecs)
             axhand.set_title('$U_{||}%s$' %(titletxt))
             axhand.set_xlabel('Time')
             axhand.set_ylabel('Parallel Velocity')
@@ -123,9 +129,9 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
                Tfig = plt.figure('T-'+inrgfpath)
                axhand = Tfig.add_subplot(1,1,1)
                Tpara = nrgdata[inrgf][ispecs]['Tpara']
-               axhand.plot(time[bgnind:],Tpara[bgnind:],linestyle='-', label='$T_{\\parallel,%s}$' % ispecs)
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],Tpara[bgn_t_ind:end_t_ind+1],linestyle='-', label='$T_{\\parallel,%s}$' % ispecs)
                Tperp = nrgdata[inrgf][ispecs]['Tperp']
-               axhand.plot(time[bgnind:],Tperp[bgnind:],linestyle='--',label='$T_{\\perp,%s}$' % ispecs)
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],Tperp[bgn_t_ind:end_t_ind+1],linestyle='--',label='$T_{\\perp,%s}$' % ispecs)
                axhand.set_title('$T_{\\parallel,\\perp}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Temperature')
@@ -135,7 +141,7 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
                Tparafig = plt.figure('Tpara-'+inrgfpath)
                axhand = Tparafig.add_subplot(1,1,1)
                Tpara = nrgdata[inrgf][ispecs]['Tpara']
-               axhand.plot(time[bgnind:],Tpara[bgnind:],label=ispecs)
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],T[parabgn_t_ind:end_t_ind+1],label=ispecs)
                axhand.set_title('$T_{\\parallel}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Parallel Temperature')
@@ -145,7 +151,7 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
                Tperpfig = plt.figure('Tperp-'+inrgfpath)
                axhand = Tperpfig.add_subplot(1,1,1)
                Tperp = nrgdata[inrgf][ispecs]['Tperp']
-               axhand.plot(time[bgnind:],Tperp[bgnind:],label=ispecs)
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],Tperp[bgn_t_ind:end_t_ind+1],label=ispecs)
                axhand.set_title('$T_{\\perp}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Transverse Temperature')
@@ -156,9 +162,9 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
                PFluxfig = plt.figure('PFlux-'+inrgfpath)
                axhand = PFluxfig.add_subplot(1,1,1)
                PFluxes = nrgdata[inrgf][ispecs]['PFluxes']*area/1.0e6
-               axhand.plot(time[bgnind:],PFluxes[bgnind:],linestyle='-',label='$\\Gamma_{es,%s}$=%7.5e' % (ispecs,PFluxes[-1]))
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],PFluxes[bgn_t_ind:end_t_ind+1],linestyle='-',label='$\\Gamma_{es,%s}$=%7.5e' % (ispecs,PFluxes[-1]))
                PFluxem = nrgdata[inrgf][ispecs]['PFluxem']*area/1.0e6
-               axhand.plot(time[bgnind:],PFluxem[bgnind:],linestyle=':',label='$\\Gamma_{em,%s}$=%7.5e' % (ispecs,PFluxem[-1]))
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],PFluxem[bgn_t_ind:end_t_ind+1],linestyle=':',label='$\\Gamma_{em,%s}$=%7.5e' % (ispecs,PFluxem[-1]))
                axhand.set_title('$\\Gamma_{es,em}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Particle Flux (MW/keV)')
@@ -168,7 +174,7 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
                PFluxesfig = plt.figure('PFluxes-'+inrgfpath)
                axhand = PFluxesfig.add_subplot(1,1,1)
                PFluxes = nrgdata[inrgf][ispecs]['PFluxes']*area/1.0e6
-               axhand.plot(time[bgnind:],PFluxes[bgnind:],label='$\\Gamma_{es,%s}$=%7.5e' % (ispecs,PFluxes[-1]))
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],PFluxes[bgn_t_ind:end_t_ind+1],label='$\\Gamma_{es,%s}$=%7.5e' % (ispecs,PFluxes[-1]))
                axhand.set_title('$\\Gamma_{es}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Electrostatic Particle Flux (MW/keV)')
@@ -178,7 +184,7 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
                PFluxemfig = plt.figure('PFluxem-'+inrgfpath)
                axhand = PFluxemfig.add_subplot(1,1,1)
                PFluxem = nrgdata[inrgf][ispecs]['PFluxem']*area/1.0e6
-               axhand.plot(time[bgnind:],PFluxem[bgnind:],label='$\\Gamma_{em,%s}$=%7.5e' % (ispecs,PFluxem[-1]))
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],PFluxem[bgn_t_ind:end_t_ind+1],label='$\\Gamma_{em,%s}$=%7.5e' % (ispecs,PFluxem[-1]))
                axhand.set_title('$\\Gamma_{em}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Electromagnetic Particle Flux (MW/keV)')
@@ -189,9 +195,9 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
                HFluxfig = plt.figure('HFlux-'+inrgfpath)
                axhand = HFluxfig.add_subplot(1,1,1)
                HFluxes = nrgdata[inrgf][ispecs]['HFluxes']*area/1.0e6
-               axhand.plot(time[bgnind:],HFluxes[bgnind:],linestyle='-',label='$Q_{es,%s}$=%7.5e' % (ispecs,HFluxes[-1]))
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],HFluxes[bgn_t_ind:end_t_ind+1],linestyle='-',label='$Q_{es,%s}$=%7.5e' % (ispecs,HFluxes[-1]))
                HFluxem = nrgdata[inrgf][ispecs]['HFluxem']*area/1.0e6
-               axhand.plot(time[bgnind:],HFluxem[bgnind:],linestyle=':',label='$Q_{em,%s}$=%7.5e' % (ispecs,HFluxem[-1]))
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],HFluxem[bgn_t_ind:end_t_ind+1],linestyle=':',label='$Q_{em,%s}$=%7.5e' % (ispecs,HFluxem[-1]))
                axhand.set_title('$Q_{es,em}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Heat Flux (MW)')
@@ -201,7 +207,7 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
                HFluxesfig = plt.figure('HFluxes-'+inrgfpath)
                axhand = HFluxesfig.add_subplot(1,1,1)
                HFluxes = nrgdata[inrgf][ispecs]['HFluxes']*area/1.0e6
-               axhand.plot(time[bgnind:],HFluxes[bgnind:],label='$Q_{es,%s}$=%7.5e' % (ispecs,HFluxes[-1]))
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],HFluxes[bgn_t_ind:end_t_ind+1],label='$Q_{es,%s}$=%7.5e' % (ispecs,HFluxes[-1]))
                axhand.set_title('$Q_{es}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Electrostatic Heat Flux (MW)')
@@ -211,7 +217,7 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
                HFluxemfig = plt.figure('HFluxem-'+inrgfpath)
                axhand = HFluxemfig.add_subplot(1,1,1)
                HFluxem = nrgdata[inrgf][ispecs]['HFluxem']*area/1.0e6
-               axhand.plot(time[bgnind:],HFluxem[bgnind:],label='$Q_{em,%s}$=%7.5e' % (ispecs,HFluxem[-1]))
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],HFluxem[bgn_t_ind:end_t_ind+1],label='$Q_{em,%s}$=%7.5e' % (ispecs,HFluxem[-1]))
                axhand.set_title('$Q_{em}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Electromagnetic Heat Flux (MW)')
@@ -222,9 +228,9 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
                Viscosfig = plt.figure('Viscos-'+inrgfpath)
                axhand = Viscosfig.add_subplot(1,1,1)
                Viscoses = nrgdata[inrgf][ispecs]['Viscoses']*area
-               axhand.plot(time[bgnind:],Viscoses[bgnind:],linestyle='-',label='$\\Pi_{es,%s}$=%7.5e' % (ispecs,Viscoses[-1]))
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],Viscoses[bgn_t_ind:end_t_ind+1],linestyle='-',label='$\\Pi_{es,%s}$=%7.5e' % (ispecs,Viscoses[-1]))
                Viscosem = nrgdata[inrgf][ispecs]['Viscosem']*area
-               axhand.plot(time[bgnind:],Viscosem[bgnind:],linestyle=':',label='$\\Pi_{em,%s}$=%7.5e' % (ispecs,Viscosem[-1]))
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],Viscosem[bgn_t_ind:end_t_ind+1],linestyle=':',label='$\\Pi_{em,%s}$=%7.5e' % (ispecs,Viscosem[-1]))
                axhand.set_title('$\\Pi_{es,em}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Stress Tensor (N.m)')
@@ -234,7 +240,7 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
                Viscosesfig = plt.figure('Viscoses-'+inrgfpath)
                axhand = Viscosesfig.add_subplot(1,1,1)
                Viscoses = nrgdata[inrgf][ispecs]['Viscoses']*area
-               axhand.plot(time[bgnind:],Viscoses[bgnind:],label='$\\Pi_{es,%s}$=%7.5e' % (ispecs,Viscoses[-1]))
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],Viscoses[bgn_t_ind:end_t_ind+1],label='$\\Pi_{es,%s}$=%7.5e' % (ispecs,Viscoses[-1]))
                axhand.set_title('$\\Pi_{es}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Electrostatic Stress Tensor(N.m)')
@@ -244,7 +250,7 @@ def plot_nrg(nrgdata,reportpath='',setParam={}):
                Viscosemfig = plt.figure('Viscosem-'+inrgfpath)
                axhand = Viscosemfig.add_subplot(1,1,1)
                Viscosem = nrgdata[inrgf][ispecs]['Viscosem']*area
-               axhand.plot(time[bgnind:],Viscosem[bgnind:],label='$\\Pi_{em,%s}$=%7.5e' % (ispecs,Viscosem[-1]))
+               axhand.plot(time[bgn_t_ind:end_t_ind+1],Viscosem[bgn_t_ind:end_t_ind+1],label='$\\Pi_{em,%s}$=%7.5e' % (ispecs,Viscosem[-1]))
                axhand.set_title('$\\Pi_{em}%s$' %(titletxt))
                axhand.set_xlabel('Time')
                axhand.set_ylabel('Electromagnetic Stress Tensor(N.m)')
