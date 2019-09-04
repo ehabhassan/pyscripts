@@ -409,6 +409,24 @@ def read_nrg(nrgfpath,nspecs=0,parameters={},normalized=True):
                  for ispecs in specstype:
                      linedata = nrgfhand.readline().split()
                      specdata = [float(item) for item in linedata]
+                     if len(specdata)==0:
+                        nrgdata[inrgfkey]['time'] = npy.delete(nrgdata[inrgfkey]['time'],-1)
+                        ntimes = npy.size(nrgdata[inrgfkey]['time'])
+                        specsid = specstype.index(ispecs)
+                        if npy.size(nrgdata[inrgfkey][ispecs]['n']) > ntimes:
+                           for specind in range(specid):
+                                npy.delete(nrgdata[inrgfkey][spectype[specind]]['n'],-1)
+                                npy.delete(nrgdata[inrgfkey][spectype[specind]]['upara'],-1)
+                                npy.delete(nrgdata[inrgfkey][spectype[specind]]['Tpara'],-1)
+                                npy.delete(nrgdata[inrgfkey][spectype[specind]]['Tperp'],-1)
+                                npy.delete(nrgdata[inrgfkey][spectype[specind]]['PFluxes'],-1)
+                                npy.delete(nrgdata[inrgfkey][spectype[specind]]['PFluxem'],-1)
+                                npy.delete(nrgdata[inrgfkey][spectype[specind]]['HFluxes'],-1)
+                                npy.delete(nrgdata[inrgfkey][spectype[specind]]['HFluxem'],-1)
+                                npy.delete(nrgdata[inrgfkey][spectype[specind]]['Viscoses'],-1)
+                                npy.delete(nrgdata[inrgfkey][spectype[specind]]['Viscosem'],-1)
+                        break
+
                      if not normalized:
                         specdata[0]*=(units['nref']*units['rhostar'])**2
                         specdata[1]*=(units['vref']*units['rhostar'])**2
@@ -475,7 +493,6 @@ def read_neoclass(neoclassfpath,nspecs=0,parameters={},normalized=True):
         neoclassdata[ineoclassfkey] = {}
         neoclassfhand = open(ineoclassf,'r')
         pagetitle = neoclassfhand.readline()
-        print pagetitle
 
         neoclassdata[ineoclassfkey]['time']=npy.empty(0,dtype=float)
         for ispecs in specstype:
@@ -495,6 +512,18 @@ def read_neoclass(neoclassfpath,nspecs=0,parameters={},normalized=True):
                  for ispecs in specstype:
                      linedata = neoclassfhand.readline().split()
                      specdata = [float(item) for item in linedata]
+                     if len(specdata)==0:
+                        neoclassdata[ineoclassfkey]['time'] = npy.delete(neoclassdata[ineoclassfkey]['time'],-1)
+                        ntimes = npy.size(neoclassdata[ineoclassfkey]['time'])
+                        specsid = specstype.index(ispecs)
+                        if npy.size(neoclassdata[ineoclassfkey][ispecs]['PFlux']) > ntimes:
+                           for specind in range(specid):
+                               npy.delete(neoclassdata[ineoclassfkey][spectype[specind]]['PFlux'],-1)
+                               npy.delete(neoclassdata[ineoclassfkey][spectype[specind]]['HFlux'],-1)
+                               npy.delete(neoclassdata[ineoclassfkey][spectype[specind]]['Viscos'],-1)
+                               npy.delete(neoclassdata[ineoclassfkey][spectype[specind]]['JBS'],-1)
+                        break
+
                      if not normalized:
                         specdata[0]*=(units['Ggb'])
                         specdata[1]*=(units['Qgb'])
@@ -1602,18 +1631,18 @@ def calculate_surface_area(geometry,parameters):
 
     surface_area = (2.0*npy.pi*paramdata['units']['Lref'])**2
     if x_local:
-       if paramdata['geometry']['norm_flux_projection']:
-          surface_area *= npy.sum(geomdata['gjacobian']*npy.sqrt(geomdata['ggxx']))
+       if  paramdata['geometry']['norm_flux_projection']:
+           surface_area *= npy.sum(geomdata['gjacobian']*npy.sqrt(geomdata['ggxx']))
        else:
-          surface_area *= npy.sum(geomdata['gjacobian'])
+           surface_area *= npy.sum(geomdata['gjacobian'])
        surface_area *= npy.abs(params['Cy'])
        surface_area /= paramdata['box']['nz0']
     else:
-       if paramdata['geometry']['norm_flux_projection']:
-           surface_area *= npy.sum(npy.sum(geomdata['gjacobian'][paramdata['box']['nx0']/2,:]*npy.sqrt(geomdata['ggxx'][paramdata['box']['nx0']/2,:])),2)
+       if  paramdata['geometry']['norm_flux_projection']:
+           surface_area *= npy.sum(npy.sum(geomdata['jacobian'][:,paramdata['box']['nx0']/2]*npy.sqrt(geomdata['ggxx'][:,paramdata['box']['nx0']/2]),0))
        else:
-           surface_area *= npy.sum(npy.sum(geomdata['gjacobian'][paramdata['box']['nx0']/2,:]),2)
-       surface_area *= npy.abs(params['Cy'][paramdata['box']['nx0']/2])
+           surface_area *= npy.sum(npy.sum(geomdata['jacobian'][:,paramdata['box']['nx0']/2],0))
+       surface_area *= npy.abs(geomdata['C_y'][paramdata['box']['nx0']/2])
        surface_area /= paramdata['box']['nz0']
 
     return surface_area

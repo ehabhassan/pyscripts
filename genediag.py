@@ -26,6 +26,7 @@ parser.add_argument('modeorder',nargs='+')
 
 if parser.parse_args():
    args = parser.parse_args()
+   quick     =    args.quick
    plotnrg   =    args.plotnrg
    display   =    args.display
    siunits   =    args.siunits
@@ -100,6 +101,7 @@ for mode in modeorder:
          if logscale:   plotParam['logplots']   = True
          if mergeplots: plotParam['mergeplots'] = True
          if siunits:
+            plotParam['siunits'] = True
             nrgdata    = genetools.read_nrg(nrgfpath,normalized=False)
          else:
             nrgdata    = genetools.read_nrg(nrgfpath,normalized=True)
@@ -118,6 +120,7 @@ for mode in modeorder:
          if logscale: plotParam['logplots'] = True
          if display:  plotParam['display']  = True
          if siunits:
+            plotParam['siunits'] = True
             neoclassdata    = genetools.read_neoclass(neoclassfpath,normalized=False)
          else:
             neoclassdata    = genetools.read_neoclass(neoclassfpath,normalized=True)
