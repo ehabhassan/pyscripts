@@ -9,7 +9,7 @@ import h5py
 import traceback
 import subprocess
 
-import numpy             as np  
+import numpy             as npy
 import matplotlib.pyplot as plt
 
 from glob import glob
@@ -18,11 +18,13 @@ from efittools import psi2phi,phi2psi
 from efittools import magsurf_solvflines
 from efittools import read_profiles_file
 from scipy.integrate   import trapz,simps,quad
+from scipy.interpolate import splrep,splev
 from scipy.interpolate import interp1d,interp2d
 from scipy.interpolate import CubicSpline,RectBivariateSpline
 from matplotlib.backends.backend_pdf import PdfPages
 
-mu0 = 4.0e-7*np.pi
+mu0 = 4.0e-7*npy.pi
+
 
 def current_correction(chease,expeq={},setParam={}):
     if   'nsttp' in setParam:
@@ -47,33 +49,45 @@ def current_correction(chease,expeq={},setParam={}):
        sys.exit()
 
     if 'ITEXP' in setParam: ITEXP = setParam['ITEXP']
-   #error = 1.0-(chease['ITOR']/ITEXP)
-    error = (chease['ITOR']/ITEXP)
+    error = (chease['ITOR']/ITEXP)-1.0
     
-    if   current_src in [0,'chease']:
-         if   current_type in [3,'iprl','iprln','iparallel','iparalleln']:
+    if   current_type in [3,'iprl','iprln','iparallel','iparalleln']:
+         if   current_src in [0,'chease']:
               IOHMIC  = (1.0-error)*(chease['IPRLN']-chease['IBSN'])
-              IPRLN   = chease['IBSN'] + IOHMIC
-              correction = IPRLN
-         elif current_type in [4,'jprl','jprln','jparallel','jparalleln']:
-              JOHMIC  = (1.0-error)*(chease['JPRLN']-chease['JBSN'])
-              JPRLN   = chease['JBSN'] + JOHMIC
-              correction = JPRLN
-    elif current_src in [2,'expeq']:
-         if   current_type in [3,'iprl','iprln','iparallel','iparalleln']:
+         elif current_src in [2,'expeq']:
               IOHMIC  = (1.0-error)*(expeq['iprlN']-chease['IBSN'])
-              IPRLN   = chease['IBSN'] + IOHMIC
-              correction = IPRLN
-         elif current_type in [4,'jprl','jprln','jparallel','jparalleln']:
+         IPRLN   = chease['IBSN'] + IOHMIC
+         correction = IPRLN[:]
+    elif current_type in [4,'jprl','jprln','jparallel','jparalleln']:
+         if   current_src in [0,'chease']:
+              JOHMIC  = (1.0-error)*(chease['JPRLN']-chease['JBSN'])
+         elif current_src in [2,'expeq']:
               JOHMIC  = (1.0-error)*(expeq['jprlN']-chease['JBSN'])
-              JPRLN   = chease['JBSN'] + JOHMIC
-              correction = JPRLN
+         JPRLN   = chease['JBSN'] + JOHMIC
+         correction = JPRLN[:]
 
     if 'correction' not in locals():
        print('WARNING: return correction is not calculated!')
-       correction = np.zeros(np.size(chease['IPRLN']))
+       correction = npy.zeros(npy.size(chease['IPRLN']))
 
     return correction
+
+def interp(xin,fxin,xnew,ynew=[],yout=[]):
+    #splrep returns knots and coefficients for cubic spline
+    #Use these knots and coefficients with splev to get a new y
+
+    x_knots = splrep(xin,fxin)
+    fxnew   = splev(xnew,x_knots,der=0)
+
+    if len(ynew)>0 and len(yout)>0:
+       y_knots = splrep(ynew,fxnew)
+       fxout   = splev(yout,y_knots,der=0)
+
+       x_knots = splrep(ynew,xnew)
+       xout    = splev(yout,x_knots,der=0)
+
+    return fxout
+
 
 def findall(inlist,item):
    #Developed by Ehab Hassan on 2019-03-28
@@ -81,14 +95,6 @@ def findall(inlist,item):
     for i,character in enumerate(inlist):
         if character==item: inds.append(i)
     return inds
-
-def mapping(f1,f2):
-    from scipy.interpolate import CubicSpline
-    fobj01 = CubicSpline(f1[:,0],f2,axis=0,bc_type='not-a-knot',extrapolate=None)
-    plt.plot(fobj01(f1[:,0]),fobj01(f1[:,1]))
-    plt.show()
-    f3 = 1
-    return f3
 
 def namelistcreate(csvfn,rec,setParam={}):
     infid = open(csvfn, "r")
@@ -311,11 +317,11 @@ def namelistcreate(csvfn,rec,setParam={}):
     return table
 
 def derivative(x,fx,axis=0,dorder=1,method='gradient'):
-    fxShape = np.shape(fx)
+    fxShape = npy.shape(fx)
     nDim    = len(fxShape)
     if   method=='gradient':
          if   nDim == 1:
-              dfdx = np.gradient(fx,x)
+              dfdx = npy.gradient(fx,x)
     elif method=='CubicSpline':
          if   nDim == 1:
               CS = CubicSpline(x,fx)
@@ -323,7 +329,7 @@ def derivative(x,fx,axis=0,dorder=1,method='gradient'):
          elif nDim == 2:
               m = fxShape[0]
               n = fxShape[1]
-              dfdx=np.zeros((m,n))
+              dfdx=npy.zeros((m,n))
               if   axis == 0:
                    for j in range(n):
                       CS = CubicSpline(x,fx[:,j])
@@ -335,14 +341,14 @@ def derivative(x,fx,axis=0,dorder=1,method='gradient'):
     return dfdx
 
 def integrate(x,fx,axis=0,method='trapz'):
-    fxShape = np.shape(fx)
+    fxShape = npy.shape(fx)
     nDim    = len(fxShape)
     if   method in ['trapz','trapzoid']:
          if   nDim == 1:
-              intf = trapz(y=fx,x=x,dx=np.argmin(diff(x)))
+              intf = trapz(y=fx,x=x,dx=npy.argmin(diff(x)))
     elif method in ['simps','simpson']:
          if   nDim == 1:
-              intf = simps(y=fx,x=x,dx=np.argmin(diff(x)))
+              intf = simps(y=fx,x=x,dx=npy.argmin(diff(x)))
     elif method=='CubicSpline':
          m = fxShape[0]
          n = fxShape[1]
@@ -354,7 +360,7 @@ def integrate(x,fx,axis=0,method='trapz'):
                       CS   = CubicSpline(x,fx,axis=0,bc_type='periodic',extrapolate='periodic')
                       intf = CS.integrate(x[0],x[-1],extrapolate='periodic')
                    except ValueError:
-                      intf = np.zeros(m)
+                      intf = npy.zeros(m)
                       for j in range(m):
                           func  = interp1d(x,fx[:,j],kind='linear')
                           fyfnc = lambda z: func(z)
@@ -364,7 +370,7 @@ def integrate(x,fx,axis=0,method='trapz'):
                       CS   = CubicSpline(x,fx,axis=1)
                       intf = CS.integrate(x[0],x[-1])
                    except ValueError:
-                      intf = np.zeros(n)
+                      intf = npy.zeros(n)
                       for j in range(n):
                           func  = interp1d(x,fx[:,j],kind='linear')
                           fyfnc = lambda z: func(z)
@@ -397,38 +403,38 @@ def read_chease(cheasefpath,setParam={},**kwargs):
     CHEASEdata['B0EXP']       = datag.attrs["B0EXP"]
     CHEASEdata['R0EXP']       = datag.attrs["R0EXP"]
 
-    CHEASEdata['PSI']         = np.array(datag["grid"]["PSI"])
-    CHEASEdata['rhopsi']      = np.sqrt(CHEASEdata['PSI']/CHEASEdata['PSI'][-1])
-    CHEASEdata['rhotor']      = np.array(datag["var1d"]["rho_tor"])
+    CHEASEdata['PSI']         = npy.array(datag["grid"]["PSI"])
+    CHEASEdata['rhopsi']      = npy.sqrt(CHEASEdata['PSI']/CHEASEdata['PSI'][-1])
+    CHEASEdata['rhotor']      = npy.array(datag["var1d"]["rho_tor"])
 
-    CHEASEdata['CHI']         = np.array(datag["grid"]["CHI"])
+    CHEASEdata['CHI']         = npy.array(datag["grid"]["CHI"])
     if CHEASEdata['CHI'][0]>CHEASEdata['CHI'][1]:
        CHEASEdata['CHI']      = CHEASEdata["CHI"][::-1]
        reverseCHI             = True
-    if min(abs(CHEASEdata['CHI']-2.0*np.pi))>=min(np.diff(CHEASEdata['CHI'])):
-       CHEASEdata['CHI']      = np.append(CHEASEdata['CHI'],2.0*np.pi)
+    if min(abs(CHEASEdata['CHI']-2.0*npy.pi))>=min(npy.diff(CHEASEdata['CHI'])):
+       CHEASEdata['CHI']      = npy.append(CHEASEdata['CHI'],2.0*npy.pi)
        extendCHI              = True
 
-    CHEASEdata['JBS']         = np.array(datag["var1d"]["jbsBav"])
-    CHEASEdata['Zeff']        = np.array(datag["var1d"]["zeff"])
-    CHEASEdata['kappa']       = np.array(datag["var1d"]["kappa"])
-    CHEASEdata['shear']       = np.array(datag["var1d"]["shear"])
-    CHEASEdata['signeo']      = np.array(datag["var1d"]["signeo"])
-    CHEASEdata['PPrime']      = 2.0*np.pi*np.array(datag["var1d"]["dpdpsi"])
+    CHEASEdata['JBS']         = npy.array(datag["var1d"]["jbsBav"])
+    CHEASEdata['Zeff']        = npy.array(datag["var1d"]["zeff"])
+    CHEASEdata['kappa']       = npy.array(datag["var1d"]["kappa"])
+    CHEASEdata['shear']       = npy.array(datag["var1d"]["shear"])
+    CHEASEdata['signeo']      = npy.array(datag["var1d"]["signeo"])
+    CHEASEdata['PPrime']      = 2.0*npy.pi*npy.array(datag["var1d"]["dpdpsi"])
 
-    CHEASEdata['P']           = np.array(datag["var1d"]["p"])
-    CHEASEdata['q']           = np.array(datag["var1d"]["q"])
-    CHEASEdata['R_av']        = np.array(datag["var1d"]["R_av"])
-    CHEASEdata['ageom']       = np.array(datag["var1d"]["ageom"])
-    CHEASEdata['Rgeom']       = np.array(datag["var1d"]["Rgeom"])
-    CHEASEdata['Volume']      = np.array(datag["var1d"]["Volume"])
-    CHEASEdata['GDPSI_av']    = np.array(datag["var1d"]["GDPSI_av"])
-    CHEASEdata['radius_av']   = np.array(datag["var1d"]["radius_av"])
+    CHEASEdata['P']           = npy.array(datag["var1d"]["p"])
+    CHEASEdata['q']           = npy.array(datag["var1d"]["q"])
+    CHEASEdata['R_av']        = npy.array(datag["var1d"]["R_av"])
+    CHEASEdata['ageom']       = npy.array(datag["var1d"]["ageom"])
+    CHEASEdata['Rgeom']       = npy.array(datag["var1d"]["Rgeom"])
+    CHEASEdata['Volume']      = npy.array(datag["var1d"]["Volume"])
+    CHEASEdata['GDPSI_av']    = npy.array(datag["var1d"]["GDPSI_av"])
+    CHEASEdata['radius_av']   = npy.array(datag["var1d"]["radius_av"])
 
-    CHEASEdata['Te']          = np.array(datag["var1d"]["Te"])
-    CHEASEdata['Ti']          = np.array(datag["var1d"]["Ti"])
-    CHEASEdata['ne']          = np.array(datag["var1d"]["ne"])
-    CHEASEdata['ni']          = np.array(datag["var1d"]["ni"])
+    CHEASEdata['Te']          = npy.array(datag["var1d"]["Te"])
+    CHEASEdata['Ti']          = npy.array(datag["var1d"]["Ti"])
+    CHEASEdata['ne']          = npy.array(datag["var1d"]["ne"])
+    CHEASEdata['ni']          = npy.array(datag["var1d"]["ni"])
 
     CHEASEdata['Zi']          = 1.0
     CHEASEdata['Zz']          = 6.0
@@ -436,76 +442,76 @@ def read_chease(cheasefpath,setParam={},**kwargs):
     CHEASEdata['nz']         -= CHEASEdata['ni']*CHEASEdata['Zi']**2
     CHEASEdata['nz']         /= CHEASEdata['Zz']**2
 
-    CHEASEdata['TePrime']     = np.array(datag["var1d"]["dTedpsi"])
-    CHEASEdata['TiPrime']     = np.array(datag["var1d"]["dTidpsi"])
-    CHEASEdata['nePrime']     = np.array(datag["var1d"]["dnedpsi"])
-    CHEASEdata['niPrime']     = np.array(datag["var1d"]["dnidpsi"])
+    CHEASEdata['TePrime']     = npy.array(datag["var1d"]["dTedpsi"])
+    CHEASEdata['TiPrime']     = npy.array(datag["var1d"]["dTidpsi"])
+    CHEASEdata['nePrime']     = npy.array(datag["var1d"]["dnedpsi"])
+    CHEASEdata['niPrime']     = npy.array(datag["var1d"]["dnidpsi"])
 
-    CHEASEdata['T']           = np.array(datag["var1d"]["f"])
-    CHEASEdata['TTPrime']     = 2.0*np.pi*np.array(datag["var1d"]["fdfdpsi"])
+    CHEASEdata['T']           = npy.array(datag["var1d"]["f"])
+    CHEASEdata['TTPrime']     = 2.0*npy.pi*npy.array(datag["var1d"]["fdfdpsi"])
     CHEASEdata['TPrime']      = CHEASEdata['TTPrime']/CHEASEdata['T']
 
-    CHEASEdata['rmesh']       = np.array(datag["var1d"]["rmesh"])
-    CHEASEdata['zmesh']       = np.array(datag["var1d"]["zmesh"])
-    CHEASEdata['rbound']      = np.array(datag["var1d"]["rboundplasma"])
-    CHEASEdata['zbound']      = np.array(datag["var1d"]["zboundplasma"])
-    CHEASEdata['delta_upper'] = np.array(datag["var1d"]["delta_upper"])
-    CHEASEdata['delta_lower'] = np.array(datag["var1d"]["delta_lower"])
+    CHEASEdata['rmesh']       = npy.array(datag["var1d"]["rmesh"])
+    CHEASEdata['zmesh']       = npy.array(datag["var1d"]["zmesh"])
+    CHEASEdata['rbound']      = npy.array(datag["var1d"]["rboundplasma"])
+    CHEASEdata['zbound']      = npy.array(datag["var1d"]["zboundplasma"])
+    CHEASEdata['delta_upper'] = npy.array(datag["var1d"]["delta_upper"])
+    CHEASEdata['delta_lower'] = npy.array(datag["var1d"]["delta_lower"])
 
-    CHEASEdata['dpdpsi']      = np.array(datag["var1d"]["dpdpsi"])
-    CHEASEdata['dqdpsi']      = np.array(datag["var1d"]["dqdpsi"])
-    CHEASEdata['dVdpsi']      = np.array(datag["var1d"]["dVdpsi"])
-    CHEASEdata['d2qdpsi2']    = np.array(datag["var1d"]["d2qdpsi2"])
-    CHEASEdata['dsheardpsi']  = np.array(datag["var1d"]["dsheardpsi"])
-    CHEASEdata['dpsidrhotor'] = np.array(datag["var1d"]["dpsidrhotor"])
+    CHEASEdata['dpdpsi']      = npy.array(datag["var1d"]["dpdpsi"])
+    CHEASEdata['dqdpsi']      = npy.array(datag["var1d"]["dqdpsi"])
+    CHEASEdata['dVdpsi']      = npy.array(datag["var1d"]["dVdpsi"])
+    CHEASEdata['d2qdpsi2']    = npy.array(datag["var1d"]["d2qdpsi2"])
+    CHEASEdata['dsheardpsi']  = npy.array(datag["var1d"]["dsheardpsi"])
+    CHEASEdata['dpsidrhotor'] = npy.array(datag["var1d"]["dpsidrhotor"])
 
 
    #THE DIMENSION OF ALL THE FOLLOWING QUNATITIES ARE (NCHI,NPSI)
-    CHEASEdata['R']           = np.array(datag["var2d"]["R"])
-    CHEASEdata['Z']           = np.array(datag["var2d"]["Z"])
-    CHEASEdata['B']           = np.array(datag["var2d"]["B"])
-    CHEASEdata['J']           = np.array(datag["var2d"]["Jacobian"])
-    CHEASEdata['g11']         = np.array(datag["var2d"]["g11"])
-    CHEASEdata['g22']         = np.array(datag["var2d"]["g22"])
-    CHEASEdata['g33']         = np.array(datag["var2d"]["g33"])
-    CHEASEdata['dBdpsi']      = np.array(datag["var2d"]["dBdpsi"])
-    CHEASEdata['dBdchi']      = np.array(datag["var2d"]["dBdchi"])
-    CHEASEdata['dChidZ']      = np.array(datag["var2d"]["dChidZ"])
-    CHEASEdata['dPsidZ']      = np.array(datag["var2d"]["dPsidZ"])
-    CHEASEdata['dChidR']      = np.array(datag["var2d"]["dChidR"])
-    CHEASEdata['dPsidR']      = np.array(datag["var2d"]["dPsidR"])
+    CHEASEdata['R']           = npy.array(datag["var2d"]["R"])
+    CHEASEdata['Z']           = npy.array(datag["var2d"]["Z"])
+    CHEASEdata['B']           = npy.array(datag["var2d"]["B"])
+    CHEASEdata['J']           = npy.array(datag["var2d"]["Jacobian"])
+    CHEASEdata['g11']         = npy.array(datag["var2d"]["g11"])
+    CHEASEdata['g22']         = npy.array(datag["var2d"]["g22"])
+    CHEASEdata['g33']         = npy.array(datag["var2d"]["g33"])
+    CHEASEdata['dBdpsi']      = npy.array(datag["var2d"]["dBdpsi"])
+    CHEASEdata['dBdchi']      = npy.array(datag["var2d"]["dBdchi"])
+    CHEASEdata['dChidZ']      = npy.array(datag["var2d"]["dChidZ"])
+    CHEASEdata['dPsidZ']      = npy.array(datag["var2d"]["dPsidZ"])
+    CHEASEdata['dChidR']      = npy.array(datag["var2d"]["dChidR"])
+    CHEASEdata['dPsidR']      = npy.array(datag["var2d"]["dPsidR"])
 
     if extendCHI:
-       CHEASEdata['R']        = np.vstack((CHEASEdata['R'],CHEASEdata['R'][0,:]))
-       CHEASEdata['Z']        = np.vstack((CHEASEdata['Z'],CHEASEdata['Z'][0,:]))
-       CHEASEdata['B']        = np.vstack((CHEASEdata['B'],CHEASEdata['B'][0,:]))
-       CHEASEdata['J']        = np.vstack((CHEASEdata['J'],CHEASEdata['J'][0,:]))
-       CHEASEdata['g11']      = np.vstack((CHEASEdata['g11'],CHEASEdata['g11'][0,:]))
-       CHEASEdata['g22']      = np.vstack((CHEASEdata['g22'],CHEASEdata['g22'][0,:]))
-       CHEASEdata['g33']      = np.vstack((CHEASEdata['g33'],CHEASEdata['g33'][0,:]))
-       CHEASEdata['dBdpsi']   = np.vstack((CHEASEdata['dBdpsi'],CHEASEdata['dBdpsi'][0,:]))
-       CHEASEdata['dBdchi']   = np.vstack((CHEASEdata['dBdchi'],CHEASEdata['dBdchi'][0,:]))
-       CHEASEdata['dChidZ']   = np.vstack((CHEASEdata['dChidZ'],CHEASEdata['dChidZ'][0,:]))
-       CHEASEdata['dPsidZ']   = np.vstack((CHEASEdata['dPsidZ'],CHEASEdata['dPsidZ'][0,:]))
-       CHEASEdata['dChidR']   = np.vstack((CHEASEdata['dChidR'],CHEASEdata['dChidR'][0,:]))
-       CHEASEdata['dPsidR']   = np.vstack((CHEASEdata['dPsidR'],CHEASEdata['dPsidR'][0,:]))
+       CHEASEdata['R']        = npy.vstack((CHEASEdata['R'],CHEASEdata['R'][0,:]))
+       CHEASEdata['Z']        = npy.vstack((CHEASEdata['Z'],CHEASEdata['Z'][0,:]))
+       CHEASEdata['B']        = npy.vstack((CHEASEdata['B'],CHEASEdata['B'][0,:]))
+       CHEASEdata['J']        = npy.vstack((CHEASEdata['J'],CHEASEdata['J'][0,:]))
+       CHEASEdata['g11']      = npy.vstack((CHEASEdata['g11'],CHEASEdata['g11'][0,:]))
+       CHEASEdata['g22']      = npy.vstack((CHEASEdata['g22'],CHEASEdata['g22'][0,:]))
+       CHEASEdata['g33']      = npy.vstack((CHEASEdata['g33'],CHEASEdata['g33'][0,:]))
+       CHEASEdata['dBdpsi']   = npy.vstack((CHEASEdata['dBdpsi'],CHEASEdata['dBdpsi'][0,:]))
+       CHEASEdata['dBdchi']   = npy.vstack((CHEASEdata['dBdchi'],CHEASEdata['dBdchi'][0,:]))
+       CHEASEdata['dChidZ']   = npy.vstack((CHEASEdata['dChidZ'],CHEASEdata['dChidZ'][0,:]))
+       CHEASEdata['dPsidZ']   = npy.vstack((CHEASEdata['dPsidZ'],CHEASEdata['dPsidZ'][0,:]))
+       CHEASEdata['dChidR']   = npy.vstack((CHEASEdata['dChidR'],CHEASEdata['dChidR'][0,:]))
+       CHEASEdata['dPsidR']   = npy.vstack((CHEASEdata['dPsidR'],CHEASEdata['dPsidR'][0,:]))
 
    #THE DIMENSION OF ALL THE FOLLOWING QUNATITIES ARE (NRBOX,NZBOX)
-    CHEASEdata['psiRZ']       = np.array(datag["var2d"]["psiRZ"])
-    CHEASEdata['chiRZ']       = np.array(datag["var2d"]["chiRZ"])
+    CHEASEdata['psiRZ']       = npy.array(datag["var2d"]["psiRZ"])
+    CHEASEdata['chiRZ']       = npy.array(datag["var2d"]["chiRZ"])
 
-    CHEASEdata['C0']          = np.trapz(y=CHEASEdata['J']/CHEASEdata['R'],                    x=CHEASEdata['CHI'],axis=0)
-    CHEASEdata['C1']          = np.trapz(y=CHEASEdata['J'],                                    x=CHEASEdata['CHI'],axis=0)
-    CHEASEdata['C2']          = np.trapz(y=CHEASEdata['J']/CHEASEdata['R']**2,                 x=CHEASEdata['CHI'],axis=0)
-    CHEASEdata['C3']          = np.trapz(y=CHEASEdata['J']*CHEASEdata['g11']*CHEASEdata['g33'],x=CHEASEdata['CHI'],axis=0)
+    CHEASEdata['C0']          = npy.trapz(y=CHEASEdata['J']/CHEASEdata['R'],                    x=CHEASEdata['CHI'],axis=0)
+    CHEASEdata['C1']          = npy.trapz(y=CHEASEdata['J'],                                    x=CHEASEdata['CHI'],axis=0)
+    CHEASEdata['C2']          = npy.trapz(y=CHEASEdata['J']/CHEASEdata['R']**2,                 x=CHEASEdata['CHI'],axis=0)
+    CHEASEdata['C3']          = npy.trapz(y=CHEASEdata['J']*CHEASEdata['g11']*CHEASEdata['g33'],x=CHEASEdata['CHI'],axis=0)
 
-    CHEASEdata['y1']          = 1.0+CHEASEdata['C3']/CHEASEdata['C2']/CHEASEdata['T']**2/4.0/np.pi**2
+    CHEASEdata['y1']          = 1.0+CHEASEdata['C3']/CHEASEdata['C2']/CHEASEdata['T']**2/4.0/npy.pi**2
 
-    CHEASEdata['<B2>']        = np.trapz(y=CHEASEdata['J']*CHEASEdata['B']**2,x=CHEASEdata['CHI'],axis=0)/CHEASEdata['C1']
+    CHEASEdata['<B2>']        = npy.trapz(y=CHEASEdata['J']*CHEASEdata['B']**2,x=CHEASEdata['CHI'],axis=0)/CHEASEdata['C1']
     CHEASEdata['<JdotB>']     =-CHEASEdata['T']*CHEASEdata['PPrime']-CHEASEdata['TPrime']*CHEASEdata['<B2>']/mu0
     CHEASEdata['JPRL']        = CHEASEdata['<JdotB>']/CHEASEdata['B0EXP']
 
-    CHEASEdata['<T/R2>']      = np.trapz(y=CHEASEdata['J']*CHEASEdata['T']*CHEASEdata['g33'],x=CHEASEdata['CHI'],axis=0)/CHEASEdata['C1']
+    CHEASEdata['<T/R2>']      = npy.trapz(y=CHEASEdata['J']*CHEASEdata['T']*CHEASEdata['g33'],x=CHEASEdata['CHI'],axis=0)/CHEASEdata['C1']
     CHEASEdata['IPRL']        = CHEASEdata['R0EXP']*CHEASEdata['<JdotB>']/CHEASEdata['<T/R2>']
 
     CHEASEdata['ISTR']        =-((CHEASEdata['C2']/CHEASEdata['C0'])*(CHEASEdata['TTPrime']/mu0))
@@ -514,21 +520,28 @@ def read_chease(cheasefpath,setParam={},**kwargs):
 
     CHEASEdata['JPHI']        =-(CHEASEdata['R']*CHEASEdata['PPrime'])-(CHEASEdata['TTPrime']/(mu0*CHEASEdata['R']))
 
-    CHEASEdata['JTOR']        = np.trapz(y=CHEASEdata['JPHI']*CHEASEdata['J']/CHEASEdata['R'],x=CHEASEdata['CHI'],axis=0)
+    CHEASEdata['JTOR']        = npy.trapz(y=CHEASEdata['JPHI']*CHEASEdata['J']/CHEASEdata['R'],x=CHEASEdata['CHI'],axis=0)
     CHEASEdata['JTORN']       = CHEASEdata['JTOR']*mu0*CHEASEdata['R0EXP']/CHEASEdata['B0EXP']
-    CHEASEdata['ITOR']        = np.trapz(y=CHEASEdata['JTOR'],x=CHEASEdata['PSI'],axis=0)
+    CHEASEdata['ITOR']        = npy.trapz(y=CHEASEdata['JTOR'],x=CHEASEdata['PSI'],axis=0)
 
 
     CHEASEdata['IBS']         = CHEASEdata['R0EXP']*CHEASEdata['JBS']/CHEASEdata['<T/R2>']
     CHEASEdata['IOHMIC']      = CHEASEdata['IPRL']-CHEASEdata['IBS']
     CHEASEdata['JOHMIC']      = CHEASEdata['JPRL']-CHEASEdata['JBS']
 
-    CHEASEdata['PHI']      = np.empty_like(CHEASEdata['PSI'])
-    CHEASEdata['PHI'][0]   = 0.0
-    for i in range(1,np.size(CHEASEdata['PSI'])):
-        x = CHEASEdata['PSI'][:i+1]
-        y = CHEASEdata['q'][:i+1]
-        CHEASEdata['PHI'][i] = np.trapz(y,x)
+    extendPSI    = npy.linspace(CHEASEdata['PSI'][0],CHEASEdata['PSI'][-1],10*npy.size(CHEASEdata['PSI']))
+    extendPHI    = npy.empty_like(extendPSI)
+    extendPHI[0] = 0.0
+    qfunc        = CubicSpline(CHEASEdata['PSI'],CHEASEdata['q'])
+    for i in range(1,npy.size(extendPSI)):
+        x           = extendPSI[:i+1]
+        y           = qfunc(x)
+        extendPHI[i]= npy.trapz(y,x)
+
+    CHEASEdata['PHI'] = npy.empty_like(CHEASEdata['PSI'])
+    phifunc           = CubicSpline(extendPSI,extendPHI)
+    for i in range(npy.size(CHEASEdata['PSI'])):
+        CHEASEdata['PHI'][i] = phifunc(CHEASEdata['PSI'][i])
 
     CHEASEdata['PHIN']     = (CHEASEdata['PHI']-CHEASEdata['PHI'][0])/(CHEASEdata['PHI'][-1]-CHEASEdata['PHI'][0])
     CHEASEdata['PSIN']     = (CHEASEdata['PSI']-CHEASEdata['PSI'][0])/(CHEASEdata['PSI'][-1]-CHEASEdata['PSI'][0])
@@ -538,7 +551,7 @@ def read_chease(cheasefpath,setParam={},**kwargs):
     CHEASEdata['zmeshN']   = CHEASEdata['zmesh']/CHEASEdata['R0EXP'] 
     CHEASEdata['rhopsiN']  = (CHEASEdata['rhopsi']-CHEASEdata['rhopsi'][0])/(CHEASEdata['rhopsi'][-1]-CHEASEdata['rhopsi'][0])
     CHEASEdata['rhotorN']  = (CHEASEdata['rhotor']-CHEASEdata['rhotor'][0])/(CHEASEdata['rhotor'][-1]-CHEASEdata['rhotor'][0])
-    CHEASEdata['rhotorN']  = np.sqrt(CHEASEdata['PHIN'])
+    CHEASEdata['rhotorN']  = npy.sqrt(CHEASEdata['PHIN'])
     CHEASEdata['rboundN']  = CHEASEdata['rbound']/CHEASEdata['R0EXP'] 
     CHEASEdata['zboundN']  = CHEASEdata['zbound']/CHEASEdata['R0EXP']
 
@@ -559,40 +572,61 @@ def read_chease(cheasefpath,setParam={},**kwargs):
                    interprho = eqdskdata['PSIN'][:]; interpflag = True
              elif  'rhotor' in eqdskdata and rhotorflag:
                    interprho = eqdskdata['PHIN'][:]; interpflag = True
+             psi    = eqdskdata['PSI'];   phi    = eqdskdata['PHI']
              rhopsi = eqdskdata['rhopsi'];rhotor = eqdskdata['rhotor']
              eqdskflag = True
 
     if interpflag:
-       originrho = CHEASEdata['PSIN'][:]
        if   rhopsiflag:
+            CHEASEdata['q']       = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['q'])
+            CHEASEdata['T']       = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['T'])
+            CHEASEdata['P']       = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['P'])
+            CHEASEdata['Te']      = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['Te'])
+            CHEASEdata['Ti']      = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['Ti'])
+            CHEASEdata['ne']      = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['ne'])
+            CHEASEdata['ni']      = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['ni'])
+            CHEASEdata['nz']      = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['nz'])
+            CHEASEdata['IBS']     = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['IBS'])
+            CHEASEdata['JBS']     = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['JBS'])
+            CHEASEdata['Zeff']    = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['Zeff'])
+            CHEASEdata['ISTR']    = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['ISTR'])
+            CHEASEdata['IPRL']    = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['IPRL'])
+            CHEASEdata['JPRL']    = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['JPRL'])
+            CHEASEdata['kappa']   = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['kappa'])
+            CHEASEdata['shear']   = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['shear'])
+            CHEASEdata['signeo']  = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['signeo'])
+            CHEASEdata['TPrime']  = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['TPrime'])
+            CHEASEdata['IOHMIC']  = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['IOHMIC'])
+            CHEASEdata['JOHMIC']  = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['JOHMIC'])
+            CHEASEdata['PPrime']  = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['PPrime'])
+            CHEASEdata['TTPrime'] = npy.interp(psi,CHEASEdata['PSI'],CHEASEdata['TTPrime'])
             CHEASEdata['rhopsiN'] = rhopsi[:]
             CHEASEdata['rhotorN'] = rhotor[:]
        elif rhotorflag:
+            CHEASEdata['q']       = interp(CHEASEdata['PSI'],CHEASEdata['q'],psi,phi,phi)
+            CHEASEdata['T']       = interp(CHEASEdata['PSI'],CHEASEdata['T'],psi,phi,phi)
+            CHEASEdata['P']       = interp(CHEASEdata['PSI'],CHEASEdata['P'],psi,phi,phi)
+            CHEASEdata['Te']      = interp(CHEASEdata['PSI'],CHEASEdata['Te'],psi,phi,phi)
+            CHEASEdata['Ti']      = interp(CHEASEdata['PSI'],CHEASEdata['Ti'],psi,phi,phi)
+            CHEASEdata['ne']      = interp(CHEASEdata['PSI'],CHEASEdata['ne'],psi,phi,phi)
+            CHEASEdata['ni']      = interp(CHEASEdata['PSI'],CHEASEdata['ni'],psi,phi,phi)
+            CHEASEdata['nz']      = interp(CHEASEdata['PSI'],CHEASEdata['nz'],psi,phi,phi)
+            CHEASEdata['IBS']     = interp(CHEASEdata['PSI'],CHEASEdata['IBS'],psi,phi,phi)
+            CHEASEdata['JBS']     = interp(CHEASEdata['PSI'],CHEASEdata['JBS'],psi,phi,phi)
+            CHEASEdata['Zeff']    = interp(CHEASEdata['PSI'],CHEASEdata['Zeff'],psi,phi,phi)
+            CHEASEdata['ISTR']    = interp(CHEASEdata['PSI'],CHEASEdata['ISTR'],psi,phi,phi)
+            CHEASEdata['IPRL']    = interp(CHEASEdata['PSI'],CHEASEdata['IPRL'],psi,phi,phi)
+            CHEASEdata['JPRL']    = interp(CHEASEdata['PSI'],CHEASEdata['JPRL'],psi,phi,phi)
+            CHEASEdata['kappa']   = interp(CHEASEdata['PSI'],CHEASEdata['kappa'],psi,phi,phi)
+            CHEASEdata['shear']   = interp(CHEASEdata['PSI'],CHEASEdata['shear'],psi,phi,phi)
+            CHEASEdata['signeo']  = interp(CHEASEdata['PSI'],CHEASEdata['signeo'],psi,phi,phi)
+            CHEASEdata['TPrime']  = interp(CHEASEdata['PSI'],CHEASEdata['TPrime'],psi,phi,phi)
+            CHEASEdata['IOHMIC']  = interp(CHEASEdata['PSI'],CHEASEdata['IOHMIC'],psi,phi,phi)
+            CHEASEdata['JOHMIC']  = interp(CHEASEdata['PSI'],CHEASEdata['JOHMIC'],psi,phi,phi)
+            CHEASEdata['PPrime']  = interp(CHEASEdata['PSI'],CHEASEdata['PPrime'],psi,phi,phi)
+            CHEASEdata['TTPrime'] = interp(CHEASEdata['PSI'],CHEASEdata['TTPrime'],psi,phi,phi)
             CHEASEdata['rhotorN'] = rhopsi[:]
             CHEASEdata['rhopsiN'] = rhotor[:]
-
-       CHEASEdata['q']        = np.interp(interprho,originrho,CHEASEdata['q'])
-       CHEASEdata['T']        = np.interp(interprho,originrho,CHEASEdata['T'])
-       CHEASEdata['P']        = np.interp(interprho,originrho,CHEASEdata['P'])
-       CHEASEdata['Te']       = np.interp(interprho,originrho,CHEASEdata['Te'])
-       CHEASEdata['Ti']       = np.interp(interprho,originrho,CHEASEdata['Ti'])
-       CHEASEdata['ne']       = np.interp(interprho,originrho,CHEASEdata['ne'])
-       CHEASEdata['ni']       = np.interp(interprho,originrho,CHEASEdata['ni'])
-       CHEASEdata['nz']       = np.interp(interprho,originrho,CHEASEdata['nz'])
-       CHEASEdata['IBS']      = np.interp(interprho,originrho,CHEASEdata['IBS'])
-       CHEASEdata['JBS']      = np.interp(interprho,originrho,CHEASEdata['JBS'])
-       CHEASEdata['Zeff']     = np.interp(interprho,originrho,CHEASEdata['Zeff'])
-       CHEASEdata['ISTR']     = np.interp(interprho,originrho,CHEASEdata['ISTR'])
-       CHEASEdata['IPRL']     = np.interp(interprho,originrho,CHEASEdata['IPRL'])
-       CHEASEdata['JPRL']     = np.interp(interprho,originrho,CHEASEdata['JPRL'])
-       CHEASEdata['kappa']    = np.interp(interprho,originrho,CHEASEdata['kappa'])
-       CHEASEdata['shear']    = np.interp(interprho,originrho,CHEASEdata['shear'])
-       CHEASEdata['signeo']   = np.interp(interprho,originrho,CHEASEdata['signeo'])
-       CHEASEdata['TPrime']   = np.interp(interprho,originrho,CHEASEdata['TPrime'])
-       CHEASEdata['IOHMIC']   = np.interp(interprho,originrho,CHEASEdata['IOHMIC'])
-       CHEASEdata['JOHMIC']   = np.interp(interprho,originrho,CHEASEdata['JOHMIC'])
-       CHEASEdata['PPrime']   = np.interp(interprho,originrho,CHEASEdata['PPrime'])
-       CHEASEdata['TTPrime']  = np.interp(interprho,originrho,CHEASEdata['TTPrime'])
 
     CHEASEdata['RN']       = CHEASEdata['R']/CHEASEdata['R0EXP']
     CHEASEdata['ZN']       = CHEASEdata['Z']/CHEASEdata['R0EXP']
@@ -637,25 +671,29 @@ def read_eqdsk(eqdskfpath,setParam={},**kwargs):
                    interprho = cheasedata['PSIN'][:]; interpflag = True
              elif  'rhotorN' in cheasedata and rhotorflag:
                    interprho = cheasedata['PHIN'][:]; interpflag = True
+             psi     = cheasedata['PSIN'][:];   phi     = cheasedata['PHIN'][:]
              rhopsiN = cheasedata['rhopsiN'][:];rhotorN = cheasedata['rhotorN'][:]
              cheaseflag = True
 
     EQDSKdata = read_efit_file(eqdskfpath)
 
     if interpflag:
-       originrho = EQDSKdata['PSIN'][:]
        if   rhopsiflag:
-            EQDSKdata['rhopsi'] = rhopsiN[:]
-            EQDSKdata['rhotor'] = rhotorN[:]
+            EQDSKdata['qpsi']     = npy.interp(psi,EQDSKdata['PSIN'],EQDSKdata['qpsi']) 
+            EQDSKdata['fpol']     = npy.interp(psi,EQDSKdata['PSIN'],EQDSKdata['fpol'])
+            EQDSKdata['pprime']   = npy.interp(psi,EQDSKdata['PSIN'],EQDSKdata['pprime'])
+            EQDSKdata['ffprime']  = npy.interp(psi,EQDSKdata['PSIN'],EQDSKdata['ffprime'])
+            EQDSKdata['pressure'] = npy.interp(psi,EQDSKdata['PSIN'],EQDSKdata['pressure']) 
+            EQDSKdata['rhopsi']   = rhopsiN[:]
+            EQDSKdata['rhotor']   = rhotorN[:]
        elif rhotorflag:
-            EQDSKdata['rhopsi'] = rhopsiN[:]
-            EQDSKdata['rhotor'] = rhotorN[:]
-
-       EQDSKdata['qpsi']      = np.interp(interprho,originrho,EQDSKdata['qpsi']) 
-       EQDSKdata['fpol']      = np.interp(interprho,originrho,EQDSKdata['fpol'])
-       EQDSKdata['pprime']    = np.interp(interprho,originrho,EQDSKdata['pprime'])
-       EQDSKdata['ffprime']   = np.interp(interprho,originrho,EQDSKdata['ffprime'])
-       EQDSKdata['pressure']  = np.interp(interprho,originrho,EQDSKdata['pressure']) 
+            EQDSKdata['qpsi']     = interp(EQDSKdata['PSIN'],EQDSKdata['qpsi'],psi,phi,phi) 
+            EQDSKdata['fpol']     = interp(EQDSKdata['PSIN'],EQDSKdata['fpol'],psi,phi,phi)
+            EQDSKdata['pprime']   = interp(EQDSKdata['PSIN'],EQDSKdata['pprime'],psi,phi,phi)
+            EQDSKdata['ffprime']  = interp(EQDSKdata['PSIN'],EQDSKdata['ffprime'],psi,phi,phi)
+            EQDSKdata['pressure'] = interp(EQDSKdata['PSIN'],EQDSKdata['pressure'],psi,phi,phi)
+            EQDSKdata['rhopsi']   = rhopsiN[:]
+            EQDSKdata['rhotor']   = rhotorN[:]
 
     return EQDSKdata
 
@@ -708,8 +746,8 @@ def read_expeq(expeqfpath,setParam={},**kwargs):
     EXPEQdata['zgeom']         = float(EXPEQOUT[1])
     EXPEQdata['pedge']         = float(EXPEQOUT[2])
     nRZmesh                    =   int(EXPEQOUT[3])
-    EXPEQdata['rbound']        = np.array([irec.split()[0] for irec in EXPEQOUT[4:nRZmesh+4]],dtype=float)
-    EXPEQdata['zbound']        = np.array([irec.split()[1] for irec in EXPEQOUT[4:nRZmesh+4]],dtype=float)
+    EXPEQdata['rbound']        = npy.array([irec.split()[0] for irec in EXPEQOUT[4:nRZmesh+4]],dtype=float)
+    EXPEQdata['zbound']        = npy.array([irec.split()[1] for irec in EXPEQOUT[4:nRZmesh+4]],dtype=float)
     
     nrhomesh                   = int(EXPEQOUT[nRZmesh+4].split()[0])
     EXPEQdata['nppfun']        = int(EXPEQOUT[nRZmesh+4].split()[1])
@@ -717,59 +755,95 @@ def read_expeq(expeqfpath,setParam={},**kwargs):
     EXPEQdata['nrhotype']      = int(EXPEQOUT[nRZmesh+5].split()[1])
 
     if   EXPEQdata['nrhotype'] == 0:
-         EXPEQdata['rhopsiN']  = np.array(EXPEQOUT[nRZmesh+6+0*nrhomesh:nRZmesh+6+1*nrhomesh],dtype=float)
+         EXPEQdata['rhopsiN']  = npy.array(EXPEQOUT[nRZmesh+6+0*nrhomesh:nRZmesh+6+1*nrhomesh],dtype=float)
     elif EXPEQdata['nrhotype'] == 1:
-         EXPEQdata['rhotorN']  = np.array(EXPEQOUT[nRZmesh+6+0*nrhomesh:nRZmesh+6+1*nrhomesh],dtype=float)
+         EXPEQdata['rhotorN']  = npy.array(EXPEQOUT[nRZmesh+6+0*nrhomesh:nRZmesh+6+1*nrhomesh],dtype=float)
     
     if   EXPEQdata['nppfun']   == 4:
-         EXPEQdata['pprimeN']  = np.array(EXPEQOUT[nRZmesh+6+1*nrhomesh:nRZmesh+6+2*nrhomesh],dtype=float)
+         EXPEQdata['pprimeN']  = npy.array(EXPEQOUT[nRZmesh+6+1*nrhomesh:nRZmesh+6+2*nrhomesh],dtype=float)
     elif EXPEQdata['nppfun']   == 8:
-         EXPEQdata['pN']       = np.array(EXPEQOUT[nRZmesh+6+1*nrhomesh:nRZmesh+6+2*nrhomesh],dtype=float)
+         EXPEQdata['pN']       = npy.array(EXPEQOUT[nRZmesh+6+1*nrhomesh:nRZmesh+6+2*nrhomesh],dtype=float)
   
     if   EXPEQdata['nsttp']    == 1:
-         EXPEQdata['ttprimeN'] = np.array(EXPEQOUT[nRZmesh+6+2*nrhomesh:nRZmesh+6+3*nrhomesh],dtype=float)
+         EXPEQdata['ttprimeN'] = npy.array(EXPEQOUT[nRZmesh+6+2*nrhomesh:nRZmesh+6+3*nrhomesh],dtype=float)
     elif EXPEQdata['nsttp']    == 2:
-         EXPEQdata['istrN']    = np.array(EXPEQOUT[nRZmesh+6+2*nrhomesh:nRZmesh+6+3*nrhomesh],dtype=float)
+         EXPEQdata['istrN']    = npy.array(EXPEQOUT[nRZmesh+6+2*nrhomesh:nRZmesh+6+3*nrhomesh],dtype=float)
     elif EXPEQdata['nsttp']    == 3:
-         EXPEQdata['iprlN']    = np.array(EXPEQOUT[nRZmesh+6+2*nrhomesh:nRZmesh+6+3*nrhomesh],dtype=float)
+         EXPEQdata['iprlN']    = npy.array(EXPEQOUT[nRZmesh+6+2*nrhomesh:nRZmesh+6+3*nrhomesh],dtype=float)
     elif EXPEQdata['nsttp']    == 4:
-         EXPEQdata['jprlN']    = np.array(EXPEQOUT[nRZmesh+6+2*nrhomesh:nRZmesh+6+3*nrhomesh],dtype=float)
+         EXPEQdata['jprlN']    = npy.array(EXPEQOUT[nRZmesh+6+2*nrhomesh:nRZmesh+6+3*nrhomesh],dtype=float)
     elif EXPEQdata['nsttp']    == 5:
-         EXPEQdata['q']        = np.array(EXPEQOUT[nRZmesh+6+2*nrhomesh:nRZmesh+6+3*nrhomesh],dtype=float)
+         EXPEQdata['q']        = npy.array(EXPEQOUT[nRZmesh+6+2*nrhomesh:nRZmesh+6+3*nrhomesh],dtype=float)
 
     if interpflag:
        if   rhopsiflag and EXPEQdata['nrhotype']==0:
-            originrho            = EXPEQdata['rhopsiN'][:]
-            EXPEQdata['rhopsiN'] = rhopsi[:]
-            EXPEQdata['rhotorN'] = rhotor[:]
+            if   EXPEQdata['nppfun']   == 4:
+                 EXPEQdata['pprimeN']  = npy.interp(rhopsi,EXPEQdata['rhopsiN'],EXPEQdata['pprimeN'])
+            elif EXPEQdata['nppfun']   == 8:
+                 EXPEQdata['pN']       = npy.interp(rhopsi,EXPEQdata['rhopsiN'],EXPEQdata['pN'])
+            if   EXPEQdata['nsttp']    == 1:
+                 EXPEQdata['ttprimeN'] = npy.interp(rhopsi,EXPEQdata['rhopsiN'],EXPEQdata['ttprimeN'])
+            elif EXPEQdata['nsttp']    == 2:
+                 EXPEQdata['istrN']    = npy.interp(rhopsi,EXPEQdata['rhopsiN'],EXPEQdata['istrN'])
+            elif EXPEQdata['nsttp']    == 3:
+                 EXPEQdata['iprlN']    = npy.interp(rhopsi,EXPEQdata['rhopsiN'],EXPEQdata['iprlN'])
+            elif EXPEQdata['nsttp']    == 4:
+                 EXPEQdata['jprlN']    = npy.interp(rhopsi,EXPEQdata['rhopsiN'],EXPEQdata['jprlN'])
+            elif EXPEQdata['nsttp']    == 5:
+                 EXPEQdata['q']        = npy.interp(rhopsi,EXPEQdata['rhopsiN'],EXPEQdata['q'])
+            EXPEQdata['rhopsiN']       = rhopsi[:]
+            EXPEQdata['rhotorN']       = rhotor[:]
        elif rhotorflag and EXPEQdata['nrhotype']==1:
-            originrho            = EXPEQdata['rhotorN'][:]
-            EXPEQdata['rhopsiN'] = rhopsi[:]
-            EXPEQdata['rhotorN'] = rhotor[:]
+            if   EXPEQdata['nppfun']   == 4:
+                 EXPEQdata['pprimeN']  = npy.interp(rhotor,EXPEQdata['rhotorN'],EXPEQdata['pprimeN'])
+            elif EXPEQdata['nppfun']   == 8:
+                 EXPEQdata['pN']       = npy.interp(rhotor,EXPEQdata['rhotorN'],EXPEQdata['pN'])
+            if   EXPEQdata['nsttp']    == 1:
+                 EXPEQdata['ttprimeN'] = npy.interp(rhotor,EXPEQdata['rhotorN'],EXPEQdata['ttprimeN'])
+            elif EXPEQdata['nsttp']    == 2:
+                 EXPEQdata['istrN']    = npy.interp(rhotor,EXPEQdata['rhotorN'],EXPEQdata['istrN'])
+            elif EXPEQdata['nsttp']    == 3:
+                 EXPEQdata['iprlN']    = npy.interp(rhotor,EXPEQdata['rhotorN'],EXPEQdata['iprlN'])
+            elif EXPEQdata['nsttp']    == 4:
+                 EXPEQdata['jprlN']    = npy.interp(rhotor,EXPEQdata['rhotorN'],EXPEQdata['jprlN'])
+            elif EXPEQdata['nsttp']    == 5:
+                 EXPEQdata['q']        = npy.interp(rhotor,EXPEQdata['rhotorN'],EXPEQdata['q'])
+            EXPEQdata['rhopsiN']       = rhopsi[:]
+            EXPEQdata['rhotorN']       = rhotor[:]
        elif rhopsiflag and EXPEQdata['nrhotype']==1:
-            originrho            = np.interp(EXPEQdata['rhopsiN'],rhopsi,rhotor)
-            EXPEQdata['rhopsiN'] = rhopsi[:]
-            EXPEQdata['rhotorN'] = rhotor[:]
+            if   EXPEQdata['nppfun']   == 4:
+                 EXPEQdata['pprimeN']  = interp(EXPEQdata['rhotorN'],EXPEQdata['pprimeN'],rhotor,rhopsi,rhopsi)
+            elif EXPEQdata['nppfun']   == 8:
+                 EXPEQdata['pN']       = interp(EXPEQdata['rhotorN'],EXPEQdata['pN'],rhotor,rhopsi,rhopsi)
+            if   EXPEQdata['nsttp']    == 1:
+                 EXPEQdata['ttprimeN'] = interp(EXPEQdata['rhotorN'],EXPEQdata['ttprimeN'],rhotor,rhopsi,rhopsi)
+            elif EXPEQdata['nsttp']    == 2:
+                 EXPEQdata['istrN']    = interp(EXPEQdata['rhotorN'],EXPEQdata['istrN'],rhotor,rhopsi,rhopsi)
+            elif EXPEQdata['nsttp']    == 3:
+                 EXPEQdata['iprlN']    = interp(EXPEQdata['rhotorN'],EXPEQdata['iprlN'],rhotor,rhopsi,rhopsi)
+            elif EXPEQdata['nsttp']    == 4:
+                 EXPEQdata['jprlN']    = interp(EXPEQdata['rhotorN'],EXPEQdata['jprlN'],rhotor,rhopsi,rhopsi)
+            elif EXPEQdata['nsttp']    == 5:
+                 EXPEQdata['q']        = interp(EXPEQdata['rhotorN'],EXPEQdata['q'],rhotor,rhopsi,rhopsi)
+            EXPEQdata['rhopsiN']       = rhopsi[:]
+            EXPEQdata['rhotorN']       = rhotor[:]
        elif rhotorflag and EXPEQdata['nrhotype']==0:
-            originrho            = np.interp(EXPEQdata['rhotorN'],rhotor,rhopsi)
-            EXPEQdata['rhopsiN'] = rhopsi[:]
-            EXPEQdata['rhotorN'] = rhotor[:]
-
-       if   EXPEQdata['nppfun']   == 4:
-            EXPEQdata['pprimeN']  = np.interp(interprho,originrho,EXPEQdata['pprimeN'])
-       elif EXPEQdata['nppfun']   == 8:
-            EXPEQdata['pN']       = np.interp(interprho,originrho,EXPEQdata['pN'])
-
-       if   EXPEQdata['nsttp']    == 1:
-            EXPEQdata['ttprimeN'] = np.interp(interprho,originrho,EXPEQdata['ttprimeN'])
-       elif EXPEQdata['nsttp']    == 2:
-            EXPEQdata['istrN']    = np.interp(interprho,originrho,EXPEQdata['istrN'])
-       elif EXPEQdata['nsttp']    == 3:
-            EXPEQdata['iprlN']    = np.interp(interprho,originrho,EXPEQdata['iprlN'])
-       elif EXPEQdata['nsttp']    == 4:
-            EXPEQdata['jprlN']    = np.interp(interprho,originrho,EXPEQdata['jprlN'])
-       elif EXPEQdata['nsttp']    == 5:
-            EXPEQdata['q']        = np.interp(interprho,originrho,EXPEQdata['q'])
+            if   EXPEQdata['nppfun']   == 4:
+                 EXPEQdata['pprimeN']  = interp(EXPEQdata['rhopsiN'],EXPEQdata['pprimeN'],rhopsi,rhotor,rhotor)
+            elif EXPEQdata['nppfun']   == 8:
+                 EXPEQdata['pN']       = interp(EXPEQdata['rhopsiN'],EXPEQdata['pN'],rhopsi,rhotor,rhotor)
+            if   EXPEQdata['nsttp']    == 1:
+                 EXPEQdata['ttprimeN'] = interp(EXPEQdata['rhopsiN'],EXPEQdata['ttprimeN'],rhopsi,rhotor,rhotor)
+            elif EXPEQdata['nsttp']    == 2:
+                 EXPEQdata['istrN']    = interp(EXPEQdata['rhopsiN'],EXPEQdata['istrN'],rhopsi,rhotor,rhotor)
+            elif EXPEQdata['nsttp']    == 3:
+                 EXPEQdata['iprlN']    = interp(EXPEQdata['rhopsiN'],EXPEQdata['iprlN'],rhopsi,rhotor,rhotor)
+            elif EXPEQdata['nsttp']    == 4:
+                 EXPEQdata['jprlN']    = interp(EXPEQdata['rhopsiN'],EXPEQdata['jprlN'],rhopsi,rhotor,rhotor)
+            elif EXPEQdata['nsttp']    == 5:
+                 EXPEQdata['q']        = interp(EXPEQdata['rhopsiN'],EXPEQdata['q'],rhopsi,rhotor,rhotor)
+            EXPEQdata['rhopsiN']       = rhopsi[:]
+            EXPEQdata['rhotorN']       = rhotor[:]
 
     return EXPEQdata
 
@@ -955,29 +1029,29 @@ def write_expeq(setParam={},counter=0,outfile=True,**kwargs):
               expeq['B0EXP'] = 1.0
 
     if   nrhotype[1] in [0,'chease'] and cheaseflag:
-         expeq['nRZmesh'] = np.size(cheasedata['rboundN'])
+         expeq['nRZmesh'] = npy.size(cheasedata['rboundN'])
          expeq['rbound']  = cheasedata['rboundN'][:]
          expeq['zbound']  = cheasedata['zboundN'][:]
 
          expeq['aspect']  = (max(cheasedata['rbound'])-min(cheasedata['rbound']))
          expeq['aspect'] /= (max(cheasedata['rbound'])+min(cheasedata['rbound']))
-         expeq['zgeom']   = np.mean(cheasedata['zmesh'])/expeq['R0EXP']
+         expeq['zgeom']   = npy.mean(cheasedata['zmesh'])/expeq['R0EXP']
 
          if   nrhotype[0] in [0,'rhopsi','rhopsin']:
               expeq['rhopsiN'] = cheasedata['rhopsiN'][:]
-              expeq['nrhomesh']= np.size(expeq['rhopsiN'])
+              expeq['nrhomesh']= npy.size(expeq['rhopsiN'])
               rhopsiflag = True
               rhotorflag = False
          elif nrhotype[0] in [1,'rhotor','rhotorn']:
               expeq['rhotorN'] = cheasedata['rhotorN'][:]
-              expeq['nrhomesh']= np.size(expeq['rhotorN'])
+              expeq['nrhomesh']= npy.size(expeq['rhotorN'])
               rhopsiflag = False
               rhotorflag = True
     elif nrhotype[1] in [1,'eqdsk'] and eqdskflag:
          eqdskParam = {'boundary_type':boundary}
          rbound,zbound    = find_boundary(eqdskdata,setParam=eqdskParam)
 
-         expeq['nRZmesh'] = np.size(rbound)
+         expeq['nRZmesh'] = npy.size(rbound)
          expeq['rbound']  = rbound/expeq['R0EXP']
          expeq['zbound']  = zbound/expeq['R0EXP']
 
@@ -987,16 +1061,16 @@ def write_expeq(setParam={},counter=0,outfile=True,**kwargs):
 
          if   nrhotype[0] in [0,'rhopsi','rhopsin']:
               expeq['rhopsiN'] = eqdskdata['rhopsi'][:]
-              expeq['nrhomesh']= np.size(expeq['rhopsiN'])
+              expeq['nrhomesh']= npy.size(expeq['rhopsiN'])
               rhopsiflag = True
               rhotorflag = False
          elif nrhotype[0] in [1,'rhotor','rhotorn']:
               expeq['rhotorN'] = eqdskdata['rhotor'][:]
-              expeq['nrhomesh']= np.size(expeq['rhotorN'])
+              expeq['nrhomesh']= npy.size(expeq['rhotorN'])
               rhopsiflag = False
               rhotorflag = True
     elif expeqflag:
-         expeq['nRZmesh'] = np.size(expeqdata['rbound'])
+         expeq['nRZmesh'] = npy.size(expeqdata['rbound'])
          expeq['rbound']  = expeqdata['rbound'][:]
          expeq['zbound']  = expeqdata['zbound'][:]
 
@@ -1006,23 +1080,23 @@ def write_expeq(setParam={},counter=0,outfile=True,**kwargs):
          if   eqdskflag:
               if   nrhotype[0] in [0,'rhopsi','rhopsin']:
                    expeq['rhopsiN'] = eqdskdata['rhopsi'][:]
-                   expeq['nrhomesh']= np.size(expeq['rhopsiN'])
+                   expeq['nrhomesh']= npy.size(expeq['rhopsiN'])
                    rhopsiflag = True
                    rhotorflag = False
               elif nrhotype[0] in [1,'rhotor','rhotorn']:
                    expeq['rhotorN'] = eqdskdata['rhotor'][:]
-                   expeq['nrhomesh']= np.size(expeq['rhotorN'])
+                   expeq['nrhomesh']= npy.size(expeq['rhotorN'])
                    rhopsiflag = False
                    rhotorflag = True
          elif cheaseflag:
               if   nrhotype[0] in [0,'rhopsi','rhopsin']:
                    expeq['rhopsiN'] = cheasedata['rhopsiN'][:]
-                   expeq['nrhomesh']= np.size(expeq['rhopsiN'])
+                   expeq['nrhomesh']= npy.size(expeq['rhopsiN'])
                    rhopsiflag = True
                    rhotorflag = False
               elif nrhotype[0] in [1,'rhotor','rhotorn']:
                    expeq['rhotorN'] = cheasedata['rhotorN'][:]
-                   expeq['nrhomesh']= np.size(expeq['rhotorN'])
+                   expeq['nrhomesh']= npy.size(expeq['rhotorN'])
                    rhopsiflag = False
                    rhotorflag = True
 
@@ -1069,10 +1143,10 @@ def write_expeq(setParam={},counter=0,outfile=True,**kwargs):
 
          if   nrhotype[0] in [0,'rhopsi','rhopsin']:
               expeq['rhopsiN'] = expeqdata['rhopsiN'][:]
-              expeq['nrhomesh']= np.size(expeq['rhopsiN'])
+              expeq['nrhomesh']= npy.size(expeq['rhopsiN'])
          elif nrhotype[0] in [1,'rhotor','rhotorn']:
               expeq['rhotorN'] = expeqdata['rhotorN'][:]
-              expeq['nrhomesh']= np.size(expeq['rhotorN'])
+              expeq['nrhomesh']= npy.size(expeq['rhotorN'])
 
          expeq['pedge']   = expeqdata['pedge']
 
@@ -1091,10 +1165,10 @@ def write_expeq(setParam={},counter=0,outfile=True,**kwargs):
 
          if   nrhotype[0] in [0,'rhopsi','rhopsin']:
               expeq['rhopsiN'] = exptnzdata['rhopsiN'][:]
-              expeq['nrhomesh']= np.size(expeq['rhopsiN'])
+              expeq['nrhomesh']= npy.size(expeq['rhopsiN'])
          elif nrhotype[0] in [1,'rhotor','rhotorn']:
               expeq['rhotorN'] = exptnzdata['rhotorN'][:]
-              expeq['nrhomesh']= np.size(expeq['rhotorN'])
+              expeq['nrhomesh']= npy.size(expeq['rhotorN'])
 
          expeq['pedge']   = mu0*exptnzdata['pressure'][-1]/expeq['B0EXP']**2
 
@@ -1113,10 +1187,10 @@ def write_expeq(setParam={},counter=0,outfile=True,**kwargs):
 
          if   nrhotype[0] in [0,'rhopsi','rhopsin']:
               expeq['rhopsiN'] = profilesdata['rhopsiN'][:]
-              expeq['nrhomesh']= np.size(expeq['rhopsiN'])
+              expeq['nrhomesh']= npy.size(expeq['rhopsiN'])
          elif nrhotype[0] in [1,'rhotor','rhotorn']:
               expeq['rhotorN'] = profilesdata['rhotorN'][:]
-              expeq['nrhomesh']= np.size(expeq['rhotorN'])
+              expeq['nrhomesh']= npy.size(expeq['rhotorN'])
 
          expeq['pedge']   = mu0*profilesdata['pressure'][-1]/expeq['B0EXP']**2
 
@@ -1133,10 +1207,10 @@ def write_expeq(setParam={},counter=0,outfile=True,**kwargs):
 
          if   nrhotype[0] in [0,'rhopsi','rhopsin']:
               expeq['rhopsiN'] = iterdbdata['rhopsiN'][:]
-              expeq['nrhomesh']= np.size(expeq['rhopsiN'])
+              expeq['nrhomesh']= npy.size(expeq['rhopsiN'])
          elif nrhotype[0] in [1,'rhotor','rhotorn']:
               expeq['rhotorN'] = iterdbdata['rhotorN'][:]
-              expeq['nrhomesh']= np.size(expeq['rhotorN'])
+              expeq['nrhomesh']= npy.size(expeq['rhotorN'])
 
          expeq['pedge']   = mu0*iterdbdata['pressure'][-1]/expeq['B0EXP']**2
 
@@ -1291,8 +1365,8 @@ def find_boundary(eqdsk='',setParam={}):
        if  rbndtst==1 and zbndtst==1:
            rbound,zbound = magsurf_solvflines(eqdskdata=eqdskdata,psi=0.9999,eps=1.0e-16)
        else:
-           rbound=np.zeros(2*len(eqdskdata['rbound'])-1)
-           zbound=np.zeros(2*len(eqdskdata['zbound'])-1)
+           rbound=npy.zeros(2*len(eqdskdata['rbound'])-1)
+           zbound=npy.zeros(2*len(eqdskdata['zbound'])-1)
            rbound[0] = eqdskdata['rbound'][0]
            zbound[0] = eqdskdata['zbound'][0]
            for i in range(1,len(eqdskdata['rbound'])):
@@ -1355,38 +1429,48 @@ def read_exptnz(exptnzfpath,setParam={},**kwargs):
     EXPTNZdata['Zz'] = 6.0
 
     if   rhotype=='rhopsi':
-         EXPTNZdata['rhopsiN'] = np.array(EXPTNZOUT[0*n_rho+1:1*n_rho+1],dtype=float)
+         EXPTNZdata['rhopsiN'] = npy.array(EXPTNZOUT[0*n_rho+1:1*n_rho+1],dtype=float)
     elif rhotype=='rhotor':
-         EXPTNZdata['rhotorN'] = np.array(EXPTNZOUT[0*n_rho+1:1*n_rho+1],dtype=float)
-    EXPTNZdata['Te']           = np.array(EXPTNZOUT[1*n_rho+1:2*n_rho+1],dtype=float)
-    EXPTNZdata['ne']           = np.array(EXPTNZOUT[2*n_rho+1:3*n_rho+1],dtype=float)
-    EXPTNZdata['Zeff']         = np.array(EXPTNZOUT[3*n_rho+1:4*n_rho+1],dtype=float)
-    EXPTNZdata['Ti']           = np.array(EXPTNZOUT[4*n_rho+1:5*n_rho+1],dtype=float)
-    EXPTNZdata['ni']           = np.array(EXPTNZOUT[5*n_rho+1:6*n_rho+1],dtype=float)
+         EXPTNZdata['rhotorN'] = npy.array(EXPTNZOUT[0*n_rho+1:1*n_rho+1],dtype=float)
+    EXPTNZdata['Te']           = npy.array(EXPTNZOUT[1*n_rho+1:2*n_rho+1],dtype=float)
+    EXPTNZdata['ne']           = npy.array(EXPTNZOUT[2*n_rho+1:3*n_rho+1],dtype=float)
+    EXPTNZdata['Zeff']         = npy.array(EXPTNZOUT[3*n_rho+1:4*n_rho+1],dtype=float)
+    EXPTNZdata['Ti']           = npy.array(EXPTNZOUT[4*n_rho+1:5*n_rho+1],dtype=float)
+    EXPTNZdata['ni']           = npy.array(EXPTNZOUT[5*n_rho+1:6*n_rho+1],dtype=float)
 
     if interpflag:
        if   rhopsiflag and rhotype=='rhopsi':
-            originrho             = EXPTNZdata['rhopsiN'][:]
+            EXPTNZdata['Te']      = npy.interp(rhopsi,EXPTNZdata['rhopsiN'],EXPTNZdata['Te'])
+            EXPTNZdata['Ti']      = npy.interp(rhopsi,EXPTNZdata['rhopsiN'],EXPTNZdata['Ti'])
+            EXPTNZdata['ne']      = npy.interp(rhopsi,EXPTNZdata['rhopsiN'],EXPTNZdata['ne']) 
+            EXPTNZdata['ni']      = npy.interp(rhopsi,EXPTNZdata['rhopsiN'],EXPTNZdata['ni'])
+            EXPTNZdata['Zeff']    = npy.interp(rhopsi,EXPTNZdata['rhopsiN'],EXPTNZdata['Zeff'])
             EXPTNZdata['rhopsiN'] = rhopsi[:]
             EXPTNZdata['rhotorN'] = rhotor[:]
        elif rhotorflag and rhotype=='rhotor':
-            originrho             = EXPTNZdata['rhotorN'][:]
+            EXPTNZdata['Te']      = npy.interp(rhotor,EXPTNZdata['rhotorN'],EXPTNZdata['Te'])
+            EXPTNZdata['Ti']      = npy.interp(rhotor,EXPTNZdata['rhotorN'],EXPTNZdata['Ti'])
+            EXPTNZdata['ne']      = npy.interp(rhotor,EXPTNZdata['rhotorN'],EXPTNZdata['ne']) 
+            EXPTNZdata['ni']      = npy.interp(rhotor,EXPTNZdata['rhotorN'],EXPTNZdata['ni'])
+            EXPTNZdata['Zeff']    = npy.interp(rhotor,EXPTNZdata['rhotorN'],EXPTNZdata['Zeff'])
             EXPTNZdata['rhopsiN'] = rhopsi[:]
             EXPTNZdata['rhotorN'] = rhotor[:]
        elif rhotorflag and rhotype=='rhopsi':
-            originrho             = np.interp(EXPTNZdata['rhopsiN'],rhopsi,rhotor)
+            EXPTNZdata['Te']      = interp(EXPTNZdata['rhopsiN'],EXPTNZdata['Te'],rhopsi,rhotor,rhotor)
+            EXPTNZdata['Ti']      = interp(EXPTNZdata['rhopsiN'],EXPTNZdata['Ti'],rhopsi,rhotor,rhotor)
+            EXPTNZdata['ne']      = interp(EXPTNZdata['rhopsiN'],EXPTNZdata['ne'],rhopsi,rhotor,rhotor) 
+            EXPTNZdata['ni']      = interp(EXPTNZdata['rhopsiN'],EXPTNZdata['ni'],rhopsi,rhotor,rhotor)
+            EXPTNZdata['Zeff']    = interp(EXPTNZdata['rhopsiN'],EXPTNZdata['Zeff'],rhopsi,rhotor,rhotor)
             EXPTNZdata['rhopsiN'] = rhopsi[:]
             EXPTNZdata['rhotorN'] = rhotor[:]
        elif rhopsiflag and rhotype=='rhotor':
-            originrho             = np.interp(EXPTNZdata['rhotorN'],rhotor,rhopsi)
+            EXPTNZdata['Te']      = interp(EXPTNZdata['rhotorN'],EXPTNZdata['Te'],rhotor,rhopsi,rhopsi)
+            EXPTNZdata['Ti']      = interp(EXPTNZdata['rhotorN'],EXPTNZdata['Ti'],rhotor,rhopsi,rhopsi)
+            EXPTNZdata['ne']      = interp(EXPTNZdata['rhotorN'],EXPTNZdata['ne'],rhotor,rhopsi,rhopsi) 
+            EXPTNZdata['ni']      = interp(EXPTNZdata['rhotorN'],EXPTNZdata['ni'],rhotor,rhopsi,rhopsi)
+            EXPTNZdata['Zeff']    = interp(EXPTNZdata['rhotorN'],EXPTNZdata['Zeff'],rhotor,rhopsi,rhopsi)
             EXPTNZdata['rhopsiN'] = rhopsi[:]
             EXPTNZdata['rhotorN'] = rhotor[:]
-
-       EXPTNZdata['Te']      = np.interp(interprho,originrho,EXPTNZdata['Te'])
-       EXPTNZdata['Ti']      = np.interp(interprho,originrho,EXPTNZdata['Ti'])
-       EXPTNZdata['ne']      = np.interp(interprho,originrho,EXPTNZdata['ne']) 
-       EXPTNZdata['ni']      = np.interp(interprho,originrho,EXPTNZdata['ni'])
-       EXPTNZdata['Zeff']    = np.interp(interprho,originrho,EXPTNZdata['Zeff'])
     elif rhopsiflag and rhotype=='rhotor':
          print("WARNING: setParam['nrhomesh'] = 0 or rhopsi, but the path to a target rhopsi is not provided.")
          print("         Converting the profiles to poloidal (psi) coordinates could not be done, and")
@@ -1618,17 +1702,17 @@ def write_exptnz(setParam={},outfile=True,**kwargs):
        exptnz['nz']-= exptnz['ni']*exptnz['Zi']**2
        exptnz['nz']/= exptnz['Zz']**2
 
-    if   rhopsiflag: rhosize = np.size(exptnz['rhopsiN'])
-    elif rhotorflag: rhosize = np.size(exptnz['rhotorN'])
+    if   rhopsiflag: rhosize = npy.size(exptnz['rhopsiN'])
+    elif rhotorflag: rhosize = npy.size(exptnz['rhotorN'])
 
     if outfile:
        ofh = open("EXPTNZ",'w')
        if   nrhotype[0] in [0,'rhopsi']:
-            rhosize = np.size(exptnz['rhopsiN'])
+            rhosize = npy.size(exptnz['rhopsiN'])
             ofh.write('%5d rhopsi,  Te,   ne,   Zeff,   Ti,   ni  profiles\n' % rhosize)
             for i in range(rhosize): ofh.write('%16.6E\n' % exptnz['rhopsiN'][i])
        elif nrhotype[0] in [1,'rhotor']:
-            rhosize = np.size(exptnz['rhotorN'])
+            rhosize = npy.size(exptnz['rhotorN'])
             ofh.write('%5d rhotor,  Te,   ne,   Zeff,   Ti,   ni  profiles\n' % rhosize)
             for i in range(rhosize): ofh.write('%16.6E\n' % exptnz['rhotorN'][i])
        for i in range(rhosize): ofh.write('%16.6E\n' % exptnz['Te'][i])
@@ -1667,6 +1751,7 @@ def read_profiles(profilesfpath,setParam={},Zeffprofile=True,**kwargs):
              elif 'rhotorN' in cheasedata and rhotorflag:
                   interprho = cheasedata['PHIN'][:]; interpflag = True
              else:                                      interpflag = False
+             psi     = cheasedata['PSIN'][:];   phi     = cheasedata['PHIN'][:]
              rhopsiN = cheasedata['rhopsiN'][:];rhotorN = cheasedata['rhotorN'][:]
              cheaseflag = True
         elif key in ['eqdsk','eqdskdata','eqdskfpath']:
@@ -1678,13 +1763,15 @@ def read_profiles(profilesfpath,setParam={},Zeffprofile=True,**kwargs):
              elif 'rhotor' in eqdskdata and rhotorflag:
                   interprho = eqdskdata['PHIN'][:]; interpflag = True
              else:                                    interpflag = False
+             psi     = eqdskdata['PSIN'][:];  phi     = eqdskdata['PHIN'][:]
              rhopsiN = eqdskdata['rhopsi'][:];rhotorN = eqdskdata['rhotor'][:]
              eqdskflag = True
 
     profiles,units = read_profiles_file(profilesfpath.strip())
 
     PROFILESdata            = {}
-    PROFILESdata['rhopsiN'] = np.sqrt(profiles['psinorm'])
+    PROFILESdata['rhopsiN'] = npy.sqrt(profiles['psinorm'])
+    PROFILESdata['PSIN']    = profiles['psinorm'][:]
     PROFILESdata['Te']      = profiles['te'][:]
     PROFILESdata['ne']      = profiles['ne'][:]
     PROFILESdata['Ti']      = profiles['ti'][:]
@@ -1698,7 +1785,7 @@ def read_profiles(profilesfpath,setParam={},Zeffprofile=True,**kwargs):
 
     PROFILESdata['pressure']= profiles['ptot'][:]
 
-    nrhopsi                 = np.size(PROFILESdata['rhopsiN'])
+    nrhopsi                 = npy.size(PROFILESdata['rhopsiN'])
 
     PROFILESdata['Zi']      = profiles['z'][1]
     PROFILESdata['Zz']      = profiles['z'][0]
@@ -1708,36 +1795,43 @@ def read_profiles(profilesfpath,setParam={},Zeffprofile=True,**kwargs):
     PROFILESdata['Zeff']   /= PROFILESdata['ne']
 
     if not Zeffprofile:
-       Zeff_array = np.array([1.0,1.5,2.0,2.5,3.0,3.5,4.0,5.0])
-       Zeff_mean  = np.mean(PROFILESdata['Zeff'])
+       Zeff_array = npy.array([1.0,1.5,2.0,2.5,3.0,3.5,4.0,5.0])
+       Zeff_mean  = npy.mean(PROFILESdata['Zeff'])
        Zeff_diff  = abs(Zeff_array-Zeff_mean)
        Zeff_value = Zeff_array[Zeff_diff==min(Zeff_diff)][0]
-       PROFILESdata['Zeff']    = np.ones(nrhopsi)*Zeff_value
+       PROFILESdata['Zeff']    = npy.ones(nrhopsi)*Zeff_value
 
     PROFILESdata['pprime']  = derivative(x=PROFILESdata['rhopsiN']**2,fx=PROFILESdata['pressure'],method='CubicSpline')
 
     if   interpflag:
          if   rhopsiflag:
-              originrho = PROFILESdata['rhopsiN'][:]**2
+              PROFILESdata['Te']      = npy.interp(psi,PROFILESdata['PSIN'],PROFILESdata['Te'])
+              PROFILESdata['Ti']      = npy.interp(psi,PROFILESdata['PSIN'],PROFILESdata['Ti'])
+              PROFILESdata['ne']      = npy.interp(psi,PROFILESdata['PSIN'],PROFILESdata['ne'])
+              PROFILESdata['ni']      = npy.interp(psi,PROFILESdata['PSIN'],PROFILESdata['ni'])
+              PROFILESdata['nz']      = npy.interp(psi,PROFILESdata['PSIN'],PROFILESdata['nz'])
+              PROFILESdata['Pb']      = npy.interp(psi,PROFILESdata['PSIN'],PROFILESdata['Pb'])
+              PROFILESdata['VTOR']    = npy.interp(psi,PROFILESdata['PSIN'],PROFILESdata['VTOR'])
+              PROFILESdata['VPOL']    = npy.interp(psi,PROFILESdata['PSIN'],PROFILESdata['VPOL']) 
+              PROFILESdata['Zeff']    = npy.interp(psi,PROFILESdata['PSIN'],PROFILESdata['Zeff'])
+              PROFILESdata['pprime']  = npy.interp(psi,PROFILESdata['PSIN'],PROFILESdata['pprime'])
+              PROFILESdata['pressure']= npy.interp(psi,PROFILESdata['PSIN'],PROFILESdata['pressure'])
               PROFILESdata['rhopsiN'] = rhopsiN[:]
               PROFILESdata['rhotorN'] = rhotorN[:]
          elif rhotorflag:
-              originrho = interp(PROFILESdata['rhopsiN'][:]**2,rhopsiN,rhotorN)
-              PROFILESdata['rhopsiN'] = rhopsiN[:]
-              PROFILESdata['rhotorN'] = rhotorN[:]
-
-         PROFILESdata['Te']      = np.interp(interprho,originrho,PROFILESdata['Te'])
-         PROFILESdata['Ti']      = np.interp(interprho,originrho,PROFILESdata['Ti'])
-         PROFILESdata['ne']      = np.interp(interprho,originrho,PROFILESdata['ne'])
-         PROFILESdata['ni']      = np.interp(interprho,originrho,PROFILESdata['ni'])
-         PROFILESdata['nz']      = np.interp(interprho,originrho,PROFILESdata['nz'])
-         PROFILESdata['Pb']      = np.interp(interprho,originrho,PROFILESdata['Pb'])
-         PROFILESdata['VTOR']    = np.interp(interprho,originrho,PROFILESdata['VTOR'])
-         PROFILESdata['VPOL']    = np.interp(interprho,originrho,PROFILESdata['VPOL']) 
-         PROFILESdata['Zeff']    = np.interp(interprho,originrho,PROFILESdata['Zeff'])
-         PROFILESdata['pprime']  = np.interp(interprho,originrho,PROFILESdata['pprime'])
-         PROFILESdata['pressure']= np.interp(interprho,originrho,PROFILESdata['pressure'])
-
+              PROFILESdata['Te']       = interp(PROFILESdata['PSIN'],PROFILESdata['Te'],psi,phi,phi)
+              PROFILESdata['Ti']       = interp(PROFILESdata['PSIN'],PROFILESdata['Ti'],psi,phi,phi)
+              PROFILESdata['ne']       = interp(PROFILESdata['PSIN'],PROFILESdata['ne'],psi,phi,phi)
+              PROFILESdata['ni']       = interp(PROFILESdata['PSIN'],PROFILESdata['ni'],psi,phi,phi)
+              PROFILESdata['nz']       = interp(PROFILESdata['PSIN'],PROFILESdata['nz'],psi,phi,phi)
+              PROFILESdata['Pb']       = interp(PROFILESdata['PSIN'],PROFILESdata['Pb'],psi,phi,phi)
+              PROFILESdata['VTOR']     = interp(PROFILESdata['PSIN'],PROFILESdata['VTOR'],psi,phi,phi)
+              PROFILESdata['VPOL']     = interp(PROFILESdata['PSIN'],PROFILESdata['VPOL'],psi,phi,phi)
+              PROFILESdata['Zeff']     = interp(PROFILESdata['PSIN'],PROFILESdata['Zeff'],psi,phi,phi)
+              PROFILESdata['pprime']   = interp(PROFILESdata['PSIN'],PROFILESdata['pprime'],psi,phi,phi)
+              PROFILESdata['pressure'] = interp(PROFILESdata['PSIN'],PROFILESdata['pressure'],psi,phi,phi)
+              PROFILESdata['rhopsiN']  = rhopsiN[:]
+              PROFILESdata['rhotorN']  = rhotorN[:]
     elif rhotorflag and not interpflag:
          print("WARNING: setParam['nrhomesh'] = 1 or rhotor, but the path to a target rhotor is not provided.")
          print("         Converting the profiles to toroidal (phi) coordinates could not be done, and")
@@ -1801,25 +1895,25 @@ def get_next(data_linesplit,lnum,num):
             keep_going=(1==2)
         lnum=lnum+1
 
-    rhot=np.empty(0)
+    rhot=npy.empty(0)
     lnum0 = lnum
     for j in range(lnum0,lnum0+sec_num_lines):
         for k in range(6):
             str_temp=data_linesplit[j][1+k*13:1+(k+1)*13]
             if(str_temp):
-                temp=np.array(data_linesplit[j][1+k*13:1+(k+1)*13],dtype='float')
-                rhot=np.append(rhot,temp)
+                temp=npy.array(data_linesplit[j][1+k*13:1+(k+1)*13],dtype='float')
+                rhot=npy.append(rhot,temp)
         lnum=lnum+1
     lnum=lnum+1
 
-    arr=np.empty(0)
+    arr=npy.empty(0)
     lnum0 = lnum
     for j in range(lnum0,lnum0+sec_num_lines):
         for k in range(6):
             str_temp=data_linesplit[j][1+k*13:1+(k+1)*13]
             if(str_temp):
-                temp=np.array(data_linesplit[j][1+k*13:1+(k+1)*13],dtype='float')
-                arr=np.append(arr,temp)
+                temp=npy.array(data_linesplit[j][1+k*13:1+(k+1)*13],dtype='float')
+                arr=npy.append(arr,temp)
         lnum=lnum+1
 
     lnum_out=lnum
@@ -1898,43 +1992,50 @@ def read_iterdb(iterdbfpath,setParam={},**kwargs):
          print("         Converting the profiles to poloidal (psi) coordinates could not be done, and")
          print("         all profiles are provided in the toroidal (phi) coordinates.")
     else:
-         ITERDBdata['rhopsiN'] = np.interp(rhotorNE,rhotor,rhopsi)
+         ITERDBdata['rhopsiN'] = npy.interp(rhotorNE,rhotor,rhopsi)
          ITERDBdata['rhotorN'] = rhotorNE
 
-    nrhosize = np.size(interprho)
+    nrhosize = npy.size(interprho)
 
-    if   rhopsiflag:
-         originrho             = np.interp(rhotors['NE'],rhotor,rhopsi)
-         ITERDBdata['ne']      = np.interp(interprho,originrho,profiles['NE'])
-         originrho             = np.interp(rhotors['TE'],rhotor,rhopsi)
-         ITERDBdata['Te']      = np.interp(interprho,originrho,profiles['TE'])
-         originrho             = np.interp(rhotors['NM1'],rhotor,rhopsi)
-         ITERDBdata['ni']      = np.interp(interprho,originrho,profiles['NM1'])
-         originrho             = np.interp(rhotors['TI'],rhotor,rhopsi)
-         ITERDBdata['Ti']      = np.interp(interprho,originrho,profiles['TI'])
+    if   rhopsiflag and interpflag:
+         ITERDBdata['Te']      = interp(rhotors['TE'],profiles['TE'],rhotor,rhopsi,rhopsi)
+         ITERDBdata['Ti']      = interp(rhotors['TI'],profiles['TI'],rhotor,rhopsi,rhopsi)
+         ITERDBdata['ne']      = interp(rhotors['NE'],profiles['NE'],rhotor,rhopsi,rhopsi)
+         ITERDBdata['ni']      = interp(rhotors['NM1'],profiles['NM1'],rhotor,rhopsi,rhopsi)
          if 'NM2' in profiles: 
-            originrho             = np.interp(rhotors['NM2'],rhotor,rhopsi)
-            ITERDBdata['nz']   = np.interp(interprho,originrho,profiles['NM2'])
+            ITERDBdata['nz']   = interp(rhotors['NM2'],profiles['NM2'],rhotor,rhopsi,rhopsi)
          else:
-            ITERDBdata['nz']   = np.zeros(nrhosize)
+            ITERDBdata['nz']   = npy.zeros(nrhosize)
          if 'VROT' in profiles :
-            originrho             = np.interp(rhotors['VROT'],rhotor,rhopsi)
-            ITERDBdata['VROT'] = np.interp(interprho,originrho,profiles['VROT'])
+            ITERDBdata['VROT']   = interp(rhotors['VROT'],profiles['VROT'],rhotor,rhopsi,rhopsi)
          else:
-            ITERDBdata['VROT'] = np.zeros(nrhosize)
-    elif rhotorflag:
-         ITERDBdata['ne']      = np.interp(interprho,rhotors['NE'],profiles['NE'])
-         ITERDBdata['Te']      = np.interp(interprho,rhotors['TE'],profiles['TE'])
-         ITERDBdata['ni']      = np.interp(interprho,rhotors['NM1'],profiles['NM1'])
-         ITERDBdata['Ti']      = np.interp(interprho,rhotors['TI'],profiles['TI'])
+            ITERDBdata['VROT'] = npy.zeros(nrhosize)
+    elif rhotorflag and interpflag:
+         ITERDBdata['ne']      = npy.interp(rhotor,rhotors['NE'],profiles['NE'])
+         ITERDBdata['Te']      = npy.interp(rhotor,rhotors['TE'],profiles['TE'])
+         ITERDBdata['ni']      = npy.interp(rhotor,rhotors['NM1'],profiles['NM1'])
+         ITERDBdata['Ti']      = npy.interp(rhotor,rhotors['TI'],profiles['TI'])
          if 'NM2' in profiles: 
-            ITERDBdata['nz']   = np.interp(interprho,rhotors['NM2'],profiles['NM2'])
+            ITERDBdata['nz']   = npy.interp(rhotor,rhotors['NM2'],profiles['NM2'])
          else:
-            ITERDBdata['nz']   = np.zeros(nrhosize)
+            ITERDBdata['nz']   = npy.zeros(nrhosize)
          if 'VROT' in profiles :
-            ITERDBdata['VROT'] = np.interp(interprho,rhotors['VROT'],profiles['VROT'])
+            ITERDBdata['VROT'] = npy.interp(rhotor,rhotors['VROT'],profiles['VROT'])
          else:
-            ITERDBdata['VROT'] = np.zeros(nrhosize)
+            ITERDBdata['VROT'] = npy.zeros(nrhosize)
+    else:
+         ITERDBdata['ne']      = npy.interp(rhotorNE,rhotors['NE'],profiles['NE'])
+         ITERDBdata['Te']      = npy.interp(rhotorNE,rhotors['TE'],profiles['TE'])
+         ITERDBdata['ni']      = npy.interp(rhotorNE,rhotors['NM1'],profiles['NM1'])
+         ITERDBdata['Ti']      = npy.interp(rhotorNE,rhotors['TI'],profiles['TI'])
+         if 'NM2' in profiles: 
+            ITERDBdata['nz']   = npy.interp(rhotorNE,rhotors['NM2'],profiles['NM2'])
+         else:
+            ITERDBdata['nz']   = npy.zeros(nrhosize)
+         if 'VROT' in profiles :
+            ITERDBdata['VROT'] = npy.interp(rhotorNE,rhotors['VROT'],profiles['VROT'])
+         else:
+            ITERDBdata['VROT'] = npy.zeros(nrhosize)
 
     ITERDBdata['Zeff']    = ITERDBdata['ni']*ITERDBdata['Zi']**2
     ITERDBdata['Zeff']   += ITERDBdata['nz']*ITERDBdata['Zz']**2
@@ -2127,7 +2228,7 @@ def plot_chease(OSPATH,reportpath='',skipfigs=1):
            plt.ylabel('$J_{BS}$')
            plt.legend()
        
-           (CHEASEdata['PSIN2D'],CHEASEdata['CHIN2D']) = np.meshgrid(CHEASEdata['PSIN'],CHEASEdata['CHIN'])
+           (CHEASEdata['PSIN2D'],CHEASEdata['CHIN2D']) = npy.meshgrid(CHEASEdata['PSIN'],CHEASEdata['CHIN'])
            BF2Dfig = plt.figure("Magnetic Field, B($\psi$,$\chi$)")
            plt.contour(CHEASEdata['CHIN2D'],CHEASEdata['PSIN2D'],CHEASEdata['BN'])
            plt.title('Magnetic Field Profiles')
