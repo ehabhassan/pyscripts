@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf as pdfh
 
 from scipy.integrate import simps
-from scipy.interpolate import interp1d,interp2d,RectBivariateSpline
+from scipy.interpolate import interp1d,interp2d
+from scipy.interpolate import CubicSpline,RectBivariateSpline
 
 import read_iterdb
 
@@ -379,12 +380,20 @@ def read_efit_file(eqdskfpath,setParam={}):
     eqdskdata['PSIN']   = (eqdskdata['PSI']-eqdskdata['PSI'][0])/(eqdskdata['PSI'][-1]-eqdskdata['PSI'][0])
     eqdskdata['rhopsi'] = npy.sqrt(eqdskdata['PSIN'])
 
-    eqdskdata['PHI']    = npy.empty_like(eqdskdata['PSI'])
-    eqdskdata['PHI'][0] = 0.0
-    for i in range(1,npy.size(eqdskdata['PSI'])):
-        x = eqdskdata['PSI'][:i+1]
-        y = eqdskdata['qpsi'][:i+1]
-        eqdskdata['PHI'][i] = npy.trapz(y,x)
+    extendPSI    = npy.linspace(eqdskdata['PSI'][0],eqdskdata['PSI'][-1],10*npy.size(eqdskdata['PSI']))
+    extendPHI    = npy.empty_like(extendPSI)
+    extendPHI[0] = 0.0
+    qfunc        = CubicSpline(eqdskdata['PSI'],eqdskdata['qpsi'])
+    for i in range(1,npy.size(extendPSI)):
+        x           = extendPSI[:i+1]
+        y           = qfunc(x)
+        extendPHI[i]= npy.trapz(y,x)
+
+    eqdskdata['PHI'] = npy.empty_like(eqdskdata['PSI'])
+    phifunc          = CubicSpline(extendPSI,extendPHI)
+    for i in range(npy.size(eqdskdata['PSI'])):
+        eqdskdata['PHI'][i] = phifunc(eqdskdata['PSI'][i])
+
     eqdskdata['PHIN']   = (eqdskdata['PHI']-eqdskdata['PHI'][0])/(eqdskdata['PHI'][-1]-eqdskdata['PHI'][0])
     eqdskdata['rhotor'] = npy.sqrt(eqdskdata['PHIN'])
 
