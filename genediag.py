@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -17,6 +18,7 @@ parser.add_argument('--quick',       '-quick',       action='store_const',const=
 parser.add_argument('--siunits',     '-siunits',     action='store_const',const=1,help='Covert to the SI Units')
 parser.add_argument('--plotnrg',     '-plotnrg',     action='store_const',const=1,help='Plot the profiles in nrg_xxxx file')
 parser.add_argument('--display',     '-display',     action='store_const',const=1,help='Display the plots')
+parser.add_argument('--findarea',    '-findarea',    action='store_const',const=1,help='Find the surface area of magnetic surface')
 parser.add_argument('--logscale',    '-logscale',    action='store_const',const=1,help='Plot in log scale')
 parser.add_argument('--plotgeom',    '-plotgeom',    action='store_const',const=1,help='Plot the Geometry')
 parser.add_argument('--plotmodes',   '-plotmodes',   action='store_const',const=1,help='Plot the mode structures')
@@ -30,6 +32,7 @@ if parser.parse_args():
    plotnrg   =    args.plotnrg
    display   =    args.display
    siunits   =    args.siunits
+   findarea  =    args.findarea
    logscale  =    args.logscale
    plotgeom  =    args.plotgeom
    plotmodes =    args.plotmodes 
@@ -134,3 +137,12 @@ for mode in modeorder:
          if not os.path.isfile(geomfpath):
             print('File: %s is not in the given path.' % geomfname); sys.exit()
          geomplot   = geneplots.plot_geometry(geometryfpath=geomfpath)
+    elif findarea:
+         if   mode.isdigit():
+              geomfname  = 'tracer_efit_%04d' % int(mode)
+         else:
+              geomfname  = 'tracer_efit.dat'
+         geomfpath  = os.path.abspath(geomfname)
+         area  = genetools.calculate_surface_area(geomfpath,paramfpath)
+         print area
+
