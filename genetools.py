@@ -1606,6 +1606,12 @@ def units_conversion(paramfpath='',parameters={}):
     units['Qgb']        = units['cref']*units['pref']*units['rhostar']**2
     units['Pgb']        = units['nref']*units['mref']*(units['cref']*units['rhostar'])**2
 
+   #print 'Ggb = ',units['Ggb']
+   #print 'Qgb = ',units['Qgb']
+   #print 'Pgb = ',units['Pgb']
+   #print 'rho = ',units['rhostar']
+   #print 'cs  = ',units['cref']
+
     return units
 
 def calculate_surface_area(geometry,parameters):

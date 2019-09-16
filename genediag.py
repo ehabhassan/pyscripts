@@ -57,7 +57,8 @@ for mode in modeorder:
          modenumber = 'mode.dat'
          paramfname = 'parameters.dat'
     paramfpath = os.path.abspath(paramfname)
-    conv_units = genetools.units_conversion(paramfpath=paramfpath)
+    if siunits:
+       conv_units = genetools.units_conversion(paramfpath=paramfpath)
 
     if   findomega:
          if   mode.isdigit():
@@ -136,7 +137,9 @@ for mode in modeorder:
          geomfpath  = os.path.abspath(geomfname)
          if not os.path.isfile(geomfpath):
             print('File: %s is not in the given path.' % geomfname); sys.exit()
-         geomplot   = geneplots.plot_geometry(geometryfpath=geomfpath)
+         plotParam = {}
+         if display: plotParam['display'] = True
+         geomplot   = geneplots.plot_geometry(geometryfpath=geomfpath,setParam=plotParam)
     elif findarea:
          if   mode.isdigit():
               geomfname  = 'tracer_efit_%04d' % int(mode)
