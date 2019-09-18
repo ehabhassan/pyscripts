@@ -841,13 +841,22 @@ def plot_field(field,param={},reportpath='',setParam={}):
            axhand.set_xlabel(r'$z/\pi$',size=18)
            axhand.legend()
 
-           if os.path.isfile(ifieldf[:-10]+'omega'+ifieldf[-5:]):
-               om = np.genfromtxt(ifieldf[:-10]+'omega'+ifieldf[-5:])
+           if 'dat' in ifieldf:
+              omegafpath = ifieldf[:-9]+'omega'+ifieldf[-4:]
+           else:
+              omegafpath = ifieldf[:-10]+'omega'+ifieldf[-5:]
+
+           if os.path.isfile(omegafpath):
+               om = np.genfromtxt(omegafpath)
+           omega_complex = (om[2]*(0.0+1.0J) + om[1])
 
           ##Note:  the complex frequency is (gamma + i*omega)
-           gpars,geometry = read_geometry_local(ifieldf[:-10]+param['geometry']['magn_geometry']+'_'+ifieldf[-4:])
+           if 'dat' in ifieldf:
+              geomfpath = ifieldf[:-9]+param['geometry']['magn_geometry']+ifieldf[-4:]
+           else:
+              geomfpath = ifieldf[:-10]+param['geometry']['magn_geometry']+ifieldf[-5:]
+           gpars,geometry = read_geometry_local(geomfpath)
            jacxB = geometry['gjacobian']*geometry['gBfield']
-           omega_complex = (om[2]*(0.0+1.0J) + om[1])
 
            gradphi = fd_d1_o4(phi1d,zgrid)
            for i in range(int(param['box']['nx0'])):
@@ -869,8 +878,8 @@ def plot_field(field,param={},reportpath='',setParam={}):
 
            PHIfig.savefig(reportpath+'phi_mode_%s.png' % (ifieldf[-4:]))
            plt.close(PHIfig)
-           figure.savefig(reportpath+'apar_mode_%s.png' % (ifieldf[-4:]))
-           plt.close(figure)
+           APARfig.savefig(reportpath+'apar_mode_%s.png' % (ifieldf[-4:]))
+           plt.close(APARfig)
            wAPARfig.savefig(reportpath+'wApar_dPhi_mode_%s.png' % (ifieldf[-4:]))
            plt.close(wAPARfig)
 
@@ -884,7 +893,12 @@ def plot_field(field,param={},reportpath='',setParam={}):
            zgrid = npy.arange(nz+4)/float(nz+4-1)*(2.0+3.0*(2.0/nz))-(1.0+2.0*(2.0/nz))
            xgrid = npy.arange(nx)/float(nx-1)*param['box']['lx_a']+param['box']['x0']-param['box']['lx_a']/2.0
 
-           gpars,geometry = read_geometry_global(ifieldf[:-10]+param['geometry']['magn_geometry']+'_'+ifieldf[-4:])
+           if 'dat' in ifieldf:
+              geomfpath = ifieldf[:-9]+param['geometry']['magn_geometry']+ifieldf[-4:]
+           else:
+              geomfpath = ifieldf[:-10]+param['geometry']['magn_geometry']+ifieldf[-5:]
+
+           gpars,geometry = read_geometry_global(geomfpath)
            #Find rational q surfaces
            qmin = npy.min(geometry['q'])
            qmax = npy.max(geometry['q'])
@@ -1017,8 +1031,13 @@ def plot_field(field,param={},reportpath='',setParam={}):
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
               axhand.set_xlabel(r'$\rho_{tor}$',fontsize=13)
 
-           if os.path.isfile(ifieldf[:-10]+'omega'+ifieldf[-5:]):
-               om = np.genfromtxt(ifieldf[:-10]+'omega'+ifieldf[-5:])
+           if 'dat' in ifieldf:
+              omegafpath = ifieldf[:-9]+'omega'+ifieldf[-4:]
+           else:
+              omegafpath = ifieldf[:-10]+'omega'+ifieldf[-5:]
+
+           if os.path.isfile(omegafpath):
+               om = np.genfromtxt(omegafpath)
 
           ##Note:  the complex frequency is (gamma + i*omega)
            omega_complex = (om[2]*(0.0+1.0J) + om[1])
@@ -1125,19 +1144,27 @@ def plot_geometry(geometryfpath,reportpath='',setParam={}):
     elif type(geometryfpath)==list:
         gfpathlist=geometryfpath[:]
 
+    if 'dat' in geometryfpath:
+       if   'chease' in geometryfpath:
+            geomfprefix = geometryfpath[:-10]
+       elif 's_alpha' in geometryfpath:
+            geomfprefix = geometryfpath[:-11]
+       elif 'tracer_efit' in geometryfpath:
+            geomfprefix = geometryfpath[:-15]
+    else:
+       if   'chease' in geometryfpath:
+            geomfprefix = geometryfpath[:-11]
+       elif 's_alpha' in geometryfpath:
+            geomfprefix = geometryfpath[:-12]
+       elif 'tracer_efit' in geometryfpath:
+            geomfprefix = geometryfpath[:-16]
+
     if 'report' not in reportpath:
-       if 'dat' in geometryfpath:
-          if not os.path.isdir(geometryfpath[:-15]+"report"):
-             os.system('mkdir '+geometryfpath[:-15]+"report")
-             reportpath = geometryfpath[:-15]+"report/"
-          else:
-             reportpath = geometryfpath[:-15]+"report/"
+       if not os.path.isdir(geomfprefix+"report"):
+          os.system('mkdir '+geomfprefix+"report")
+          reportpath = geomfprefix+"report/"
        else:
-          if not os.path.isdir(geometryfpath[:-16]+"report"):
-             os.system('mkdir '+geometryfpath[:-16]+"report")
-             reportpath = geometryfpath[:-16]+"report/"
-          else:
-             reportpath = geometryfpath[:-16]+"report/"
+          reportpath = geomfprefix+"report/"
     elif reportpath[-1] != "/":
        reportpath += "/"
 
@@ -1149,7 +1176,13 @@ def plot_geometry(geometryfpath,reportpath='',setParam={}):
     geomfigs = pdfh.PdfPages(reportpath+'geometry.pdf')
 
     for ifile in gfpathlist:
-        parameters,geometry = read_geometry_local(ifile)
+        try:
+           parameters,geometry = read_geometry_local(ifile)
+           x_local = True
+        except ValueError:
+           parameters,geometry = read_geometry_global(ifile)
+           x_local = False
+
         Lref = parameters['Lref']
         nz = parameters['gridpoints']
         zgrid = npy.arange(nz)/float(nz-1)*(2.0-(2.0/nz))-1.0
@@ -1160,90 +1193,129 @@ def plot_geometry(geometryfpath,reportpath='',setParam={}):
 
         GGfig = plt.figure("ggCoeff",dpi=500)
         ax  = GGfig.add_subplot(2,3,1)
-        ax.plot(zgrid,geometry['ggxx'],label=gfname)
-        ax.set_title('ggxx')
+        if x_local:
+           ax.plot(zgrid,geometry['ggxx'],label=gfname)
+           ax.set_title('ggxx')
+        else:
+           ax.plot(zgrid,geometry['gxx'],label=gfname)
+           ax.set_title('gxx')
         ax.set_xticks([])
 
         ax  = GGfig.add_subplot(2,3,2)
-        ax.plot(zgrid,geometry['ggyy'],label=gfname)
-        ax.set_title('ggyy')
+        if x_local:
+           ax.plot(zgrid,geometry['ggyy'],label=gfname)
+           ax.set_title('ggyy')
+        else:
+           ax.plot(zgrid,geometry['gyy'],label=gfname)
+           ax.set_title('gyy')
         ax.set_xticks([])
 
         ax  = GGfig.add_subplot(2,3,3)
-        ax.plot(zgrid,geometry['ggzz'],label=gfname)
-        ax.set_title('ggzz')
+        if x_local:
+           ax.plot(zgrid,geometry['ggzz'],label=gfname)
+           ax.set_title('ggzz')
+        else:
+           ax.plot(zgrid,geometry['gzz'],label=gfname)
+           ax.set_title('gzz')
         ax.set_xticks([])
 
         ax  = GGfig.add_subplot(2,3,4)
-        ax.plot(zgrid,geometry['ggxy'],label=gfname)
+        if x_local:
+           ax.plot(zgrid,geometry['ggxy'],label=gfname)
+        else:
+           ax.plot(zgrid,geometry['gxy'],label=gfname)
         ax.set_xlabel('$Z/\\pi$')
         ax.set_title('ggxy')
 
         ax  = GGfig.add_subplot(2,3,5)
-        ax.plot(zgrid,geometry['ggxz'],label=gfname)
+        if x_local:
+           ax.plot(zgrid,geometry['ggxz'],label=gfname)
+        else:
+           ax.plot(zgrid,geometry['gxz'],label=gfname)
         ax.set_xlabel('$Z/\\pi$')
         ax.set_title('ggxz')
 
         ax  = GGfig.add_subplot(2,3,6)
-        ax.plot(zgrid,geometry['ggyz'],label=gfname)
+        if x_local:
+           ax.plot(zgrid,geometry['ggyz'],label=gfname)
+        else:
+           ax.plot(zgrid,geometry['gyz'],label=gfname)
         ax.set_xlabel('$Z/\\pi$')
         ax.set_title('ggyz')
 
-        GLfig = plt.figure("gl_R",dpi=500)
-        ax  = GLfig.add_subplot(2,2,1)
-        ax.plot(zgrid,geometry['gl_R'],label=gfname)
-        ax.set_title('gl_R')
-        ax.set_xticks([])
+        if x_local:
+           GLfig = plt.figure("gl_R",dpi=500)
+           ax  = GLfig.add_subplot(2,2,1)
+           ax.plot(zgrid,geometry['gl_R'],label=gfname)
+           ax.set_title('gl_R')
+           ax.set_xticks([])
 
-        ax  = GLfig.add_subplot(2,2,2)
-        ax.plot(zgrid,geometry['gl_z'],label=gfname)
-        ax.set_title('gl_R')
-        ax.set_xticks([])
+           ax  = GLfig.add_subplot(2,2,2)
+           ax.plot(zgrid,geometry['gl_z'],label=gfname)
+           ax.set_title('gl_R')
+           ax.set_xticks([])
 
-        ax  = GLfig.add_subplot(2,2,3)
-        ax.plot(zgrid,geometry['gl_dxdR'],label=gfname)
-        ax.set_xlabel('$Z/\\pi$')
-        ax.set_title('gl_dxdR')
+           ax  = GLfig.add_subplot(2,2,3)
+           ax.plot(zgrid,geometry['gl_dxdR'],label=gfname)
+           ax.set_title('gl_dxdR')
+           ax.set_xlabel('$Z/\\pi$')
 
-        ax  = GLfig.add_subplot(2,2,4)
-        ax.plot(zgrid,geometry['gl_dxdZ'],label=gfname)
-        ax.set_xlabel('$Z/\\pi$')
-        ax.set_title('gl_dxdZ')
+           ax  = GLfig.add_subplot(2,2,4)
+           ax.plot(zgrid,geometry['gl_dxdZ'],label=gfname)
+           ax.set_title('gl_dxdZ')
+           ax.set_xlabel('$Z/\\pi$')
 
         gBfig = plt.figure("gBfield",dpi=500)
         ax  = gBfig.add_subplot(2,2,1)
-        ax.plot(zgrid,geometry['gBfield'],label=gfname)
-        ax.set_title('gBfield')
+        if x_local:
+           ax.plot(zgrid,geometry['gBfield'],label=gfname)
+           ax.set_title('gBfield')
+        else:
+           ax.plot(zgrid,geometry['Bfield'],label=gfname)
+           ax.set_title('Bfield')
         ax.set_xticks([])
 
         ax  = gBfig.add_subplot(2,2,2)
-        ax.plot(zgrid,geometry['gdBdx'],label=gfname)
-        ax.set_title('gdBdx')
+        if x_local:
+           ax.plot(zgrid,geometry['gdBdx'],label=gfname)
+           ax.set_title('gdBdx')
+        else:
+           ax.plot(zgrid,geometry['dBdx'],label=gfname)
+           ax.set_title('dBdx')
         ax.set_xticks([])
 
         ax  = gBfig.add_subplot(2,2,3)
-        ax.plot(zgrid,geometry['gdBdy'],label=gfname)
+        if x_local:
+           ax.plot(zgrid,geometry['gdBdy'],label=gfname)
+           ax.set_title('gdBdy')
+        else:
+           ax.plot(zgrid,geometry['dBdy'],label=gfname)
+           ax.set_title('dBdy')
         ax.set_xlabel('$Z/\\pi$')
-        ax.set_title('gdBdy')
         plt.legend()
 
         ax12  = gBfig.add_subplot(2,2,4)
-        ax12.plot(zgrid,geometry['gdBdz'],label=gfname)
+        if x_local:
+           ax12.plot(zgrid,geometry['gdBdz'],label=gfname)
+           ax12.set_title('gdBdz')
+        else:
+           ax12.plot(zgrid,geometry['dBdz'],label=gfname)
+           ax12.set_title('dBdz')
         ax12.set_xlabel('$Z/\\pi$')
-        ax12.set_title('gdBdz')
 
     geomfigs.savefig(gBfig)
-    geomfigs.savefig(GLfig)
+    gBfig.savefig(reportpath+'geometry_gB.png')
     geomfigs.savefig(GGfig)
+    GGfig.savefig(reportpath+'geometry_GG.png')
+    if x_local:
+       geomfigs.savefig(GLfig)
+       GLfig.savefig(reportpath+'geometry_GL.png')
     
     geomfigs.close()
 
-    gBfig.savefig(reportpath+'geometry_gB.png')
-    GLfig.savefig(reportpath+'geometry_GL.png')
-    GGfig.savefig(reportpath+'geometry_GG.png')
 
     if display:
        plt.show()
 
-    return gBfig,GLfig,GGfig
+    return 1
 
