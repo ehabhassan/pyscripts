@@ -96,7 +96,12 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
            titletxt = '(k_y=%6.3f)' % (parameters['box']['kymin'])
 
         if siunits:
-           geomfpath  = "%stracer_efit%s" %(isimfpath,inrgfext)
+           if   parameters['geometry']['magn_geometry'] == 'tracer_efit':
+                geomfpath  = "%stracer_efit%s" %(isimfpath,inrgfext)
+           elif parameters['geometry']['magn_geometry'] == 's_alpha':
+                geomfpath  = "%ss_alpha%s" %(isimfpath,inrgfext)
+           elif parameters['geometry']['magn_geometry'] == 'chease':
+                geomfpath  = "%schease%s" %(isimfpath,inrgfext)
            area = genetools.calculate_surface_area(parameters=parameters,geometry=geomfpath)
 
         time = npy.array(nrgdata[inrgf]['time'])
@@ -107,48 +112,44 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
            if parameters['general']['nonlinear']:
               nonlinear = True
               avg_bgn_t_ind = int(npy.size(time)*fraction)
-             #avg_bgn_t = time[avg_bgn_t_ind] 
         bgn_t_ind = npy.argmin(abs(npy.array(time)-bgn_t))
         end_t_ind = npy.argmin(abs(npy.array(time)-end_t))
         ntimes    = end_t_ind-bgn_t_ind+1
 
         for ispecs in specstype:
+            dens     = nrgdata[inrgf][ispecs]['n']
             nfig     = plt.figure('n-'+inrgfpath)
             axhand01 = nfig.add_subplot(1,1,1)
-            dens     = nrgdata[inrgf][ispecs]['n']
             axhand01.plot(time[bgn_t_ind:end_t_ind+1],dens[bgn_t_ind:end_t_ind+1],label=ispecs)
             axhand01.set_title('n%s' %(titletxt))
             axhand01.set_xlabel('Time')
             axhand01.set_ylabel('Density')
-            if logplots: axhand01.set_yscale('symlog')
             axhand01.legend()
 
+            upara    = nrgdata[inrgf][ispecs]['upara']
             uparafig = plt.figure('upara-'+inrgfpath)
             axhand02 = uparafig.add_subplot(1,1,1)
-            upara    = nrgdata[inrgf][ispecs]['upara']
             axhand02.plot(time[bgn_t_ind:end_t_ind+1],upara[bgn_t_ind:end_t_ind+1],label=ispecs)
             axhand02.set_title('$U_{||}%s$' %(titletxt))
             axhand02.set_xlabel('Time')
             axhand02.set_ylabel('Parallel Velocity')
-            if logplots: axhand02.set_yscale('symlog')
             axhand02.legend()
 
             if mergeplots:
+               Tpara    = nrgdata[inrgf][ispecs]['Tpara']
+               Tperp    = nrgdata[inrgf][ispecs]['Tperp']
                Tfig     = plt.figure('T-'+inrgfpath)
                axhand03 = Tfig.add_subplot(1,1,1)
-               Tpara = nrgdata[inrgf][ispecs]['Tpara']
                axhand03.plot(time[bgn_t_ind:end_t_ind+1],Tpara[bgn_t_ind:end_t_ind+1],linestyle='-', label='$T_{\\parallel,%s}$' % ispecs)
-               Tperp = nrgdata[inrgf][ispecs]['Tperp']
                axhand03.plot(time[bgn_t_ind:end_t_ind+1],Tperp[bgn_t_ind:end_t_ind+1],linestyle='--',label='$T_{\\perp,%s}$' % ispecs)
                axhand03.set_title('$T_{\\parallel,\\perp}%s$' %(titletxt))
                axhand03.set_xlabel('Time')
                axhand03.set_ylabel('Temperature')
-               if logplots: axhand03.set_yscale('symlog')
                axhand03.legend()
             else:
+               Tpara    = nrgdata[inrgf][ispecs]['Tpara']
                Tparafig = plt.figure('Tpara-'+inrgfpath)
                axhand03 = Tparafig.add_subplot(1,1,1)
-               Tpara = nrgdata[inrgf][ispecs]['Tpara']
                axhand03.plot(time[bgn_t_ind:end_t_ind+1],T[parabgn_t_ind:end_t_ind+1],label=ispecs)
                axhand03.set_title('$T_{\\parallel}%s$' %(titletxt))
                axhand03.set_xlabel('Time')
@@ -156,9 +157,9 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                if logplots: axhand03.set_yscale('symlog')
                axhand03.legend()
 
+               Tperp    = nrgdata[inrgf][ispecs]['Tperp']
                Tperpfig = plt.figure('Tperp-'+inrgfpath)
                axhand03 = Tperpfig.add_subplot(1,1,1)
-               Tperp = nrgdata[inrgf][ispecs]['Tperp']
                axhand03.plot(time[bgn_t_ind:end_t_ind+1],Tperp[bgn_t_ind:end_t_ind+1],label=ispecs)
                axhand03.set_title('$T_{\\perp}%s$' %(titletxt))
                axhand03.set_xlabel('Time')
@@ -172,10 +173,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                if siunits:
                   PFluxes = nrgdata[inrgf][ispecs]['PFluxes']*area
                   PFluxem = nrgdata[inrgf][ispecs]['PFluxem']*area
-                 #PFluxes*= 1.0e6/(1.0e3*1.0e-19)
-                 #PFluxem*= 1.0e6/(1.0e3*1.0e-19)
                   axhand04.set_ylabel('Particle Flux (Particles/s)')
-                 #axhand04.set_ylabel('Particle Flux (MW/keV)')
                else:
                   PFluxes = nrgdata[inrgf][ispecs]['PFluxes']
                   PFluxem = nrgdata[inrgf][ispecs]['PFluxem']
@@ -188,16 +186,13 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                   axhand04.plot(time[bgn_t_ind:end_t_ind+1],PFluxem[bgn_t_ind:end_t_ind+1],linestyle=':',label='$\\Gamma_{em,%s}$=%7.5e' % (ispecs,PFluxem[-1]))
                axhand04.set_title('$\\Gamma_{es,em}%s$' %(titletxt))
                axhand04.set_xlabel('Time')
-               if logplots: axhand04.set_yscale('symlog')
                axhand04.legend()
             else:
                PFluxesfig = plt.figure('PFluxes-'+inrgfpath)
                axhand04 = PFluxesfig.add_subplot(1,1,1)
                if siunits:
                   PFluxes = nrgdata[inrgf][ispecs]['PFluxes']*area
-                 #PFluxes*= 1.0e6/(1.0e3*1.0e-19)
                   axhand04.set_ylabel('Electrostatic Particle Flux (Particles/s)')
-                 #axhand04.set_ylabel('Electrostatic Particle Flux (MW/keV)')
                else:
                   PFluxes = nrgdata[inrgf][ispecs]['PFluxes']
                   axhand04.set_ylabel('Electrostatic Particle Flux')
@@ -214,9 +209,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                axhand04 = PFluxemfig.add_subplot(1,1,1)
                if siunits:
                   PFluxem = nrgdata[inrgf][ispecs]['PFluxem']*area
-                 #PFluxem*= 1.0e6/(1.0e3*1.0e-19)
                   axhand04.set_ylabel('Electromagnetic Particle Flux (Particles/s)')
-                 #axhand04.set_ylabel('Electromagnetic Particle Flux (MW/keV)')
                else:
                   PFluxem = nrgdata[inrgf][ispecs]['PFluxem']
                   axhand04.set_ylabel('Electromagnetic Particle Flux')
@@ -250,7 +243,6 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                   axhand05.plot(time[bgn_t_ind:end_t_ind+1],HFluxem[bgn_t_ind:end_t_ind+1],linestyle=':',label='$Q_{em,%s}$=%7.5e' % (ispecs,HFluxem[-1]))
                axhand05.set_title('$Q_{es,em}%s$' %(titletxt))
                axhand05.set_xlabel('Time')
-               if logplots: axhand05.set_yscale('symlog')
                axhand05.legend()
             else:
                HFluxesfig = plt.figure('HFluxes-'+inrgfpath)
@@ -308,7 +300,6 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                   axhand06.plot(time[bgn_t_ind:end_t_ind+1],Viscosem[bgn_t_ind:end_t_ind+1],linestyle=':',label='$\\Pi_{em,%s}$=%7.5e' % (ispecs,Viscosem[-1]))
                axhand06.set_title('$\\Pi_{es,em}%s$' %(titletxt))
                axhand06.set_xlabel('Time')
-               if logplots: axhand06.set_yscale('symlog')
                axhand06.legend()
             else:
                Viscosesfig = plt.figure('Viscoses-'+inrgfpath)
@@ -344,6 +335,14 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                axhand06.set_xlabel('Time')
                if logplots: axhand06.set_yscale('symlog')
                axhand06.legend()
+
+        if logplots:
+           axhand01.set_yscale('symlog')
+           axhand02.set_yscale('symlog')
+           axhand03.set_yscale('symlog')
+           axhand04.set_yscale('symlog')
+           axhand05.set_yscale('symlog')
+           axhand06.set_yscale('symlog')
 
         if display: plt.show()
 
@@ -455,7 +454,12 @@ def plot_neoclass(neoclassdata,reportpath='',setParam={}):
         if 'x0' in parameters['box']:
            titletxt = '(x_0=%7.5f)' % parameters['box']['x0']
 
-        geomfpath  = "%stracer_efit%s" %(isimfpath,ineoclassfext)
+        if   parameters['geometry']['magn_geometry'] == 'tracer_efit':
+             geomfpath  = "%stracer_efit%s" %(isimfpath,inrgfext)
+        elif parameters['geometry']['magn_geometry'] == 's_alpha':
+             geomfpath  = "%ss_alpha%s" %(isimfpath,inrgfext)
+        elif parameters['geometry']['magn_geometry'] == 'chease':
+             geomfpath  = "%schease%s" %(isimfpath,inrgfext)
         area = genetools.calculate_surface_area(parameters=parameters,geometry=geomfpath)
 
         bgnind = 3000

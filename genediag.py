@@ -22,6 +22,7 @@ parser.add_argument('--display',     '-display',     action='store_const',const=
 parser.add_argument('--modeinfo',    '-modeinfo',    action='store_const',const=1,help='Retrieve information about a mode')
 parser.add_argument('--findarea',    '-findarea',    action='store_const',const=1,help='Find the surface area of magnetic surface')
 parser.add_argument('--logscale',    '-logscale',    action='store_const',const=1,help='Plot in log scale')
+parser.add_argument('--omega2hz',    '-omega2hz',    action='store_const',const=1,help='Convert omega to Hz')
 parser.add_argument('--plotgeom',    '-plotgeom',    action='store_const',const=1,help='Plot the Geometry')
 parser.add_argument('--plotmodes',   '-plotmodes',   action='store_const',const=1,help='Plot the mode structures')
 parser.add_argument('--findomega',   '-findomega',   action='store_const',const=1,help='Find omega and growth-rate of a mode')
@@ -36,6 +37,7 @@ if parser.parse_args():
    plotnrg   =    args.plotnrg
    display   =    args.display
    siunits   =    args.siunits
+   omega2hz  =    args.omega2hz
    modeinfo  =    args.modeinfo
    findarea  =    args.findarea
    logscale  =    args.logscale
@@ -53,19 +55,52 @@ if display or logscale:
 
 modeorder = []
 
-if findtau:
-   psiloc = inputs[0]
-   profilefpath = inputs[1]
-   tau = genetools.calc_tau(psiloc,profilepath=profilefpath)
-   print('tau = Zeff*Te/Ti = %7.5f' % tau)
+if   findtau:
+     psiloc = inputs[0]
+     profilefpath = inputs[1]
+     tau = genetools.calc_tau(psiloc,profilepath=profilefpath)
+     print('tau = Zeff*Te/Ti = %7.5f' % tau)
+elif omega2hz:
+     genepath = '.'
+     ky,freq = genetools.omega_to_hz(genefpath=genepath)
+     print('omega(ky=%5.3f) = %7.5f Hz' % (ky[0],freq[0]))
 else:
-   orderlist = [str('%04d') % (i+1) for i in range(9999)]
-   orderlist.append('dat')
-   orderlist.append('.dat')
-   for item in inputs:
-      if item in orderlist:
-         if item == 'dat': item = '.dat'
-         modeorder.append(item)
+     orderlist = [str('%04d') % (i+1) for i in range(9999)]
+     orderlist.append('dat')
+     orderlist.append('.dat')
+     for item in inputs:
+        if item in orderlist:
+           if item == 'dat': item = '.dat'
+           modeorder.append(item)
+
+if siunits:
+   if modeorder:
+      if 'dat' in modeorder[0]:
+         paramfpath = 'parameters.dat'
+      else:
+         paramfpath = 'parameters_%04d' % int(modeorder[0])
+   elif os.path.isfile('parameters.dat'):
+        paramfpath = 'parameters.dat'
+   elif os.path.isfile('parameters_0001'):
+        paramfpath = 'parameters_0001'
+   units = genetools.units_conversion(paramfpath=paramfpath)
+   print('nref = ',units['nref'])
+   print('Lref = ',units['Lref'])
+   print('Bref = ',units['Bref'])
+   print('Tref = ',units['Tref'])
+   print('mref = ',units['mref'])
+
+   print('qref = ',units['qref'])
+   print('vref = ',units['vref'])
+   print('cref = ',units['cref'])
+   print('gyrofreq = ',units['gyrofreq'])
+   print('gyroradius = ',units['gyroradius'])
+   print('rhostar = ', units['rhostar'])
+
+   print('Pref = ',units['pref'])
+   print('Ggb = ',units['Ggb'])
+   print('Qgb = ',units['Qgb'])
+   print('Pgb = ',units['Pgb'])
 
 if not modeorder: sys.exit()
 
@@ -111,9 +146,9 @@ for mode in modeorder:
 
          while True:
                if   sys.version_info[0] >=3:
-                    saveomega = str(input('Do you want to update omega file?(Yes/No) ')).lower()
+                    saveomega = str(input('Do you want to update omega file? (Yes/No) ')).lower()
                elif sys.version_info[0] < 3:
-                    saveomega = raw_input('Do you want to update omega file?(Yes/No) ').lower()
+                    saveomega = raw_input('Do you want to update omega file? (Yes/No) ').lower()
                if saveomega in ['yes','y']:
                   if   sys.version_info[0] >=3:
                        omegatype = input('Source?\n(1)Electric Potential,\n(2)Magnetic Potential.\nSelection:  ')
@@ -127,9 +162,9 @@ for mode in modeorder:
                omegafpath = fieldfpath[:-10]+'omega'+fieldfpath[-5:]
             ofhand = open(omegafpath,'w')
             if omegatype == 1:
-               ofhand.write('%5.3f\t%5.3f\t%5.3f\n' % (ky,gamma_phi,omega_phi))
+               ofhand.write('%7.3f %8.2f %8.2f\n' % (ky,gamma_phi,omega_phi))
             else:
-               ofhand.write('%5.3f\t%5.3f\t%5.3f\n' % (ky,gamma_apr,omega_apr))
+               ofhand.write('%7.3f %8.2f %8.2f\n' % (ky,gamma_apr,omega_apr))
             ofhand.close()
 
     elif plotmodes:

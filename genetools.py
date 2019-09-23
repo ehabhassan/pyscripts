@@ -54,7 +54,10 @@ def read_parameters(paramfpath):
         paramflist=[paramfpath.strip()[:-8]+'parameters_'+paramfpath.strip()[-4:]]
     else: 
          if paramfpath[-1] != "/": paramfpath+="/"
-         paramflist = sorted(glob.glob(paramfpath+"parameters_*"))
+         if os.path.isfile(paramfpath+"parameters_0001"):
+            paramflist = sorted(glob.glob(paramfpath+"parameters_*"))
+         else:
+            paramflist = sorted(glob.glob(paramfpath+"parameters.dat"))
 
     geneparam = {'filepath':paramfpath}
     for fid in range(len(paramflist)):
@@ -210,14 +213,14 @@ def read_parameters(paramfpath):
                          else:
                               geneparam[pkey][skey] = float(items[1])
                       elif type(geneparam[pkey][skey]) == list:
-                         if   skey in ['norm_flux_projection']:
+                         if   skey in ['norm_flux_projection','mag_prof']:
                               geneparam[pkey][skey].append(str2bool(items[1]))
                          elif skey in ['magn_geometry','geomdir','geomfile','x_def','dpdx_term']:
                               geneparam[pkey][skey].append(items[1].strip()[1:-1])
                          else:
                               geneparam[pkey][skey].append(float(items[1]))
                       else:
-                         if   skey in ['norm_flux_projection']:
+                         if   skey in ['norm_flux_projection','mag_prof']:
                               if geneparam[pkey][skey] != str2bool(items[1]):
                                  geneparam[pkey][skey]  = [geneparam[pkey][skey],str2bool(items[1])]
                          elif skey in ['magn_geometry','geomdir','geomfile','x_def','dpdx_term']:
@@ -986,9 +989,14 @@ def field_info(field,param={}):
            field_info['parity_factor_phi']  = npy.abs(npy.sum(phi))/npy.sum(npy.abs(phi))
 
            #Calculating E|| Cancellation
-           gpars,geometry = read_geometry_local(ifieldf[:-10]+param['geometry']['magn_geometry']+'_'+ifieldf[-4:])
+           if os.path.isfile(ifieldf[:-10]+param['geometry']['magn_geometry']+'_'+ifieldf[-4:]):
+              gpars,geometry = read_geometry_local(ifieldf[:-10]+param['geometry']['magn_geometry']+'_'+ifieldf[-4:])
+              omegafpath = ifieldf[:-10]+"omega_"+ifieldf[-4:]
+           else:
+              gpars,geometry = read_geometry_local(ifieldf[:-9]+param['geometry']['magn_geometry']+'.'+ifieldf[-3:])
+              omegafpath = ifieldf[:-9]+"omega."+ifieldf[-3:]
            jacxB = geometry['gjacobian']*geometry['gBfield']
-           omegadata = read_omega(ifieldf[:-10]+"omega_"+ifieldf[-4:])
+           omegadata = read_omega(omegafpath)
            omega_complex = (omegadata['omega']*(0.0+1.0J) + omegadata['gamma'])
            gradphi = fd_d1_o4(phi,zgrid)
            for j in range(int(param['box']['nx0'])):
@@ -1171,8 +1179,8 @@ def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='fa
               omega_phi     = npy.log(phi/np.roll(phi,1))
               omega_phi     = npy.delete(omega_phi,0)
               omega_phi    /= dt
-              omega_phi_avg = npy.average(npy.real(omega_phi))
-              gamma_phi_avg = npy.average(npy.imag(omega_phi))
+              omega_phi_avg = npy.average(omega_phi.imag)
+              gamma_phi_avg = npy.average(omega_phi.real)
 
               frequency[modeid]['omega_phi'] = omega_phi_avg
               frequency[modeid]['gamma_phi'] = gamma_phi_avg
@@ -1180,8 +1188,8 @@ def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='fa
               omega_apr     = npy.log(apr/np.roll(apr,1))
               omega_apr     = npy.delete(omega_apr,0)
               omega_apr    /= dt
-              omega_apr_avg = npy.average(npy.real(omega_apr))
-              gamma_apr_avg = npy.average(npy.imag(omega_apr))
+              omega_apr_avg = npy.average(omega_apr.imag)
+              gamma_apr_avg = npy.average(omega_apr.real)
 
               frequency[modeid]['omega_apr'] = omega_apr_avg
               frequency[modeid]['gamma_apr'] = gamma_apr_avg
@@ -1217,7 +1225,10 @@ def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='fa
                          if ix < nx/2:
                             apar[(nx/2-ix-1)*nz:(nx/2-ix)*nz]=field.apar()[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
                 elif not x_local:
-                  gpars,geometry = read_geometry_global(ifieldf[:-10]+pars['magn_geometry'][1:-1]+'_'+ifieldf[-4:])
+                  if 'field.dat' in ifieldf:
+                     gpars,geometry = read_geometry_global(ifieldf[:-9]+pars['magn_geometry'][1:-1]+ifieldf[-4:])
+                  else:
+                     gpars,geometry = read_geometry_global(ifieldf[:-10]+pars['magn_geometry'][1:-1]+ifieldf[-5:])
                   n0_global      = int(pars['n0_global'])
                   q              = geometry['q']
                   phase          = 2.0*npy.pi*(0.0+1.0J)*n0_global*q
