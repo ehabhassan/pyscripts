@@ -122,7 +122,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
             axhand01 = nfig.add_subplot(1,1,1)
             axhand01.plot(time[bgn_t_ind:end_t_ind+1],dens[bgn_t_ind:end_t_ind+1],label=ispecs)
             axhand01.set_title('n%s' %(titletxt))
-            axhand01.set_xlabel('Time')
+            axhand01.set_xlabel('Time ($c_s/a)$')
             axhand01.set_ylabel('Density')
             axhand01.legend()
 
@@ -131,7 +131,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
             axhand02 = uparafig.add_subplot(1,1,1)
             axhand02.plot(time[bgn_t_ind:end_t_ind+1],upara[bgn_t_ind:end_t_ind+1],label=ispecs)
             axhand02.set_title('$U_{||}%s$' %(titletxt))
-            axhand02.set_xlabel('Time')
+            axhand02.set_xlabel('Time ($c_s/a)$')
             axhand02.set_ylabel('Parallel Velocity')
             axhand02.legend()
 
@@ -143,7 +143,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                axhand03.plot(time[bgn_t_ind:end_t_ind+1],Tpara[bgn_t_ind:end_t_ind+1],linestyle='-', label='$T_{\\parallel,%s}$' % ispecs)
                axhand03.plot(time[bgn_t_ind:end_t_ind+1],Tperp[bgn_t_ind:end_t_ind+1],linestyle='--',label='$T_{\\perp,%s}$' % ispecs)
                axhand03.set_title('$T_{\\parallel,\\perp}%s$' %(titletxt))
-               axhand03.set_xlabel('Time')
+               axhand03.set_xlabel('Time ($c_s/a)$')
                axhand03.set_ylabel('Temperature')
                axhand03.legend()
             else:
@@ -152,7 +152,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                axhand03 = Tparafig.add_subplot(1,1,1)
                axhand03.plot(time[bgn_t_ind:end_t_ind+1],T[parabgn_t_ind:end_t_ind+1],label=ispecs)
                axhand03.set_title('$T_{\\parallel}%s$' %(titletxt))
-               axhand03.set_xlabel('Time')
+               axhand03.set_xlabel('Time ($c_s/a)$')
                axhand03.set_ylabel('Parallel Temperature')
                if logplots: axhand03.set_yscale('symlog')
                axhand03.legend()
@@ -162,7 +162,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                axhand03 = Tperpfig.add_subplot(1,1,1)
                axhand03.plot(time[bgn_t_ind:end_t_ind+1],Tperp[bgn_t_ind:end_t_ind+1],label=ispecs)
                axhand03.set_title('$T_{\\perp}%s$' %(titletxt))
-               axhand03.set_xlabel('Time')
+               axhand03.set_xlabel('Time ($c_s/a)$')
                axhand03.set_ylabel('Transverse Temperature')
                if logplots: axhand03.set_yscale('symlog')
                axhand03.legend()
@@ -185,7 +185,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                   axhand04.plot(time[bgn_t_ind:end_t_ind+1],PFluxes[bgn_t_ind:end_t_ind+1],linestyle='-',label='$\\Gamma_{es,%s}$=%7.5e' % (ispecs,PFluxes[-1]))
                   axhand04.plot(time[bgn_t_ind:end_t_ind+1],PFluxem[bgn_t_ind:end_t_ind+1],linestyle=':',label='$\\Gamma_{em,%s}$=%7.5e' % (ispecs,PFluxem[-1]))
                axhand04.set_title('$\\Gamma_{es,em}%s$' %(titletxt))
-               axhand04.set_xlabel('Time')
+               axhand04.set_xlabel('Time ($c_s/a)$')
                axhand04.legend()
             else:
                PFluxesfig = plt.figure('PFluxes-'+inrgfpath)
@@ -201,7 +201,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                else:
                   axhand04.plot(time[bgn_t_ind:end_t_ind+1],PFluxes[bgn_t_ind:end_t_ind+1],label='$\\Gamma_{es,%s}$=%7.5e' % (ispecs,PFluxes[-1]))
                axhand04.set_title('$\\Gamma_{es}%s$' %(titletxt))
-               axhand04.set_xlabel('Time')
+               axhand04.set_xlabel('Time ($c_s/a)$')
                if logplots: axhand04.set_yscale('symlog')
                axhand04.legend()
 
@@ -218,7 +218,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                else:
                   axhand04.plot(time[bgn_t_ind:end_t_ind+1],PFluxem[bgn_t_ind:end_t_ind+1],label='$\\Gamma_{em,%s}$=%7.5e' % (ispecs,PFluxem[-1]))
                axhand04.set_title('$\\Gamma_{em}%s$' %(titletxt))
-               axhand04.set_xlabel('Time')
+               axhand04.set_xlabel('Time ($c_s/a)$')
                if logplots: axhand04.set_yscale('symlog')
                axhand04.legend()
 
@@ -242,7 +242,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                   axhand05.plot(time[bgn_t_ind:end_t_ind+1],HFluxes[bgn_t_ind:end_t_ind+1],linestyle='-',label='$Q_{es,%s}$=%7.5e' % (ispecs,HFluxes[-1]))
                   axhand05.plot(time[bgn_t_ind:end_t_ind+1],HFluxem[bgn_t_ind:end_t_ind+1],linestyle=':',label='$Q_{em,%s}$=%7.5e' % (ispecs,HFluxem[-1]))
                axhand05.set_title('$Q_{es,em}%s$' %(titletxt))
-               axhand05.set_xlabel('Time')
+               axhand05.set_xlabel('Time ($c_s/a)$')
                axhand05.legend()
             else:
                HFluxesfig = plt.figure('HFluxes-'+inrgfpath)
@@ -259,7 +259,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                else:
                   axhand05.plot(time[bgn_t_ind:end_t_ind+1],HFluxes[bgn_t_ind:end_t_ind+1],label='$Q_{es,%s}$=%7.5e' % (ispecs,HFluxes[-1]))
                axhand05.set_title('$Q_{es}%s$' %(titletxt))
-               axhand05.set_xlabel('Time')
+               axhand05.set_xlabel('Time ($c_s/a)$')
                if logplots: axhand05.set_yscale('symlog')
                axhand05.legend()
 
@@ -277,7 +277,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                else:
                   axhand05.plot(time[bgn_t_ind:end_t_ind+1],HFluxem[bgn_t_ind:end_t_ind+1],label='$Q_{em,%s}$=%7.5e' % (ispecs,HFluxem[-1]))
                axhand05.set_title('$Q_{em}%s$' %(titletxt))
-               axhand05.set_xlabel('Time')
+               axhand05.set_xlabel('Time ($c_s/a)$')
                if logplots: axhand05.set_yscale('symlog')
                axhand05.legend()
 
@@ -299,7 +299,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                   axhand06.plot(time[bgn_t_ind:end_t_ind+1],Viscoses[bgn_t_ind:end_t_ind+1],linestyle='-',label='$\\Pi_{es,%s}$=%7.5e' % (ispecs,Viscoses[-1]))
                   axhand06.plot(time[bgn_t_ind:end_t_ind+1],Viscosem[bgn_t_ind:end_t_ind+1],linestyle=':',label='$\\Pi_{em,%s}$=%7.5e' % (ispecs,Viscosem[-1]))
                axhand06.set_title('$\\Pi_{es,em}%s$' %(titletxt))
-               axhand06.set_xlabel('Time')
+               axhand06.set_xlabel('Time ($c_s/a)$')
                axhand06.legend()
             else:
                Viscosesfig = plt.figure('Viscoses-'+inrgfpath)
@@ -315,7 +315,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                else:
                   axhand06.plot(time[bgn_t_ind:end_t_ind+1],Viscoses[bgn_t_ind:end_t_ind+1],label='$\\Pi_{es,%s}$=%7.5e' % (ispecs,Viscoses[-1]))
                axhand06.set_title('$\\Pi_{es}%s$' %(titletxt))
-               axhand06.set_xlabel('Time')
+               axhand06.set_xlabel('Time ($c_s/a)$')
                if logplots: axhand06.set_yscale('symlog')
                axhand06.legend()
 
@@ -332,7 +332,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                else:
                   axhand06.plot(time[bgn_t_ind:end_t_ind+1],Viscosem[bgn_t_ind:end_t_ind+1],label='$\\Pi_{em,%s}$=%7.5e' % (ispecs,Viscosem[-1]))
                axhand06.set_title('$\\Pi_{em}%s$' %(titletxt))
-               axhand06.set_xlabel('Time')
+               axhand06.set_xlabel('Time ($c_s/a)$')
                if logplots: axhand06.set_yscale('symlog')
                axhand06.legend()
 
@@ -766,12 +766,15 @@ def plot_mom(mom,param={},reportpath=''):
 def plot_field(field,param={},reportpath='',setParam={}):
    #Developed by Ehab Hassan on 2019-03-14
     ifieldf=field.keys()[0]
+    if    ifieldf[-3:] == 'dat': ifieldfpath = ifieldf[:-9]
+    else:                        ifieldfpath = ifieldf[:-10]
+    if ifieldfpath[-1] != '/':   ifieldfpath+= "/"
     if 'report' not in reportpath:
-       if not os.path.isdir(ifieldf[:-10]+"report"):
-          os.system('mkdir '+ifieldf[:-10]+"report")
-          reportpath = ifieldf[:-10]+"report/"
+       if not os.path.isdir(ifieldfpath+"report"):
+          os.system('mkdir '+ifieldfpath+"report")
+          reportpath = ifieldfpath+"report/"
        else:
-          reportpath = ifieldf[:-10]+"report/"
+          reportpath = ifieldfpath+"report/"
     elif reportpath[-1] != "/":
        reportpath += "/"
 
@@ -789,10 +792,13 @@ def plot_field(field,param={},reportpath='',setParam={}):
         if 'x_local' in param['general']:
             if param['general']['x_local']:
                 x_local = True
+                ky = param['box']['kymin']
             else:
                 x_local = False
+                n0 = param['box']['n0_global']
         else:
             x_local = True
+            ky = param['box']['kymin']
 
         if x_local:
            nx      = field[ifieldf]['nx']
@@ -831,7 +837,8 @@ def plot_field(field,param={},reportpath='',setParam={}):
            axhand.plot(zgrid[phinds],npy.real(phi1d[phinds]),color='red',label=r'$Re[\phi]$')
            axhand.plot(zgrid[phinds],npy.imag(phi1d[phinds]),color='blue',label=r'$Im[\phi]$')
            axhand.plot(zgrid[phinds],npy.abs(phi1d[phinds]),color='black',label=r'$|\phi|$')
-           axhand.set_title(r'$\phi(k_y=%1.3f)$' % float(param['box']['kymin']) )
+          #axhand.set_title(r'$\phi(k_y=%1.3f)$' % float(param['box']['kymin']) )
+           axhand.set_title(r'$\phi(k_y=%1.3f)$' % ky)
            axhand.set_xlabel(r'$z/\pi$',size=18)
            axhand.legend()
 
@@ -841,7 +848,8 @@ def plot_field(field,param={},reportpath='',setParam={}):
            axhand.plot(zgrid[aparinds],npy.real(apar1d[aparinds]),color='red',label=r'$Re[A_{||}]$')
            axhand.plot(zgrid[aparinds],npy.imag(apar1d[aparinds]),color='blue',label=r'$Im[A_{||}]$')
            axhand.plot(zgrid[aparinds],npy.abs(apar1d[aparinds]),color='black',label=r'$|A_{||}|$')
-           axhand.set_title(r'$A_{||}(k_y=%1.3f)$' % float(param['box']['kymin']))
+          #axhand.set_title(r'$A_{||}(k_y=%1.3f)$' % float(param['box']['kymin']))
+           axhand.set_title(r'$A_{||}(k_y=%1.3f)$' % ky)
            axhand.set_xlabel(r'$z/\pi$',size=18)
            axhand.legend()
 
@@ -874,7 +882,8 @@ def plot_field(field,param={},reportpath='',setParam={}):
            axhand.plot(zgrid[geninds],npy.imag(gradphi)[geninds],'-.',color = 'red',label=r'$Im[\nabla \phi]$')
            axhand.plot(zgrid[geninds],-npy.real(omega_complex*apar1d)[geninds],'-',color = 'black',label=r'$Re[\omega A_{||}]$')
            axhand.plot(zgrid[geninds],-npy.imag(omega_complex*apar1d)[geninds],'-.',color = 'black',label=r'$Im[\omega A_{||}]$')
-           axhand.set_title(r'$\nabla\phi,\partial_tA_{||}(k_y=%1.3f)$' % float(param['box']['kymin']))
+          #axhand.set_title(r'$\nabla\phi,\partial_tA_{||}(k_y=%1.3f)$' % float(param['box']['kymin']))
+           axhand.set_title(r'$\nabla\phi,\partial_tA_{||}(k_y=%1.3f)$' % ky)
            axhand.set_xlabel(r'$z/\pi$',size=18)
            axhand.legend()
 
@@ -952,7 +961,7 @@ def plot_field(field,param={},reportpath='',setParam={}):
               cbar=PHI2Dfig.colorbar(cp)
               cbar.set_label(r'$|\phi|$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
-              axhand.set_title(r'Electric Potential ($\phi$)',fontsize=13)
+              axhand.set_title(r'Electric Potential ($\phi(n_{tor}=%4d)$)' % n0,fontsize=13)
               axhand = PHI2Dfig.add_subplot(3,1,2)
               cp=axhand.contourf(xgrid,zgrid,npy.real(phi_bnd[:,0,:]),70)
               cbar=PHI2Dfig.colorbar(cp)
@@ -985,7 +994,7 @@ def plot_field(field,param={},reportpath='',setParam={}):
                   axhand.axvline(xgrid[ix],color='black')
               axhand.set_xlabel(r'$\rho_{tor}$',fontsize=13)
               axhand.set_ylabel(r'$\phi_{m}$',fontsize=13)
-              axhand.set_title(r'$\phi_m$')
+              axhand.set_title(r'$\phi_m(n_{tor}=%4d)$' % n0)
 
            zgrid = np.arange(nz)/float(nz-1)*(2.0-(2.0/nz))-1.0
 
@@ -1010,7 +1019,7 @@ def plot_field(field,param={},reportpath='',setParam={}):
                   axhand.axvline(xgrid[ix],color='black')
               axhand.set_xlabel(r'$\rho_{tor}$',fontsize=13)
               axhand.set_ylabel(r'$A_{||m}$',fontsize=13)
-              axhand.set_title(r'$A_{||m}$')
+              axhand.set_title(r'$A_{||m}(n_{tor}=%4d)$' % n0)
 
            if plot_ballooning:
               APAR2Dfig = plt.figure('Apar2d_'+ifieldf[-4:])
@@ -1022,7 +1031,7 @@ def plot_field(field,param={},reportpath='',setParam={}):
               cbar=APAR2Dfig.colorbar(cp)
               cbar.set_label(r'$|A_{||}|$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
-              axhand.set_title(r'Magnetic Potential ($A_{||}$)',fontsize=13)
+              axhand.set_title(r'Magnetic Potential ($A_{||}(n_{tor}=%4d)$)' % n0,fontsize=13)
               axhand = APAR2Dfig.add_subplot(3,1,2)
               cp=axhand.contourf(xgrid,zgrid,npy.real(apar[:,0,:]),70)
               cbar=APAR2Dfig.colorbar(cp)
@@ -1127,18 +1136,32 @@ def plot_field(field,param={},reportpath='',setParam={}):
 
               if display: plt.show()
 
-              PHI2Dfig.savefig(reportpath+'phi_mode_%s_2d.png' % (ifieldf[-4:]))
-              plt.close(PHI2Dfig)
-              PHI1Dfig.savefig(reportpath+'phi_mode_%s.png' % (ifieldf[-4:]))
-              plt.close(PHI1Dfig)
-              APAR1Dfig.savefig(reportpath+'apar_mode_%s.png' % (ifieldf[-4:]))
-              plt.close(APAR1Dfig)
-              APAR2Dfig.savefig(reportpath+'apar_mode_%s_2d.png' % (ifieldf[-4:]))
-              plt.close(APAR2Dfig)
-              REPAR2Dfig.savefig(reportpath+'real_Epar_mode_%s_2d.png' % (ifieldf[-4:]))
-              plt.close(REPAR2Dfig)
-              IEPAR2Dfig.savefig(reportpath+'imag_Epar_mode_%s_2d.png' % (ifieldf[-4:]))
-              plt.close(IEPAR2Dfig)
+              if '.dat'==ifieldf[-4:]:
+                 PHI2Dfig.savefig(reportpath+'phi_mode_2d.png')
+                 plt.close(PHI2Dfig)
+                 PHI1Dfig.savefig(reportpath+'phi_mode.png')
+                 plt.close(PHI1Dfig)
+                 APAR1Dfig.savefig(reportpath+'apar_mode.png')
+                 plt.close(APAR1Dfig)
+                 APAR2Dfig.savefig(reportpath+'apar_mode_2d.png')
+                 plt.close(APAR2Dfig)
+                 REPAR2Dfig.savefig(reportpath+'real_Epar_mode_2d.png')
+                 plt.close(REPAR2Dfig)
+                 IEPAR2Dfig.savefig(reportpath+'imag_Epar_mode_2d.png')
+                 plt.close(IEPAR2Dfig)
+              else:
+                 PHI2Dfig.savefig(reportpath+'phi_mode_%s_2d.png' % (ifieldf[-4:]))
+                 plt.close(PHI2Dfig)
+                 PHI1Dfig.savefig(reportpath+'phi_mode_%s.png' % (ifieldf[-4:]))
+                 plt.close(PHI1Dfig)
+                 APAR1Dfig.savefig(reportpath+'apar_mode_%s.png' % (ifieldf[-4:]))
+                 plt.close(APAR1Dfig)
+                 APAR2Dfig.savefig(reportpath+'apar_mode_%s_2d.png' % (ifieldf[-4:]))
+                 plt.close(APAR2Dfig)
+                 REPAR2Dfig.savefig(reportpath+'real_Epar_mode_%s_2d.png' % (ifieldf[-4:]))
+                 plt.close(REPAR2Dfig)
+                 IEPAR2Dfig.savefig(reportpath+'imag_Epar_mode_%s_2d.png' % (ifieldf[-4:]))
+                 plt.close(IEPAR2Dfig)
 
     return 1
 
