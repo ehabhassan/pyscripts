@@ -452,7 +452,6 @@ def profile_mapping(psi,phi,profpsi=[],profphi=[]):
          psiphifn =interp1d(phi,psi,kind='linear')
          profpsi  =profphifn(psiphifn(phi))
 
-'''
 def psi2phi(q,psi):
     qpsifn  = interp1d(psi,q)
     psinorm = npy.linspace(psi[0],psi[-1],10*len(psi))
@@ -480,8 +479,8 @@ def phi2psi(q,phi):
     psiphifn = interp1d(phinorm,psinorm)
     psi      = psiphifn(phi)
     return psi
-'''
 
+'''
 def psi2phi(q,psi):
     phinorm = npy.zeros_like(psi)
     for i in range(1,npy.size(q)):
@@ -501,6 +500,7 @@ def phi2psi(q,phi):
     psinorm  = (psinorm-psinorm[0])/(psinorm[-1]-psinorm[0])
     psi      = psinorm
     return psi
+'''
 
 
 def findmonotonic(A,kind="increasing"):
