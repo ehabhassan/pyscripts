@@ -46,6 +46,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
     inrgf=nrgdata.keys()[0]
     if    inrgf[-3:] == 'dat': inrgfpath = inrgf[:-7]
     else:                      inrgfpath = inrgf[:-8]
+
     if 'report' not in reportpath:
        if not os.path.isdir(inrgfpath+"report"):
           os.system('mkdir '+inrgfpath+"report")
@@ -82,7 +83,7 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
     for inrgf in nrgdata:
         if 'dat' in inrgf:
            isimfpath = inrgf[:-7]
-           inrgfpath = inrgf[-7:]
+           inrgfpath = inrgf[-7:-4]
            inrgfext  = inrgf[-4:]
         else:
            isimfpath = inrgf[:-8]
@@ -815,8 +816,10 @@ def plot_field(field,param={},reportpath='',setParam={}):
 
            if 'n0_global' in param['box']:
                phase = -npy.e**(-2.0*npy.pi*(0.0+1.0J)*param['box']['n0_global']*param['geometry']['q0'])
-           else:
+           elif 'lx' in param['box']:
                phase = -npy.e**(-npy.pi*(0.0+1.0J)*param['geometry']['shat']*param['box']['kymin']*param['box']['lx'])
+           else:
+               phase = -1.0
 
            shatsgn = int(npy.sign(param['geometry']['shat']))
            for i in range(nx/2):
@@ -828,8 +831,16 @@ def plot_field(field,param={},reportpath='',setParam={}):
                   if i < nx/2:
                        apar1d[(nx/2-i-1)*nz:(nx/2-i)*nz]=apar[:,0,-(i+1)*shatsgn]*phase**(-(i+1))
 
-           phi1d  = phi1d/phi[nz/2,0,0]
-           apar1d = apar1d/apar[nz/2,0,0]
+           if 'n0_global' in param['box']:
+              nphi = param['box']['n0_global']
+           else:
+              nphi = 0
+
+           if nfields>1:
+              phi1d  = phi1d/phi[nz/2,0,0]
+              apar1d = apar1d/apar[nz/2,0,0]
+           else:
+              phi1d  = phi1d/phi[nz/2,0,0]
 
            phinds = (abs(phi1d)>=1.0e-4)
            PHIfig = plt.figure('Phi_'+ifieldf[-4:])
@@ -837,64 +848,72 @@ def plot_field(field,param={},reportpath='',setParam={}):
            axhand.plot(zgrid[phinds],npy.real(phi1d[phinds]),color='red',label=r'$Re[\phi]$')
            axhand.plot(zgrid[phinds],npy.imag(phi1d[phinds]),color='blue',label=r'$Im[\phi]$')
            axhand.plot(zgrid[phinds],npy.abs(phi1d[phinds]),color='black',label=r'$|\phi|$')
-          #axhand.set_title(r'$\phi(k_y=%1.3f)$' % float(param['box']['kymin']) )
-           axhand.set_title(r'$\phi(k_y=%1.3f)$' % ky)
-           axhand.set_xlabel(r'$z/\pi$',size=18)
-           axhand.legend()
-
-           aparinds = (abs(apar1d)>=1.0e-4)
-           APARfig = plt.figure('Apar_'+ifieldf[-4:])
-           axhand = APARfig.add_subplot(1,1,1)
-           axhand.plot(zgrid[aparinds],npy.real(apar1d[aparinds]),color='red',label=r'$Re[A_{||}]$')
-           axhand.plot(zgrid[aparinds],npy.imag(apar1d[aparinds]),color='blue',label=r'$Im[A_{||}]$')
-           axhand.plot(zgrid[aparinds],npy.abs(apar1d[aparinds]),color='black',label=r'$|A_{||}|$')
-          #axhand.set_title(r'$A_{||}(k_y=%1.3f)$' % float(param['box']['kymin']))
-           axhand.set_title(r'$A_{||}(k_y=%1.3f)$' % ky)
-           axhand.set_xlabel(r'$z/\pi$',size=18)
-           axhand.legend()
-
-           if 'dat' in ifieldf:
-              omegafpath = ifieldf[:-9]+'omega'+ifieldf[-4:]
+           if nphi:
+              axhand.set_title(r'$\phi(k_y=%1.3f,n_{\phi} = %5d)$' % (ky,nphi))
            else:
-              omegafpath = ifieldf[:-10]+'omega'+ifieldf[-5:]
-
-           if os.path.isfile(omegafpath):
-               om = np.genfromtxt(omegafpath)
-           omega_complex = (om[2]*(0.0+1.0J) + om[1])
-
-          ##Note:  the complex frequency is (gamma + i*omega)
-           if 'dat' in ifieldf:
-              geomfpath = ifieldf[:-9]+param['geometry']['magn_geometry']+ifieldf[-4:]
-           else:
-              geomfpath = ifieldf[:-10]+param['geometry']['magn_geometry']+ifieldf[-5:]
-           gpars,geometry = read_geometry_local(geomfpath)
-           jacxB = geometry['gjacobian']*geometry['gBfield']
-
-           gradphi = fd_d1_o4(phi1d,zgrid)
-           for i in range(int(param['box']['nx0'])):
-               gradphi[int(param['box']['nz0'])*i:int(param['box']['nz0'])*(i+1)] = gradphi[int(param['box']['nz0'])*i:int(param['box']['nz0'])*(i+1)]/jacxB[:]/npy.pi
-
-           genlist = list(zip(abs(npy.real(gradphi))>=1.0e-6,abs(npy.real(omega_complex*apar1d))>=1.0e-6,abs(npy.imag(gradphi))>=1.0e-6,abs(npy.imag(omega_complex*apar1d))>=1.0e-6))
-           geninds = [(i or j or k or l) for (i,j,k,l) in genlist]
-           wAPARfig = plt.figure('wApar_dPhi_'+ifieldf[-4:])
-           axhand = wAPARfig.add_subplot(1,1,1)
-           axhand.plot(zgrid[geninds],npy.real(gradphi)[geninds],'-',color = 'red',label=r'$Re[\nabla \phi]$')
-           axhand.plot(zgrid[geninds],npy.imag(gradphi)[geninds],'-.',color = 'red',label=r'$Im[\nabla \phi]$')
-           axhand.plot(zgrid[geninds],-npy.real(omega_complex*apar1d)[geninds],'-',color = 'black',label=r'$Re[\omega A_{||}]$')
-           axhand.plot(zgrid[geninds],-npy.imag(omega_complex*apar1d)[geninds],'-.',color = 'black',label=r'$Im[\omega A_{||}]$')
-          #axhand.set_title(r'$\nabla\phi,\partial_tA_{||}(k_y=%1.3f)$' % float(param['box']['kymin']))
-           axhand.set_title(r'$\nabla\phi,\partial_tA_{||}(k_y=%1.3f)$' % ky)
+              axhand.set_title(r'$\phi(k_y=%1.3f)$' % (ky))
            axhand.set_xlabel(r'$z/\pi$',size=18)
            axhand.legend()
+
+           if nfields>1:
+              aparinds = (abs(apar1d)>=1.0e-4)
+              APARfig = plt.figure('Apar_'+ifieldf[-4:])
+              axhand = APARfig.add_subplot(1,1,1)
+              axhand.plot(zgrid[aparinds],npy.real(apar1d[aparinds]),color='red',label=r'$Re[A_{||}]$')
+              axhand.plot(zgrid[aparinds],npy.imag(apar1d[aparinds]),color='blue',label=r'$Im[A_{||}]$')
+              axhand.plot(zgrid[aparinds],npy.abs(apar1d[aparinds]),color='black',label=r'$|A_{||}|$')
+              if nphi:
+                 axhand.set_title(r'$A_{||}(k_y=%1.3f,n_{\phi} = %5d)$' % (ky,nphi))
+              else:
+                 axhand.set_title(r'$A_{||}(k_y=%1.3f)$' % (ky))
+              axhand.set_xlabel(r'$z/\pi$',size=18)
+              axhand.legend()
+
+              if 'dat' in ifieldf:
+                 omegafpath = ifieldf[:-9]+'omega'+ifieldf[-4:]
+              else:
+                 omegafpath = ifieldf[:-10]+'omega'+ifieldf[-5:]
+
+              if os.path.isfile(omegafpath):
+                  om = np.genfromtxt(omegafpath)
+              omega_complex = (om[2]*(0.0+1.0J) + om[1])
+
+          #   #Note:  the complex frequency is (gamma + i*omega)
+              if 'dat' in ifieldf:
+                 geomfpath = ifieldf[:-9]+param['geometry']['magn_geometry']+ifieldf[-4:]
+              else:
+                 geomfpath = ifieldf[:-10]+param['geometry']['magn_geometry']+ifieldf[-5:]
+              gpars,geometry = read_geometry_local(geomfpath)
+              jacxB = geometry['gjacobian']*geometry['gBfield']
+
+              gradphi = fd_d1_o4(phi1d,zgrid)
+              for i in range(int(param['box']['nx0'])):
+                  gradphi[int(param['box']['nz0'])*i:int(param['box']['nz0'])*(i+1)] = gradphi[int(param['box']['nz0'])*i:int(param['box']['nz0'])*(i+1)]/jacxB[:]/npy.pi
+
+              genlist = list(zip(abs(npy.real(gradphi))>=1.0e-6,abs(npy.real(omega_complex*apar1d))>=1.0e-6,abs(npy.imag(gradphi))>=1.0e-6,abs(npy.imag(omega_complex*apar1d))>=1.0e-6))
+              geninds = [(i or j or k or l) for (i,j,k,l) in genlist]
+              wAPARfig = plt.figure('wApar_dPhi_'+ifieldf[-4:])
+              axhand = wAPARfig.add_subplot(1,1,1)
+              axhand.plot(zgrid[geninds],npy.real(gradphi)[geninds],'-',color = 'red',label=r'$Re[\nabla \phi]$')
+              axhand.plot(zgrid[geninds],npy.imag(gradphi)[geninds],'-.',color = 'red',label=r'$Im[\nabla \phi]$')
+              axhand.plot(zgrid[geninds],-npy.real(omega_complex*apar1d)[geninds],'-',color = 'black',label=r'$Re[\omega A_{||}]$')
+              axhand.plot(zgrid[geninds],-npy.imag(omega_complex*apar1d)[geninds],'-.',color = 'black',label=r'$Im[\omega A_{||}]$')
+              if nphi:
+                 axhand.set_title(r'$\nabla\phi,\partial_tA_{||}(k_y=%1.3f,n_{\phi} = %5d)$' % (ky,nphi))
+              else:
+                 axhand.set_title(r'$\nabla\phi,\partial_tA_{||}(k_y=%1.3f)$' % (ky))
+              axhand.set_xlabel(r'$z/\pi$',size=18)
+              axhand.legend()
 
            if display: plt.show()
 
            PHIfig.savefig(reportpath+'phi_mode_%s.png' % (ifieldf[-4:]))
            plt.close(PHIfig)
-           APARfig.savefig(reportpath+'apar_mode_%s.png' % (ifieldf[-4:]))
-           plt.close(APARfig)
-           wAPARfig.savefig(reportpath+'wApar_dPhi_mode_%s.png' % (ifieldf[-4:]))
-           plt.close(wAPARfig)
+           if nfields>1:
+              APARfig.savefig(reportpath+'apar_mode_%s.png' % (ifieldf[-4:]))
+              plt.close(APARfig)
+              wAPARfig.savefig(reportpath+'wApar_dPhi_mode_%s.png' % (ifieldf[-4:]))
+              plt.close(wAPARfig)
 
         elif not x_local:
            nx      = field[ifieldf]['nx']
