@@ -1153,7 +1153,7 @@ def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='fa
            if end_t == None: end_t  = tlist[-1]
            end_t_ind = npy.argmin(abs(npy.array(tlist)-end_t))
           #if bgn_t == None: bgn_t  = tlist[-1]*fraction
-          #bgn_t_ind = npy.argmin(abs(npy.array(tlist)-bgn_t))
+           bgn_t_ind = npy.argmin(abs(npy.array(tlist)-bgn_t))
            if bgn_t == None:
               bgn_t     = tlist[-1]*fraction
               bgn_t_ind = npy.argmin(abs(npy.array(tlist)-bgn_t))
