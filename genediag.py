@@ -126,10 +126,12 @@ for mode in modeorder:
        fieldfpath = os.path.abspath(fieldfname)
        if not os.path.isfile(fieldfpath):
           print('File: %s is not in the given path.' % fieldfname); sys.exit()
+       t1 = 9.5
+       t2 = 9.8
        if quick:
-          modefreq = genetools.find_mode_frequency(fieldfpath,method='fast-mode')
+          modefreq = genetools.find_mode_frequency(fieldfpath,fraction=0.90,bgn_t=t1,end_t=t2,method='fast-mode')
        else:
-          modefreq = genetools.find_mode_frequency(fieldfpath,method='thorough')
+          modefreq = genetools.find_mode_frequency(fieldfpath,fraction=0.90,bgn_t=t1,end_t=t2,method='thorough')
 
        if 'omega_apr' in modefreq[modenumber]: aparFlag = True
        else:                                   aparFlag = False
@@ -186,9 +188,9 @@ for mode in modeorder:
              omegafpath = fieldfpath[:-10]+'omega'+fieldfpath[-5:]
           ofhand = open(omegafpath,'w')
           if omegatype == 1:
-             ofhand.write('%7.3f %8.2f %8.2f\n' % (ky,gamma_phi,omega_phi))
+             ofhand.write('%7.3f %9.3f %9.3f\n' % (ky,gamma_phi,omega_phi))
           else:
-             ofhand.write('%7.3f %8.2f %8.2f\n' % (ky,gamma_apr,omega_apr))
+             ofhand.write('%7.3f %9.3f %9.3f\n' % (ky,gamma_apr,omega_apr))
           ofhand.close()
 
     if plotmodes:
@@ -223,8 +225,6 @@ for mode in modeorder:
        else:
           nrgdata    = genetools.read_nrg(nrgfpath,normalized=True)
        nrgplot    = geneplots.plot_nrg(nrgdata,setParam=plotParam)
-       if display:
-          for fig in nrgplot: fig.show()
 
     if plotneoclass:
        if   mode.isdigit():
