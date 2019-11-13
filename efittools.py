@@ -14,9 +14,6 @@ from scipy.integrate import simps
 from scipy.interpolate import interp1d,interp2d
 from scipy.interpolate import CubicSpline,RectBivariateSpline
 
-import read_iterdb
-
-
 def bisection(fx,xmin,xmax,root=0.0,Nmax=100,eps=1.0e-16):
     for it in range(Nmax):
         x = (xmax+xmin)/2.0
