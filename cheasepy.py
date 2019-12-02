@@ -58,31 +58,31 @@ def current_correction(chease,expeq={},setParam={}):
              #ISIGPSI = integrate(chease['CHI'],chease['signeo']*chease['J']/chease['R'],axis=0,method='trapz')
              #ISIGT   = integrate(chease['PSI'],ISIGPSI,axis=0)
              #Eparall = (ITEXP-IPRLT)/ISIGT
-             #IOHMIC  = chease['signeo']*Eparall
-             #IOHMIC  = (IOHMIC-IOHMIC[0])/(IOHMIC[-1]-IOHMIC[0])
+             #Iohmic  = chease['signeo']*Eparall
+             #Iohmic  = (Iohmic-Iohmic[0])/(Iohmic[-1]-Iohmic[0])
          elif current_src in [2,'expeq']:
-              IOHMIC  = (1.0-error)*((chease['B0EXP']*expeq['Iprl']*chease['R0EXP']/mu0)-chease['Ibs'])
-         IPRL   = chease['Ibs'] + IOHMIC
+              Iohmic  = (1.0-error)*((chease['B0EXP']*expeq['Iprl']*chease['R0EXP']/mu0)-chease['Ibs'])
+         Iprl   = chease['Ibs'] + Iohmic
     elif current_type in [4,'jprl','jprln','jparallel','jparalleln']:
          if   current_src in [0,'chease']:
-             #JOHMIC  = (1.0-error)*(chease['Jprl']-chease['Jbs'])
+             #Johmic  = (1.0-error)*(chease['Jprl']-chease['Jbs'])
               JPRLPSI = integrate(chease['CHI'],chease['Jprl']*chease['J']/chease['R'],axis=0,method='trapz')
               JPRLT   = integrate(chease['PSI'],JPRLPSI,axis=0)
               JSIGPSI = integrate(chease['CHI'],chease['signeo']*chease['J']/chease['R'],axis=0,method='trapz')
               JSIGT   = integrate(chease['PSI'],JSIGPSI,axis=0)
               Eparall = (ITEXP-JPRLT)/JSIGT
-              JOHMIC  = chease['signeo']*Eparall
+              Johmic  = chease['signeo']*Eparall
          elif current_src in [2,'expeq']:
-              JOHMIC  = (1.0-error)*(expeq['Jprl']-chease['Jbs'])
-              JOHMIC  = (1.0-error)*((chease['B0EXP']*expeq['Iprl']/chease['R0EXP']/mu0)-chease['Ibs'])
-         JPRL   = chease['Jbs'] + JOHMIC
+              Johmic  = (1.0-error)*(expeq['Jprl']-chease['Jbs'])
+              Johmic  = (1.0-error)*((chease['B0EXP']*expeq['Iprl']/chease['R0EXP']/mu0)-chease['Ibs'])
+         Jprl   = chease['Jbs'] + Johmic
 
-    if   IPRLN in locals():
-         IPRLN      = mu0*IPRL/chease['R0EXP']/chease['B0EXP']
-         correction = IPRLN[:]
-    elif JPRLN in locals():
-         JPRLN      = mu0*JPRL*chease['R0EXP']/chease['B0EXP']
-         correction = JPRLN[:]
+    if   'Iprl' in locals():
+         IprlN      = mu0*Iprl/chease['R0EXP']/chease['B0EXP']
+         correction = IprlN[:]
+    elif 'Jprl' in locals():
+         JprlN      = mu0*Jprl*chease['R0EXP']/chease['B0EXP']
+         correction = JprlN[:]
     else:
          print('WARNING: return correction is not calculated!')
          correction = npy.zeros_like(chease['Iprl'])
@@ -212,7 +212,7 @@ def read_csv(csvfn):
     return csvdata
 
 
-def namelistcreate(setParam={}):
+def create_namelist(setParam={}):
     wfh = open('chease_namelist','w')
     wfh.write('*** for EQDSK file copied onto EXPEQ file \n')
     wfh.write('*** cp this file to "chease_namelist" and run chease \n')
@@ -741,10 +741,12 @@ def read_expeq(expeqfpath,setParam={},**kwargs):
     EXPEQdata['zgeom']         = float(EXPEQOUT[1])
     EXPEQdata['pedge']         = float(EXPEQOUT[2])
     nRZmesh                    =   int(EXPEQOUT[3])
+    EXPEQdata['nRZmesh']       = nRZmesh
     EXPEQdata['rbound']        = npy.array([irec.split()[0] for irec in EXPEQOUT[4:nRZmesh+4]],dtype=float)
     EXPEQdata['zbound']        = npy.array([irec.split()[1] for irec in EXPEQOUT[4:nRZmesh+4]],dtype=float)
     
     nrhomesh                   = int(EXPEQOUT[nRZmesh+4].split()[0])
+    EXPEQdata['nrhomesh']      = nrhomesh
     EXPEQdata['nppfun']        = int(EXPEQOUT[nRZmesh+4].split()[1])
     EXPEQdata['nsttp']         = int(EXPEQOUT[nRZmesh+5].split()[0])
     EXPEQdata['nrhotype']      = int(EXPEQOUT[nRZmesh+5].split()[1])
@@ -2185,8 +2187,9 @@ def read_profiles(profilesfpath,setParam={},Zeffprofile=True,**kwargs):
     PROFILESdata['rhopsi']  = npy.sqrt(profiles['psinorm'])
     PROFILESdata['PSIN']    = profiles['psinorm'][:]
     PROFILESdata['Te']      = profiles['te'][:]
-    PROFILESdata['ne']      = profiles['ne'][:]
     PROFILESdata['Ti']      = profiles['ti'][:]
+    PROFILESdata['Tb']      = profiles['tb'][:]
+    PROFILESdata['ne']      = profiles['ne'][:]
     PROFILESdata['ni']      = profiles['ni'][:]
     PROFILESdata['nb']      = profiles['nb'][:]
     PROFILESdata['nz']      = profiles['nz1'][:]
@@ -2217,24 +2220,30 @@ def read_profiles(profilesfpath,setParam={},Zeffprofile=True,**kwargs):
 
     if   interpflag:
          if   rhopsiflag:
-              PROFILESdata['Te']      = interp(PROFILESdata['PSIN'],PROFILESdata['Te'],psi)
-              PROFILESdata['Ti']      = interp(PROFILESdata['PSIN'],PROFILESdata['Ti'],psi)
-              PROFILESdata['ne']      = interp(PROFILESdata['PSIN'],PROFILESdata['ne'],psi)
-              PROFILESdata['ni']      = interp(PROFILESdata['PSIN'],PROFILESdata['ni'],psi)
-              PROFILESdata['nz']      = interp(PROFILESdata['PSIN'],PROFILESdata['nz'],psi)
-              PROFILESdata['Pb']      = interp(PROFILESdata['PSIN'],PROFILESdata['Pb'],psi)
-              PROFILESdata['Vtor']    = interp(PROFILESdata['PSIN'],PROFILESdata['Vtor'],psi)
-              PROFILESdata['Vpol']    = interp(PROFILESdata['PSIN'],PROFILESdata['Vpol'],psi) 
-              PROFILESdata['Zeff']    = interp(PROFILESdata['PSIN'],PROFILESdata['Zeff'],psi)
-              PROFILESdata['pprime']  = interp(PROFILESdata['PSIN'],PROFILESdata['pprime'],psi)
-              PROFILESdata['pressure']= interp(PROFILESdata['PSIN'],PROFILESdata['pressure'],psi)
-              PROFILESdata['rhopsi']  = rhopsi[:]
-              PROFILESdata['rhotor']  = rhotor[:]
+              PROFILESdata['Te']       = interp(PROFILESdata['PSIN'],PROFILESdata['Te'],psi)
+              PROFILESdata['Ti']       = interp(PROFILESdata['PSIN'],PROFILESdata['Ti'],psi)
+              PROFILESdata['Tb']       = interp(PROFILESdata['PSIN'],PROFILESdata['Tb'],psi)
+              PROFILESdata['ne']       = interp(PROFILESdata['PSIN'],PROFILESdata['ne'],psi)
+              PROFILESdata['ni']       = interp(PROFILESdata['PSIN'],PROFILESdata['ni'],psi)
+              PROFILESdata['nb']       = interp(PROFILESdata['PSIN'],PROFILESdata['nb'],psi)
+              PROFILESdata['nz']       = interp(PROFILESdata['PSIN'],PROFILESdata['nz'],psi)
+              PROFILESdata['Pb']       = interp(PROFILESdata['PSIN'],PROFILESdata['Pb'],psi)
+              PROFILESdata['Vtor']     = interp(PROFILESdata['PSIN'],PROFILESdata['Vtor'],psi)
+              PROFILESdata['Vpol']     = interp(PROFILESdata['PSIN'],PROFILESdata['Vpol'],psi) 
+              PROFILESdata['Zeff']     = interp(PROFILESdata['PSIN'],PROFILESdata['Zeff'],psi)
+              PROFILESdata['pprime']   = interp(PROFILESdata['PSIN'],PROFILESdata['pprime'],psi)
+              PROFILESdata['pressure'] = interp(PROFILESdata['PSIN'],PROFILESdata['pressure'],psi)
+              PROFILESdata['PSIN']     = psi[:]
+              PROFILESdata['PHIN']     = phi[:]
+              PROFILESdata['rhopsi']   = rhopsi[:]
+              PROFILESdata['rhotor']   = rhotor[:]
          elif rhotorflag:
               PROFILESdata['Te']       = interp(PROFILESdata['PSIN'],PROFILESdata['Te'],psi,phi,phi)
               PROFILESdata['Ti']       = interp(PROFILESdata['PSIN'],PROFILESdata['Ti'],psi,phi,phi)
+              PROFILESdata['Tb']       = interp(PROFILESdata['PSIN'],PROFILESdata['Tb'],psi,phi,phi)
               PROFILESdata['ne']       = interp(PROFILESdata['PSIN'],PROFILESdata['ne'],psi,phi,phi)
               PROFILESdata['ni']       = interp(PROFILESdata['PSIN'],PROFILESdata['ni'],psi,phi,phi)
+              PROFILESdata['nb']       = interp(PROFILESdata['PSIN'],PROFILESdata['nb'],psi,phi,phi)
               PROFILESdata['nz']       = interp(PROFILESdata['PSIN'],PROFILESdata['nz'],psi,phi,phi)
               PROFILESdata['Pb']       = interp(PROFILESdata['PSIN'],PROFILESdata['Pb'],psi,phi,phi)
               PROFILESdata['Vtor']     = interp(PROFILESdata['PSIN'],PROFILESdata['Vtor'],psi,phi,phi)
@@ -2242,6 +2251,8 @@ def read_profiles(profilesfpath,setParam={},Zeffprofile=True,**kwargs):
               PROFILESdata['Zeff']     = interp(PROFILESdata['PSIN'],PROFILESdata['Zeff'],psi,phi,phi)
               PROFILESdata['pprime']   = interp(PROFILESdata['PSIN'],PROFILESdata['pprime'],psi,phi,phi)
               PROFILESdata['pressure'] = interp(PROFILESdata['PSIN'],PROFILESdata['pressure'],psi,phi,phi)
+              PROFILESdata['PSIN']     = psi[:]
+              PROFILESdata['PHIN']     = phi[:]
               PROFILESdata['rhopsi']   = rhopsi[:]
               PROFILESdata['rhotor']   = rhotor[:]
     elif rhotorflag and not interpflag:
@@ -3045,7 +3056,7 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
            elif EXPEQexist:    current_src = 2;   expeqrequired = True
            elif CHEASEexist:   current_src = 0;   cheaserequired = True
 
-       namelist = namelistcreate(setParam=namelistParam)
+       namelist = create_namelist(setParam=namelistParam)
 
        if   'NFUNRHO'  in namelist: rhomesh_type = int(namelist['NFUNRHO'])
        elif 'NRHOMESH' in namelist: rhomesh_type = int(namelist['NRHOMESH'])
@@ -3533,7 +3544,7 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
             namelistParam['CSSPEC'] = 0.0
        namelistParam['NCSCAL'] = 4
 
-       namelist = namelistcreate(setParam=namelistParam)
+       namelist = create_namelist(setParam=namelistParam)
        
        cheasefname = sorted(glob('./chease_*.h5'))
        if   len(cheasefname)==0:
@@ -3543,14 +3554,14 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
            #exit_status = subprocess.call(['./chease_hdf5','chease_namelist'])
             if abs(exit_status) > 0: sys.exit()
             if os.path.isfile('./chease_namelist'): os.system('cp ./chease_namelist ./chease_namelist_iter%03d' % it)
-            if os.path.isfile('./ogyropsi.dat'):    os.system('cp ./ogyropsi.dat chease_iter%03d.dat'         % it)
-            if os.path.isfile('./ogyropsi.h5'):     os.system('cp ./ogyropsi.h5 chease_iter%03d.h5'           % it)
+            if os.path.isfile('./ogyropsi.dat'):    os.system('mv ./ogyropsi.dat chease_iter%03d.dat'         % it)
+            if os.path.isfile('./ogyropsi.h5'):     os.system('mv ./ogyropsi.h5 chease_iter%03d.h5'           % it)
             if os.path.isfile('./EXPEQ'):           os.system('cp ./EXPEQ EXPEQ_iter%03d.IN'                    % it)
             if os.path.isfile('./EXPTNZ'):          os.system('cp ./EXPTNZ EXPTNZ_iter%03d.IN'                  % it)
-            if os.path.isfile('./EXPEQ.OUT'):       os.system('cp ./EXPEQ.OUT EXPEQ_iter%03d.OUT'               % it)
-            if os.path.isfile('./EXPTNZ.OUT'):      os.system('cp ./EXPTNZ.OUT EXPTNZ_iter%03d.OUT'             % it)
-            if os.path.isfile('./EXPEQ_EXPEQ.IN'):  os.system('cp ./EXPEQ_EXPEQ.IN EXPEQ_EXPEQ_iter%03d.IN'     % it)
-            if os.path.isfile('./EQDSK_EXPEQ.IN'):  os.system('cp ./EQDSK_EXPEQ.IN EQDSK_EXPEQ_iter%03d.IN'     % it)
+            if os.path.isfile('./EXPEQ.OUT'):       os.system('mv ./EXPEQ.OUT EXPEQ_iter%03d.OUT'               % it)
+            if os.path.isfile('./EXPTNZ.OUT'):      os.system('mv ./EXPTNZ.OUT EXPTNZ_iter%03d.OUT'             % it)
+            if os.path.isfile('./EXPEQ_EXPEQ.IN'):  os.system('mv ./EXPEQ_EXPEQ.IN EXPEQ_EXPEQ_iter%03d.IN'     % it)
+            if os.path.isfile('./EQDSK_EXPEQ.IN'):  os.system('mv ./EQDSK_EXPEQ.IN EQDSK_EXPEQ_iter%03d.IN'     % it)
        else:
             it=int(cheasefname[-1][-6:-3])+1
 
@@ -3623,7 +3634,11 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
           elif iterdbrequired:
              raise IOError('ITERDB file NOT FOUND in the given path!')
 
-       current_type    = int(namelist['NSTTP'])
+
+       if 'NPROPT' in namelist:
+          current_type = abs(int(namelist['NPROPT']))
+       else:
+          current_type = int(namelist['NSTTP'])
        pressure_type   = int(namelist['NPPFUN'])
        rhomesh_type    = int(namelist['NRHOMESH'])
 
@@ -3984,21 +3999,25 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
               for ikey in namelistVals.keys():
                   namelistParam[ikey] = namelistVals[ikey][irun]
 
-           namelist = namelistcreate(setParam=namelistParam)
+           namelist = create_namelist(setParam=namelistParam)
            os.system('cp chease_namelist chease_namelist_iter%03d' % (it+1))
 
            exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % (it+1))
           #exit_status = os.system('./chease_hdf5 chease_namelist')
           #exit_status = subprocess.call(['./chease_hdf5','chease_namelist'])
            if abs(exit_status) > 0: sys.exit()
-           if os.path.isfile('./ogyropsi.dat'):   os.system('cp ./ogyropsi.dat chease_iter%03d.dat'     % (it+1))
-           if os.path.isfile('./ogyropsi.h5'):    os.system('cp ./ogyropsi.h5 chease_iter%03d.h5'       % (it+1))
+           if os.path.isfile('./ogyropsi.dat'):   os.system('mv ./ogyropsi.dat chease_iter%03d.dat'       % (it+1))
+           if os.path.isfile('./ogyropsi.h5'):    os.system('mv ./ogyropsi.h5 chease_iter%03d.h5'         % (it+1))
            if os.path.isfile('./EXPEQ'):          os.system('cp ./EXPEQ EXPEQ_iter%03d.IN'                % (it+1))
            if os.path.isfile('./EXPTNZ'):         os.system('cp ./EXPTNZ EXPTNZ_iter%03d.IN'              % (it+1))
-           if os.path.isfile('./EXPEQ.OUT'):      os.system('cp ./EXPEQ.OUT EXPEQ_iter%03d.OUT'           % (it+1))
-           if os.path.isfile('./EXPTNZ.OUT'):     os.system('cp ./EXPTNZ.OUT EXPTNZ_iter%03d.OUT'         % (it+1))
-           if os.path.isfile('./EXPEQ_EXPEQ.IN'): os.system('cp ./EXPEQ_EXPEQ.IN EXPEQ_EXPEQ_iter%03d.IN' % (it+1))
-           if os.path.isfile('./EQDSK_EXPEQ.IN'): os.system('cp ./EQDSK_EXPEQ.IN EQDSK_EXPEQ_iter%03d.IN' % (it+1))
+           if os.path.isfile('./EXPEQ.OUT'):      os.system('mv ./EXPEQ.OUT EXPEQ_iter%03d.OUT'           % (it+1))
+           if os.path.isfile('./EXPTNZ.OUT'):     os.system('mv ./EXPTNZ.OUT EXPTNZ_iter%03d.OUT'         % (it+1))
+           if os.path.isfile('./EXPEQ_EXPEQ.IN'): os.system('mv ./EXPEQ_EXPEQ.IN EXPEQ_EXPEQ_iter%03d.IN' % (it+1))
+           if os.path.isfile('./EQDSK_EXPEQ.IN'): os.system('mv ./EQDSK_EXPEQ.IN EQDSK_EXPEQ_iter%03d.IN' % (it+1))
+           EQDSK_COCOS = glob('./EQDSK_COCOS_*')
+           if EQDSK_COCOS:
+                                                  os.system('cp '+EQDSK_COCOS[1]+' EQDSK_COCOS_iter%03d'  % (it+1))
+                                                  os.system('mv '+EQDSK_COCOS[1]+' EQDSK')
 
            cheasepath = 'chease_iter%03d.h5' % (it+1)
            cheasedata = read_chease(cheasefpath=cheasepath)
@@ -4012,12 +4031,12 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
            it+=1
     
        #REMOVING CHEASE FILES NOT NEEDED IN CHEASEPY
-       if glob('./NGA'):            os.system('rm NGA')
-       if glob('./NDES'):           os.system('rm NDES')
-       if glob('./NOUT'):           os.system('rm NOUT')
-       if glob('./EQDSK_COCOS_*'):  os.system('rm EQDSK_COCOS_*')
-       if glob('./EXPEQ.OUT.TOR'):  os.system('rm EXPEQ.OUT.TOR')
-       if glob('./EXPEQ_EQDSK.IN'): os.system('rm EXPEQ_EQDSK.IN')
+       #if glob('./NGA'):            os.system('rm NGA')
+       #if glob('./NDES'):           os.system('rm NDES')
+       #if glob('./NOUT'):           os.system('rm NOUT')
+       #if glob('./EQDSK_COCOS_*'):  os.system('rm EQDSK_COCOS_*')
+       #if glob('./EXPEQ.OUT.TOR'):  os.system('rm EXPEQ.OUT.TOR')
+       #if glob('./EXPEQ_EQDSK.IN'): os.system('rm EXPEQ_EQDSK.IN')
     
        pltValsKeys = pltVals.keys()
        if 'skipfigs' in pltValsKeys: skipfigs = pltVals['skipfigs']     
