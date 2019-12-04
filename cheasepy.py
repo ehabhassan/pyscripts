@@ -3130,14 +3130,8 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
        elif iterdbrequired:
             raise IOError('ITERDB file NOT FOUND in the given path!')
 
-       if   cheaserequired and CHEASEexist:
-            os.system('cp   %s/%s_CHEASE .'    % (shotpath,shotfile))
-            iterdbfpath =     '%s_CHEASE'      %          (shotfile)
-       elif cheaserequired:
-            raise IOError('CHEASE file NOT FOUND in the given path!')
-
+       exptnzParam = {}
        if int(namelist['NBSEXPQ']) != 0:
-          exptnzParam              = {}
           exptnzParam['nrhomesh']  = [rhomesh_type,rhomesh_src]
           exptnzParam['eprofiles'] = eprofiles_src
           exptnzParam['iprofiles'] = iprofiles_src
@@ -3317,21 +3311,21 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
        B0EXP = abs(eqdskdata['BCTR'])
        ITEXP = abs(eqdskdata['CURNT'])
 
-       expeqParam               = {}
-       expeqParam['nrhomesh']   = [rhomesh_type,rhomesh_src]
-       expeqParam['nppfun']     = [pressure_type,pressure_src]
-       expeqParam['nsttp']      = [current_type,current_src]
-       expeqParam['boundary']   =  boundary_type
-       expeqParam['cheasemode'] =  1
-       expeqParam['ITEXP']      =  ITEXP
-       expeqParam['R0EXP']      =  R0EXP
-       expeqParam['B0EXP']      =  B0EXP
-
+       expeqParam = {}
        if   int(namelist['NEQDSK']) == 1:
             print('Reading from EQDSK file.')
             os.system('cp *_EQDSK  EXPEQ')
        elif int(namelist['NEQDSK']) == 0:
             print('Reading from EXPEQ file.')
+            expeqParam['nrhomesh']   = [rhomesh_type,rhomesh_src]
+            expeqParam['nppfun']     = [pressure_type,pressure_src]
+            expeqParam['nsttp']      = [current_type,current_src]
+            expeqParam['boundary']   =  boundary_type
+            expeqParam['cheasemode'] =  1
+            expeqParam['ITEXP']      =  ITEXP
+            expeqParam['R0EXP']      =  R0EXP
+            expeqParam['B0EXP']      =  B0EXP
+
             if not os.path.isfile('EXPEQ'):
                if   rhomesh_src in [0,'chease']:
                     if   pressure_src in [0,'chease']   and current_src in [0,'chease']:
