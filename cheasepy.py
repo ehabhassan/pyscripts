@@ -2875,8 +2875,9 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
     elif iprofiles_src in [5,'iterdb']:   iterdbrequired   = True
     elif iprofiles_src in [7,'imported']: importedrequired = True
 
-    if not (cheaserequired or exptnzrequired or profilesrequired or iterdbrequired):
-       raise IOError('FATAL: No Profiles File is provided!')
+    
+   #if not (cheaserequired or exptnzrequired or profilesrequired or iterdbrequired):
+   #   raise IOError('FATAL: No Profiles File is provided!')
 
     if selection == 1:
        if glob('./EQSDK')!=[]:     EQDSKexist  = True
@@ -3509,21 +3510,29 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
                  cheasedata = read_chease(cheasefpath=cheasefpath)
             elif rhomesh_src in [1,'eqdsk']:
                  cheasedata = read_chease(cheasefpath=cheasefpath,eqdsk=eqdskfpath)
-            if 'q' in importedVals:
-               namelistParam['QSPEC'] = importedVals['q'][0]
+            if 'QSPEC' in namelistVals and 'CSSPEC' in namelistVals:
+               namelistParam['QSPEC']  = namelistVals['QSPEC']
+               namelistParam['CSSPEC'] = namelistVals['CSSPEC']
             else:
-               namelistParam['QSPEC'] = cheasedata['q'][0]
-            namelistParam['CSSPEC'] = 0.0
+               if 'q' in importedVals:
+                  namelistParam['QSPEC'] = importedVals['q'][0]
+               else:
+                  namelistParam['QSPEC'] = cheasedata['q'][0]
+               namelistParam['CSSPEC'] = 0.0
        elif current_src in [1,'eqdsk']:
             if   rhomesh_src in [0,'chease']:
                  eqdskdata = read_eqdsk(eqdskfpath=eqdskfpath,chease=cheasefpath)
             elif rhomesh_src in [1,'eqdsk',None]:
                  eqdskdata = read_eqdsk(eqdskfpath=eqdskfpath)
-            if 'q' in importedVals:
-               namelistParam['QSPEC'] = importedVals['q'][0]
+            if 'QSPEC' in namelistVals and 'CSSPEC' in namelistVals:
+               namelistParam['QSPEC']  = namelistVals['QSPEC']
+               namelistParam['CSSPEC'] = namelistVals['CSSPEC']
             else:
-               namelistParam['QSPEC'] = eqdskdata['q'][0]
-            namelistParam['CSSPEC'] = 0.0
+               if 'q' in importedVals:
+                  namelistParam['QSPEC'] = importedVals['q'][0]
+               else:
+                  namelistParam['QSPEC'] = eqdskdata['q'][0]
+               namelistParam['CSSPEC'] = 0.0
        elif current_src in [2,'expeq']:
             if   rhomesh_src in [0,'chease']:
                  expeqdata = read_expeq(expeqfpath=expeqfpath,chease=cheasefpath)
@@ -3531,11 +3540,15 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
                  expeqdata = read_expeq(expeqfpath=expeqfpath,eqdsk=eqdskfpath)
             elif rhomesh_src in [None]:
                  expeqdata = read_expeq(expeqfpath=expeqfpath)
-            if   'q' in importedVals:
-                 namelistParam['QSPEC'] = importedVals['q'][0]
-            elif 'q' in expeqdata:
-                 namelistParam['QSPEC'] = expeqdata['q'][0]
-            namelistParam['CSSPEC'] = 0.0
+            if 'QSPEC' in namelistVals and 'CSSPEC' in namelistVals:
+               namelistParam['QSPEC']  = namelistVals['QSPEC']
+               namelistParam['CSSPEC'] = namelistVals['CSSPEC']
+            else:
+               if   'q' in importedVals:
+                    namelistParam['QSPEC'] = importedVals['q'][0]
+               elif 'q' in expeqdata:
+                    namelistParam['QSPEC'] = expeqdata['q'][0]
+               namelistParam['CSSPEC'] = 0.0
        namelistParam['NCSCAL'] = 4
 
        namelist = create_namelist(setParam=namelistParam)
@@ -3604,8 +3617,8 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
        elif iprofiles_src in [4,'profiles']: profilesrequired = True
        elif iprofiles_src in [5,'iterdb']:   iterdbrequired   = True
 
-       if not (exptnzrequired or profilesrequired or iterdbrequired or cheaserequired):
-          raise IOError('FATAL: No Profiles File is provided!')
+      #if not (exptnzrequired or profilesrequired or iterdbrequired or cheaserequired):
+      #   raise IOError('FATAL: No Profiles File is provided!')
 
        if eqdskrequired    and os.path.isfile('%s_EQDSK'   %(shotfile)):
           if os.path.isfile('%s/%s_EQDSK'   %(shotpath,shotfile)):
