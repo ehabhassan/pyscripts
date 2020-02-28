@@ -967,7 +967,8 @@ def plot_field(field,param={},reportpath='',setParam={}):
            for i in range(len(xgrid)):
                phi_m[:,0,i] = npy.fft.fft(phi_theta[:,0,i])
 
-           imax = np.unravel_index(np.argmax(abs(phi)),(nz,nx))
+           imax = np.unravel_index(np.argmax(abs(phi)),(nz,ny,nx))
+          #imax = np.unravel_index(np.argmax(abs(phi)),(nz,nx))
            plot_ballooning = True
            if plot_ballooning:
               PHI2Dfig = plt.figure('Phi2d_'+ifieldf[-4:])
@@ -980,7 +981,7 @@ def plot_field(field,param={},reportpath='',setParam={}):
               cbar=PHI2Dfig.colorbar(cp)
               cbar.set_label(r'$|\phi|$')
               axhand.set_ylabel(r'$z/\pi$',fontsize=13)
-              axhand.set_title(r'Electric Potential ($\phi(n_{tor}=%4d)$)' % n0,fontsize=13)
+              axhand.set_title(r'Electric Potential ($\phi(n_{tor}=%4d)$)' % (n0),fontsize=13)
               axhand = PHI2Dfig.add_subplot(3,1,2)
               cp=axhand.contourf(xgrid,zgrid,npy.real(phi_bnd[:,0,:]),70)
               cbar=PHI2Dfig.colorbar(cp)
@@ -1013,7 +1014,7 @@ def plot_field(field,param={},reportpath='',setParam={}):
                   axhand.axvline(xgrid[ix],color='black')
               axhand.set_xlabel(r'$\rho_{tor}$',fontsize=13)
               axhand.set_ylabel(r'$\phi_{m}$',fontsize=13)
-              axhand.set_title(r'$\phi_m(n_{tor}=%4d)$' % n0)
+              axhand.set_title(r'$\phi_m(n_{tor}=%4d)$' % (n0))
 
            zgrid = np.arange(nz)/float(nz-1)*(2.0-(2.0/nz))-1.0
 
@@ -1070,6 +1071,8 @@ def plot_field(field,param={},reportpath='',setParam={}):
 
            if os.path.isfile(omegafpath):
                om = np.genfromtxt(omegafpath)
+           else:
+               om = [0.0,0.0,0.0]
 
           ##Note:  the complex frequency is (gamma + i*omega)
            omega_complex = (om[2]*(0.0+1.0J) + om[1])
@@ -1085,6 +1088,8 @@ def plot_field(field,param={},reportpath='',setParam={}):
               else:
                  prof_file = param['geometry']['geomdir'][:-5]+'PROFILES/'+param['geometry']['geomfile'][:-5]+'Profiles'
                  geom_file = param['geometry']['geomdir']+'/'+param['geometry']['geomfile']
+              print(geom_file)
+              print(prof_file)
               if os.path.isfile(prof_file) and os.path.isfile(geom_file):
                  profs,units = efittools.read_profiles_file(prof_file,setParam={'rhotor':param['box']['nx0'],'eqdskfpath':geom_file})
               else:
@@ -1193,12 +1198,16 @@ def plot_geometry(geometryfpath,reportpath='',setParam={}):
     if 'dat' in geometryfpath:
        if   'chease' in geometryfpath:
             geomfprefix = geometryfpath[:-10]
+       elif 'miller' in geometryfpath:
+            geomfprefix = geometryfpath[:-10]
        elif 's_alpha' in geometryfpath:
             geomfprefix = geometryfpath[:-11]
        elif 'tracer_efit' in geometryfpath:
             geomfprefix = geometryfpath[:-15]
     else:
        if   'chease' in geometryfpath:
+            geomfprefix = geometryfpath[:-11]
+       elif 'miller' in geometryfpath:
             geomfprefix = geometryfpath[:-11]
        elif 's_alpha' in geometryfpath:
             geomfprefix = geometryfpath[:-12]
@@ -1235,7 +1244,8 @@ def plot_geometry(geometryfpath,reportpath='',setParam={}):
 
         if ifile[-1]!="/": ifile+="/"
         slashinds=findall(ifile,"/")
-        gfname=ifile[slashinds[-2]:slashinds[-1]]
+       #gfname=ifile[slashinds[-2]:slashinds[-1]]
+        gfname=''
 
         GGfig = plt.figure("ggCoeff",dpi=500)
         ax  = GGfig.add_subplot(2,3,1)
@@ -1349,6 +1359,10 @@ def plot_geometry(geometryfpath,reportpath='',setParam={}):
            ax12.set_title('dBdz')
         ax12.set_xlabel('$Z/\\pi$')
 
+    if x_local:
+       plt.suptitle('Local')
+    else:
+       plt.suptitle('Global')
     geomfigs.savefig(gBfig)
     gBfig.savefig(reportpath+'geometry_gB.png')
     geomfigs.savefig(GGfig)
