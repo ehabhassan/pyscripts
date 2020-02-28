@@ -19,39 +19,45 @@ elif sys.version_info[0] < 3:
      PYTHON2 = True; PYTHON3 = False
 
 parser = argparse.ArgumentParser(description='GENE Diagnostic Tools.')
-parser.add_argument('--quick',       '-quick',       action='store_const',const=1,help='Trace the Fastest Growing Mode')
-parser.add_argument('--findtau',     '-findtau',     action='store_const',const=1,help='Find tau = Zeff*Te/Ti')
-parser.add_argument('--siunits',     '-siunits',     action='store_const',const=1,help='Covert to the SI Units')
-parser.add_argument('--plotnrg',     '-plotnrg',     action='store_const',const=1,help='Plot the profiles in nrg_xxxx file')
-parser.add_argument('--display',     '-display',     action='store_const',const=1,help='Display the plots')
-parser.add_argument('--modeinfo',    '-modeinfo',    action='store_const',const=1,help='Retrieve information about modes')
-parser.add_argument('--fluxinfo',    '-fluxinfo',    action='store_const',const=1,help='Retrieve information about fluxes')
-parser.add_argument('--findarea',    '-findarea',    action='store_const',const=1,help='Find the surface area of magnetic surface')
-parser.add_argument('--logscale',    '-logscale',    action='store_const',const=1,help='Plot in log scale')
-parser.add_argument('--omega2hz',    '-omega2hz',    action='store_const',const=1,help='Convert omega to Hz')
-parser.add_argument('--plotgeom',    '-plotgeom',    action='store_const',const=1,help='Plot the Geometry')
-parser.add_argument('--plotmodes',   '-plotmodes',   action='store_const',const=1,help='Plot the mode structures')
-parser.add_argument('--findomega',   '-findomega',   action='store_const',const=1,help='Find omega and growth-rate of a mode')
-parser.add_argument('--plotneoclass','-plotneoclass',action='store_const',const=1,help='Plot the profiles in neoclass_xxxx file')
+parser.add_argument('--save',         '-save',        action='store_const',const=1,help='Save to disk without asking')
+parser.add_argument('--quick',        '-quick',       action='store_const',const=1,help='Trace the Fastest Growing Mode')
+parser.add_argument('--findtau',      '-findtau',     action='store_const',const=1,help='Find tau = Zeff*Te/Ti')
+parser.add_argument('--siunits',      '-siunits',     action='store_const',const=1,help='Covert to the SI Units')
+parser.add_argument('--plotnrg',      '-plotnrg',     action='store_const',const=1,help='Plot the profiles in nrg_xxxx file')
+parser.add_argument('--display',      '-display',     action='store_const',const=1,help='Display the plots')
+parser.add_argument('--modeinfo',     '-modeinfo',    action='store_const',const=1,help='Retrieve information about modes')
+parser.add_argument('--fluxinfo',     '-fluxinfo',    action='store_const',const=1,help='Retrieve information about fluxes')
+parser.add_argument('--findarea',     '-findarea',    action='store_const',const=1,help='Find the surface area of magnetic surface')
+parser.add_argument('--logscale',     '-logscale',    action='store_const',const=1,help='Plot in log scale')
+parser.add_argument('--omega2hz',     '-omega2hz',    action='store_const',const=1,help='Convert omega to Hz')
+parser.add_argument('--plotgeom',     '-plotgeom',    action='store_const',const=1,help='Plot the Geometry')
+parser.add_argument('--fluctinfo',    '-fluctinfo',   action='store_const',const=1,help='Retrieve information about fluctuations')
+parser.add_argument('--plotmodes',    '-plotmodes',   action='store_const',const=1,help='Plot the mode structures')
+parser.add_argument('--findomega',    '-findomega',   action='store_const',const=1,help='Find omega and growth-rate of a mode')
+parser.add_argument('--plotneoclass', '-plotneoclass',action='store_const',const=1,help='Plot the profiles in neoclass_xxxx file')
+parser.add_argument('--calc_mode_num','-calc_mode_num',action='store_const',const=1,help='Calculate Toroidal Mode Number')
 parser.add_argument('inputs',nargs='*')
 
 if parser.parse_args():
    args = parser.parse_args()
-   quick     =    args.quick
-   inputs    =    args.inputs
-   findtau   =    args.findtau
-   plotnrg   =    args.plotnrg
-   display   =    args.display
-   siunits   =    args.siunits
-   omega2hz  =    args.omega2hz
-   modeinfo  =    args.modeinfo
-   fluxinfo  =    args.fluxinfo
-   findarea  =    args.findarea
-   logscale  =    args.logscale
-   plotgeom  =    args.plotgeom
-   plotmodes =    args.plotmodes 
-   findomega =    args.findomega
-   plotneoclass = args.plotneoclass
+   save          = args.save
+   quick         = args.quick
+   inputs        = args.inputs
+   findtau       = args.findtau
+   plotnrg       = args.plotnrg
+   display       = args.display
+   siunits       = args.siunits
+   omega2hz      = args.omega2hz
+   modeinfo      = args.modeinfo
+   fluxinfo      = args.fluxinfo
+   findarea      = args.findarea
+   logscale      = args.logscale
+   plotgeom      = args.plotgeom
+   fluctinfo     = args.fluctinfo
+   plotmodes     = args.plotmodes 
+   findomega     = args.findomega
+   plotneoclass  = args.plotneoclass
+   calc_mode_num = args.calc_mode_num
 else:
    print('You need to select a function to implement'); sys.exit()
 
@@ -65,16 +71,24 @@ modeorder = []
 if   findtau:
      psiloc = inputs[0]
      profilefpath = inputs[1]
-     tau = genetools.calc_tau(psiloc,profilepath=profilefpath)
-     print('tau = Zeff*Te/Ti = %7.5f' % tau)
-else:
-     orderlist = [str('%04d') % (i+1) for i in range(9999)]
-     orderlist.append('dat')
-     orderlist.append('.dat')
-     for item in inputs:
-        if item in orderlist:
-           if item == 'dat': item = '.dat'
-           modeorder.append(item)
+     tau,Zeff = genetools.calc_tau(psiloc,profilepath=profilefpath)
+     print('tau = Zeff*Te/Ti = %7.5f and Zeff = %7.5f' % (tau,Zeff))
+
+orderlist = [str('%04d') % (i+1) for i in range(9999)]
+orderlist.append('dat')
+orderlist.append('.dat')
+for item in inputs:
+   if   item in orderlist:
+        if item == 'dat': item = '.dat'
+        modeorder.append(item)
+   elif item[0:3].lower() in ['t1=','t1:']:
+        tbgn = float(item[3:])
+   elif item[0:3].lower() in ['t2=','t2:']:
+        tend = float(item[3:])
+
+if 'tbgn' not in locals(): tbgn = None
+if 'tend' not in locals(): tend = None
+
 if siunits:
    if modeorder:
       if 'dat' in modeorder[0]:
@@ -108,10 +122,34 @@ for mode in modeorder:
     if   mode.isdigit():
          modenumber = 'mode_%04d'       % int(mode)
          paramfname = 'parameters_%04d' % int(mode)
+         paramfpath = os.path.abspath(paramfname)
+         geomfname  = 'tracer_efit_%04d' % int(mode)
+         geomfpath  = os.path.abspath(geomfname)
+         if not os.path.isfile(geomfpath):
+            geomfname  = 's_alpha_%04d' % int(mode)
+            geomfpath  = os.path.abspath(geomfname)
+            if not os.path.isfile(geomfpath):
+               geomfname  = 'chease_%04d' % int(mode)
+               geomfpath  = os.path.abspath(geomfname)
+               if not os.path.isfile(geomfpath):
+                  geomfname  = 'miller_%04d' % int(mode)
+                  geomfpath  = os.path.abspath(geomfname)
     else:
          modenumber = 'mode.dat'
          paramfname = 'parameters.dat'
-    paramfpath = os.path.abspath(paramfname)
+         paramfpath = os.path.abspath(paramfname)
+         geomfname  = 'tracer_efit.dat'
+         geomfpath  = os.path.abspath(geomfname)
+         if not os.path.isfile(geomfpath):
+            geomfname  = 's_alpha.dat'
+            geomfpath  = os.path.abspath(geomfname)
+            if not os.path.isfile(geomfpath):
+               geomfname  = 'chease.dat'
+               geomfpath  = os.path.abspath(geomfname)
+               if not os.path.isfile(geomfpath):
+                  geomfname  = 'miller.dat'
+                  geomfpath  = os.path.abspath(geomfname)
+
     if siunits or findomega:
        conv_units = genetools.units_conversion(paramfpath=paramfpath)
 
@@ -137,8 +175,8 @@ for mode in modeorder:
        fieldfpath = os.path.abspath(fieldfname)
        if not os.path.isfile(fieldfpath):
           print('File: %s is not in the given path.' % fieldfname); sys.exit()
-       t1       = 2.00
-       t2       = 2.15
+       t1       = tbgn
+       t2       = tend
        tpercent = 0.9
        if quick:
           modefreq = genetools.find_mode_frequency(fieldfpath,fraction=tpercent,bgn_t=t1,end_t=t2,method='fast-mode')
@@ -213,7 +251,7 @@ for mode in modeorder:
        fieldfpath = os.path.abspath(fieldfname)
        if not os.path.isfile(fieldfpath):
           print('File: %s is not in the given path.' % fieldfname); sys.exit()
-       fielddata = genetools.read_field(fieldfpath=fieldfpath)
+       fielddata = genetools.read_field(fieldfpath=fieldfpath,timeslot=tbgn)
        plotParam = {}
        if display: plotParam['display'] = True
        fieldplot = geneplots.plot_field(field=fielddata,setParam=plotParam)
@@ -257,31 +295,26 @@ for mode in modeorder:
        neoclassplot    = geneplots.plot_neoclass(neoclassdata,setParam=plotParam)
 
     if plotgeom:
-       if   mode.isdigit():
-            geomfname  = 'tracer_efit_%04d' % int(mode)
-            geomfpath  = os.path.abspath(geomfname)
-            if not os.path.isfile(geomfpath):
-               geomfname  = 's_alpha_%04d' % int(mode)
-               geomfpath  = os.path.abspath(geomfname)
-               if not os.path.isfile(geomfpath):
-                  geomfname  = 'chease_%04d' % int(mode)
-                  geomfpath  = os.path.abspath(geomfname)
-       else:
-            geomfname  = 'tracer_efit.dat'
-            geomfpath  = os.path.abspath(geomfname)
-            if not os.path.isfile(geomfpath):
-               geomfname  = 's_alpha.dat'
-               geomfpath  = os.path.abspath(geomfname)
-               if not os.path.isfile(geomfpath):
-                  geomfname  = 'chease.dat'
-                  geomfpath  = os.path.abspath(geomfname)
-
        if not os.path.isfile(geomfpath):
           print('File: %s is not in the given path.' % geomfname); sys.exit()
        plotParam = {}
        if display: plotParam['display'] = True
        geomplot   = geneplots.plot_geometry(geometryfpath=geomfpath,setParam=plotParam)
 
+    if calc_mode_num:
+       geomparams,geomcoeff = genetools.read_geometry(geomfpath)
+       parameters           = genetools.read_parameters(paramfpath)
+       kymin = parameters['box']['kymin']
+       if   'Cy' in geomparams: Cy = geomparams['Cy']
+       elif 'C_y' in geomcoeff: Cy = geomcoeff['C_y'][0]
+       else:                    Cy = 1.0
+       if 'units' in parameters and 'Lref' in parameters['units']:
+          units = genetools.units_conversion(paramfpath)
+          rhostar = units['rhostar']
+       else:
+          rhostar = 1.0
+       print(int(round(Cy*kymin/rhostar)))
+     
     if findarea:
        if   mode.isdigit():
             geomfname  = 'tracer_efit_%04d' % int(mode)
@@ -306,6 +339,47 @@ for mode in modeorder:
        area  = genetools.calculate_surface_area(geomfpath,paramfpath)
        print('Magnetic Surface Area = %7.5f' % area)
 
+
+    if fluctinfo:
+       genepath = os.path.abspath('./')
+       if genepath[-1]!='/': genepath+='/'
+
+       if mode in ['.dat','dat']:
+          paramfname  = 'parameters.dat'
+       else:
+          paramfname  = 'parameters_%04d' % int(mode)
+       parampath = os.path.abspath(paramfname)
+
+       fluctinfo = genetools.fluct_info(genefpath=parampath)
+       kyfluct = fluctinfo.keys()[0]
+
+       arrayshape = npy.shape(fluctinfo[kyfluct]['e']['tpar'])
+       dTpar_over_dn  = abs(fluctinfo[kyfluct]['e']['tpar'][:,0,:])/abs(fluctinfo[kyfluct]['e']['dens'][:,0,:])
+       dTperp_over_dn = abs(fluctinfo[kyfluct]['e']['tperp'][:,0,:])/abs(fluctinfo[kyfluct]['e']['dens'][:,0,:])
+       dBpar_over_dn  = abs(fluctinfo[kyfluct]['bpar'][:,0,:])/abs(fluctinfo[kyfluct]['e']['dens'][:,0,:])
+
+      #print(dTpar_over_dn[npy.unravel_index(npy.argmax(dTpar_over_dn),shape=npy.shape(dTpar_over_dn))])
+      #print(dBpar_over_dn[npy.unravel_index(npy.argmax(dBpar_over_dn),shape=npy.shape(dBpar_over_dn))])
+      #print(dTperp_over_dn[npy.unravel_index(npy.argmax(dTperp_over_dn),shape=npy.shape(dTperp_over_dn))])
+
+       xgrid = fluctinfo[kyfluct]['xgrid']
+       zgrid = fluctinfo[kyfluct]['zgrid']
+       nz = npy.size(zgrid)
+
+       print(npy.mean(dTpar_over_dn))
+       print(npy.mean(dTperp_over_dn))
+       print(npy.mean(dBpar_over_dn))
+       sys.exit()
+
+       (xgrid,zgrid) = npy.meshgrid(xgrid,zgrid)
+       fig = plt.figure("dTpar_over_dn")
+       ax1 = fig.add_subplot(1,1,1)
+       cntrplt = ax1.contourf(xgrid,zgrid,dTpar_over_dn)
+       fig.colorbar(cntrplt,ax=ax1)
+       plt.show()
+
+       
+
     if fluxinfo:
        genepath = os.path.abspath('./')
        if genepath[-1]!='/': genepath+='/'
@@ -327,12 +401,15 @@ for mode in modeorder:
        print("Dz/(Xe+Xi) = %5.3f" % (fluxinfo[kyflux]['z']['Dee']/(fluxinfo[kyflux]['e']['Chi']+fluxinfo[kyflux]['i']['Chi'])))
        print("Instability Type: %s" % (fluxinfo[kyflux]['Type']))
 
-       if   PYTHON3:
-            saveinfo = str(input('Do you want to save info to file?(Yes/No) ')).lower()
-       elif PYTHON2:
-            saveinfo = raw_input('Do you want to save info to file?(Yes/No) ').lower()
+       if save:
+          saveinfo = save
+       else:
+          if   PYTHON3:
+               saveinfo = str(input('Do you want to save info to file?(Yes/No) ')).lower()
+          elif PYTHON2:
+               saveinfo = raw_input('Do you want to save info to file?(Yes/No) ').lower()
 
-       if saveinfo in ['yes','y']:
+       if saveinfo in ['yes','y',1]:
           if not os.path.isdir(genepath+"report"):
              os.system('mkdir '+genepath+"report")
              reportpath = genepath+"report/"
@@ -379,12 +456,15 @@ for mode in modeorder:
        print("Sqrt(Gamma**2+Omega**2) = %5.3f" % (npy.sqrt(modeinfo[kymode]['gamma']**2+modeinfo[kymode]['omega']**2)))
        print("Instability Type: %s" % (modeinfo[kymode]['Type']))
 
-       if   PYTHON3:
-            saveinfo = str(input('Do you want to save info to file?(Yes/No) ')).lower()
-       elif PYTHON2:
-            saveinfo = raw_input('Do you want to save info to file?(Yes/No) ').lower()
+       if save:
+          saveinfo = save
+       else:
+          if   PYTHON3:
+               saveinfo = str(input('Do you want to save info to file?(Yes/No) ')).lower()
+          elif PYTHON2:
+               saveinfo = raw_input('Do you want to save info to file?(Yes/No) ').lower()
 
-       if saveinfo in ['yes','y']:
+       if saveinfo in ['yes','y',1]:
           if not os.path.isdir(genepath+"report"):
              os.system('mkdir '+genepath+"report")
              reportpath = genepath+"report/"
