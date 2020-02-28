@@ -52,7 +52,13 @@ def current_correction(chease,expeq={},setParam={}):
     
     if   current_type in [3,'iprl','iprln','iparallel','iparalleln']:
          if   current_src in [0,'chease']:
-              Iohmic  = (1.0-error)*(chease['Iprl']-chease['Ibs'])
+             #############
+             # METHOD 01 #
+             #############
+             #Iohmic  = (1.0-error)*(chease['Iprl']-chease['Ibs'])
+             #############
+             # METHOD 02 #
+             #############
              #IPRLPSI = integrate(chease['CHI'],chease['IPRL']*chease['J']/chease['R'],axis=0,method='trapz')
              #IPRLT   = integrate(chease['PSI'],IPRLPSI,axis=0)
              #ISIGPSI = integrate(chease['CHI'],chease['signeo']*chease['J']/chease['R'],axis=0,method='trapz')
@@ -60,9 +66,18 @@ def current_correction(chease,expeq={},setParam={}):
              #Eparall = (ITEXP-IPRLT)/ISIGT
              #Iohmic  = chease['signeo']*Eparall
              #Iohmic  = (Iohmic-Iohmic[0])/(Iohmic[-1]-Iohmic[0])
+             #############
+             # METHOD 03 #
+             #############
+              eqdskpath   = 'shots/CASE2_20190509/CASE2_20190509_EQDSK'
+              eqdskdata   = read_eqdsk(eqdskfpath=eqdskpath)
+              cheasefiles = sorted(glob('chease_iter???.h5'))
+              cheasedata  = read_chease(cheasefpath=cheasefiles[-1],eqdsk=eqdskpath)
+              qratio      = cheasedata['q']/eqdskdata['q']
          elif current_src in [2,'expeq']:
               Iohmic  = (1.0-error)*((chease['B0EXP']*expeq['Iprl']*chease['R0EXP']/mu0)-chease['Ibs'])
-         Iprl   = chease['Ibs'] + Iohmic
+        #Iprl   = chease['Ibs'] + Iohmic
+         Iprl   = qratio*cheasedata['Iprl']
     elif current_type in [4,'jprl','jprln','jparallel','jparalleln']:
          if   current_src in [0,'chease']:
              #Johmic  = (1.0-error)*(chease['Jprl']-chease['Jbs'])
@@ -86,6 +101,53 @@ def current_correction(chease,expeq={},setParam={}):
     else:
          print('WARNING: return correction is not calculated!')
          correction = npy.zeros_like(chease['Iprl'])
+
+    return correction
+
+
+def pressure_correction(chease,expeq={},setParam={}):
+    if   'nppfun' in setParam:
+         if   type(setParam['nppfun'])==list:
+              pressure_type = setParam['nppfun'][0]
+              pressure_src  = setParam['nppfun'][1]
+         elif type(setParam['nsttp']) in [int,str]:
+              pressure_type = setParam['nppfun']
+              pressure_src  = 'chease'
+    else:
+              pressure_type = 'pressure'
+              pressure_src  = 'chease'
+
+    if type(pressure_type) == str: pressure_type.lower()
+    if type(pressure_src)  == str: pressure_src.lower()
+
+    if   expeq: expeqavail = True
+    else:       expeqavail = False
+
+    if pressure_src in [2,'expeq'] and not expeqavail:
+       print('FATAL: Data from EXPEQ file is required but not provided')
+       sys.exit()
+
+    if 'ITEXP' in setParam: ITEXP = setParam['ITEXP']
+    error = (chease['Itor']/ITEXP)-1.0
+
+    if   pressure_type in [8,'pressure']:
+         if   pressure_src in [0,'chease']:
+              pressure = (1.0-error)*chease['pressure']
+         elif pressure_src in [2,'expeq']:
+              pressure = (1.0-error)*(mu0*expeq['pressure']/chease['B0EXP']**2)
+    elif pressure_type in [4,'pprime']:
+         if   pressure_src in [0,'chease']:
+              pprime = (1.0-error)*chease['pprime']
+         elif pressure_src in [2,'expeq']:
+              pprime = (1.0-error)*(mu0*expeq['pprime']*chease['R0EXP']**2/chease['B0EXP'])
+
+    if   'pressure' in locals():
+         correction = mu0*pressure/chease['B0EXP']**2
+    elif 'pprime' in locals():
+         correction = mu0*pprime*chease['R0EXP']**2/chease['B0EXP']
+    else:
+         print('WARNING: return correction is not calculated!')
+         correction = npy.zeros_like(chease['pressure'])
 
     return correction
 
@@ -681,12 +743,16 @@ def read_eqdsk(eqdskfpath,setParam={},Normalized=False,**kwargs):
             EQDSKdata['f']        = EQDSKdata['fpol'][:]
 
     if Normalized:
+       EQDSKdata['RCTR']          = abs(EQDSKdata['RCTR'])
+       EQDSKdata['BCTR']          = abs(EQDSKdata['BCTR'])
        EQDSKdata['rbound']        = EQDSKdata['rbound']/EQDSKdata['RCTR']
        EQDSKdata['zbound']        = EQDSKdata['zbound']/EQDSKdata['RCTR']
-       EQDSKdata['rlimit']        = EQDSKdata['rlimit']/EQDSKdata['RCTR']
-       EQDSKdata['zlimit']        = EQDSKdata['zlimit']/EQDSKdata['RCTR']
+       if 'rlimit' in EQDSKdata:
+          EQDSKdata['rlimit']        = EQDSKdata['rlimit']/EQDSKdata['RCTR']
+       if 'zlimit' in EQDSKdata:
+          EQDSKdata['zlimit']        = EQDSKdata['zlimit']/EQDSKdata['RCTR']
        EQDSKdata['pressure']      = EQDSKdata['pressure']*mu0/EQDSKdata['BCTR']**2
-       EQDSKdata['pprime']        = EQDSKdata['pprime']*mu0*EQDSKdata['RCTR']**2/CHEASEdata['BCTR']
+       EQDSKdata['pprime']        = EQDSKdata['pprime']*mu0*EQDSKdata['RCTR']**2/EQDSKdata['BCTR']
        EQDSKdata['ffprime']       = EQDSKdata['ffprime']/EQDSKdata['BCTR']
 
     return EQDSKdata
@@ -1192,107 +1258,177 @@ def write_expeq(setParam={},outfile=True,**kwargs):
 
 
     if   nppfun[1] in [0,'chease'] and cheaseflag:
-         if importedflag and 'pressure' in importeddata:
-            expeq['pedge'] = mu0*importeddata['pressure'][-1]/expeq['B0EXP']**2
-         else:
-            expeq['pedge'] = mu0*cheasedata['pressure'][-1]/expeq['B0EXP']**2
-         if   nppfun[0] in [4,'pprime','pprimen']:
-              if importedflag and 'pprime' in importeddata:
-                 expeq['pprime'] = mu0*importeddata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
-              else:
-                 expeq['pprime'] = mu0*cheasedata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
-         elif nppfun[0] in [8,'pressure','pressuren','p','pn']:
+         if   cheasemode != 3:
               if importedflag and 'pressure' in importeddata:
-                 expeq['pressure'] = mu0*importeddata['pressure']/expeq['B0EXP']**2
+                 expeq['pedge'] = mu0*importeddata['pressure'][-1]/expeq['B0EXP']**2
               else:
-                 expeq['pressure'] = mu0*cheasedata['pressure']/expeq['B0EXP']**2
+                 expeq['pedge'] = mu0*cheasedata['pressure'][-1]/expeq['B0EXP']**2
+              if   nppfun[0] in [4,'pprime','pprimen']:
+                   if importedflag and 'pprime' in importeddata:
+                      expeq['pprime'] = mu0*importeddata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
+                   else:
+                      expeq['pprime'] = mu0*cheasedata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
+              elif nppfun[0] in [8,'pressure','pressuren','p','pn']:
+                   if importedflag and 'pressure' in importeddata:
+                      expeq['pressure'] = mu0*importeddata['pressure']/expeq['B0EXP']**2
+                   else:
+                      expeq['pressure'] = mu0*cheasedata['pressure']/expeq['B0EXP']**2
+         elif cheasemode == 3:
+              correctParam = {'nppfun':nppfun,'ITEXP':setParam['ITEXP']}
+              correction   = pressure_correction(chease=cheasedata,setParam=correctParam)
+              expeq['pedge'] = mu0*cheasedata['pressure'][-1]/expeq['B0EXP']**2
+              if   nppfun[0] in [8,'pressure','pressuren','p','pn']:
+                   expeq['pressure'] = correction[:]
+              elif nppfun[0] in [4,'pprime','pprimen']:
+                   expeq['pprime'] = correction[:]
+
     elif nppfun[1] in [1,'eqdsk'] and eqdskflag:
-         if importedflag and 'pressure' in importeddata:
-            expeq['pedge'] = mu0*importeddata['pressure'][-1]/expeq['B0EXP']**2
-         else:
-            expeq['pedge'] = mu0*eqdskdata['pressure'][-1]/expeq['B0EXP']**2
-         if   nppfun[0] in [4,'pprime','pprimen']:
-              if importedflag and 'pprime' in importeddata:
-                 expeq['pprime'] = mu0*importeddata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
-              else:
-                 expeq['pprime'] = mu0*eqdskdata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
-         elif nppfun[0] in [8,'pressure','pressuren','p','pn']:
+         if   cheasemode != 3:
               if importedflag and 'pressure' in importeddata:
-                 expeq['pressure'] = mu0*importeddata['pressure']/expeq['B0EXP']**2
+                 expeq['pedge'] = mu0*importeddata['pressure'][-1]/expeq['B0EXP']**2
               else:
-                 expeq['pressure'] = mu0*eqdskdata['pressure']/expeq['B0EXP']**2
+                 expeq['pedge'] = mu0*eqdskdata['pressure'][-1]/expeq['B0EXP']**2
+              if   nppfun[0] in [4,'pprime','pprimen']:
+                   if importedflag and 'pprime' in importeddata:
+                      expeq['pprime'] = mu0*importeddata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
+                   else:
+                      expeq['pprime'] = mu0*eqdskdata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
+              elif nppfun[0] in [8,'pressure','pressuren','p','pn']:
+                   if importedflag and 'pressure' in importeddata:
+                      expeq['pressure'] = mu0*importeddata['pressure']/expeq['B0EXP']**2
+                   else:
+                      expeq['pressure'] = mu0*eqdskdata['pressure']/expeq['B0EXP']**2
+         elif cheasemode == 3:
+              correctParam = {'nppfun':nppfun,'ITEXP':setParam['ITEXP']}
+              correction   = pressure_correction(chease=cheasedata,setParam=correctParam)
+              expeq['pedge'] = mu0*cheasedata['pressure'][-1]/expeq['B0EXP']**2
+              if   nppfun[0] in [8,'pressure','pressuren','p','pn']:
+                   expeq['pressure'] = correction[:]
+              elif nppfun[0] in [4,'pprime','pprimen']:
+                   expeq['pprime'] = correction[:]
+
     elif nppfun[1] in [2,'expeq'] and expeqflag:
-         if importedflag and 'pressure' in importeddata:
-            expeq['pedge'] = mu0*importeddata['pressure'][-1]/expeq['B0EXP']**2
-         else:
-            expeq['pedge'] = expeqdata['pedge']
-         if   nppfun[0] in [4,'pprime','pprimen']:
-              if importedflag and 'pprime' in importeddata:
-                 expeq['pprime'] = mu0*importeddata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
-              else:
-                 expeq['pprime'] = expeqdata['pprime'][:]
-         elif nppfun[0] in [8,'pressure','pressuren','p','pn']:
+         if   cheasemode != 3:
               if importedflag and 'pressure' in importeddata:
-                 expeq['pressure'] = mu0*importeddata['pressure']/expeq['B0EXP']**2
+                 expeq['pedge'] = mu0*importeddata['pressure'][-1]/expeq['B0EXP']**2
               else:
-                 expeq['pressure'] = expeqdata['pressure'][:]
+                 expeq['pedge'] = expeqdata['pedge']
+              if   nppfun[0] in [4,'pprime','pprimen']:
+                   if importedflag and 'pprime' in importeddata:
+                      expeq['pprime'] = mu0*importeddata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
+                   else:
+                      expeq['pprime'] = expeqdata['pprime'][:]
+              elif nppfun[0] in [8,'pressure','pressuren','p','pn']:
+                   if importedflag and 'pressure' in importeddata:
+                      expeq['pressure'] = mu0*importeddata['pressure']/expeq['B0EXP']**2
+                   else:
+                      expeq['pressure'] = expeqdata['pressure'][:]
+         elif cheasemode == 3:
+              correctParam = {'nppfun':nppfun,'ITEXP':setParam['ITEXP']}
+              correction   = pressure_correction(chease=cheasedata,expeq=expeqdata,setParam=correctParam)
+              expeq['pedge'] = mu0*cheasedata['pressure'][-1]/expeq['B0EXP']**2
+              if   nppfun[0] in [8,'pressure','pressuren','p','pn']:
+                   expeq['pressure'] = correction[:]
+              elif nppfun[0] in [4,'pprime','pprimen']:
+                   expeq['pprime'] = correction[:]
+
     elif nppfun[1] in [3,'exptnz'] and exptnzflag:
-         if importedflag and 'pressure' in importeddata:
-            expeq['pedge'] = mu0*importeddata['pressure'][-1]/expeq['B0EXP']**2
-         else:
-            expeq['pedge'] = mu0*exptnzdata['pressure'][-1]/expeq['B0EXP']**2
-         if   nppfun[0] in [4,'pprime','pprimen']:
-              if importedflag and 'pprime' in importeddata:
-                 expeq['pprime'] = mu0*importeddata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
-              else:
-                 expeq['pprime'] = mu0*exptnzdata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
-         elif nppfun[0] in [8,'pressure','pressuren','p','pn']:
+         if   cheasemode != 3:
               if importedflag and 'pressure' in importeddata:
-                 expeq['pressure'] = mu0*importeddata['pressure']/expeq['B0EXP']**2
+                 expeq['pedge'] = mu0*importeddata['pressure'][-1]/expeq['B0EXP']**2
               else:
-                 expeq['pressure'] = mu0*exptnzdata['pressure']/expeq['B0EXP']**2
+                 expeq['pedge'] = mu0*exptnzdata['pressure'][-1]/expeq['B0EXP']**2
+              if   nppfun[0] in [4,'pprime','pprimen']:
+                   if importedflag and 'pprime' in importeddata:
+                      expeq['pprime'] = mu0*importeddata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
+                   else:
+                      expeq['pprime'] = mu0*exptnzdata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
+              elif nppfun[0] in [8,'pressure','pressuren','p','pn']:
+                   if importedflag and 'pressure' in importeddata:
+                      expeq['pressure'] = mu0*importeddata['pressure']/expeq['B0EXP']**2
+                   else:
+                      expeq['pressure'] = mu0*exptnzdata['pressure']/expeq['B0EXP']**2
+         elif cheasemode == 3:
+              correctParam = {'nppfun':nppfun,'ITEXP':setParam['ITEXP']}
+              correction   = pressure_correction(chease=cheasedata,setParam=correctParam)
+              expeq['pedge'] = mu0*cheasedata['pressure'][-1]/expeq['B0EXP']**2
+              if   nppfun[0] in [8,'pressure','pressuren','p','pn']:
+                   expeq['pressure'] = correction[:]
+              elif nppfun[0] in [4,'pprime','pprimen']:
+                   expeq['pprime'] = correction[:]
+
     elif nppfun[1] in [4,'profiles'] and profilesflag:
-         if importedflag and 'pressure' in importeddata:
-            expeq['pedge'] = mu0*importeddata['pressure'][-1]/expeq['B0EXP']**2
-         else:
-            expeq['pedge'] = mu0*profilesdata['pressure'][-1]/expeq['B0EXP']**2
-         if   nppfun[0] in [4,'pprime','pprimen']:
-              if importedflag and 'pprime' in importeddata:
-                 expeq['pprime'] = mu0*importeddata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
-              else:
-                 expeq['pprime'] = mu0*profilesdata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
-         elif nppfun[0] in [8,'pressure','pressuren','p','pn']:
+         if   cheasemode != 3:
               if importedflag and 'pressure' in importeddata:
-                 expeq['pressure'] = mu0*importeddata['pressure']/expeq['B0EXP']**2
+                 expeq['pedge'] = mu0*importeddata['pressure'][-1]/expeq['B0EXP']**2
               else:
-                 expeq['pressure'] = mu0*profilesdata['pressure']/expeq['B0EXP']**2
+                 expeq['pedge'] = mu0*profilesdata['pressure'][-1]/expeq['B0EXP']**2
+              if   nppfun[0] in [4,'pprime','pprimen']:
+                   if importedflag and 'pprime' in importeddata:
+                      expeq['pprime'] = mu0*importeddata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
+                   else:
+                      expeq['pprime'] = mu0*profilesdata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
+              elif nppfun[0] in [8,'pressure','pressuren','p','pn']:
+                   if importedflag and 'pressure' in importeddata:
+                      expeq['pressure'] = mu0*importeddata['pressure']/expeq['B0EXP']**2
+                   else:
+                      expeq['pressure'] = mu0*profilesdata['pressure']/expeq['B0EXP']**2
+         elif cheasemode == 3:
+              correctParam = {'nppfun':nppfun,'ITEXP':setParam['ITEXP']}
+              correction   = pressure_correction(chease=cheasedata,setParam=correctParam)
+              expeq['pedge'] = mu0*cheasedata['pressure'][-1]/expeq['B0EXP']**2
+              if   nppfun[0] in [8,'pressure','pressuren','p','pn']:
+                   expeq['pressure'] = correction[:]
+              elif nppfun[0] in [4,'pprime','pprimen']:
+                   expeq['pprime'] = correction[:]
+
     elif nppfun[1] in [5,'iterdb'] and iterdbflag:
-         if importedflag and 'pressure' in importeddata:
-            expeq['pedge'] = mu0*importeddata['pressure'][-1]/expeq['B0EXP']**2
-         else:
-            expeq['pedge'] = mu0*iterdbdata['pressure'][-1]/expeq['B0EXP']**2
-         if   nppfun[0] in [4,'pprime','pprimen']:
-              if importedflag and 'pprime' in importeddata:
-                 expeq['pprime'] = mu0*importeddata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
-              else:
-                 expeq['pprime'] = mu0*iterdbdata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
-         elif nppfun[0] in [8,'pressure','pressuren','p','pn']:
+         if   cheasemode != 3:
               if importedflag and 'pressure' in importeddata:
-                 expeq['pressure'] = mu0*importeddata['pressure']/expeq['B0EXP']**2
+                 expeq['pedge'] = mu0*importeddata['pressure'][-1]/expeq['B0EXP']**2
               else:
-                 expeq['pressure'] = mu0*iterdbdata['pressure']/expeq['B0EXP']**2
+                 expeq['pedge'] = mu0*iterdbdata['pressure'][-1]/expeq['B0EXP']**2
+              if   nppfun[0] in [4,'pprime','pprimen']:
+                   if importedflag and 'pprime' in importeddata:
+                      expeq['pprime'] = mu0*importeddata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
+                   else:
+                      expeq['pprime'] = mu0*iterdbdata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
+              elif nppfun[0] in [8,'pressure','pressuren','p','pn']:
+                   if importedflag and 'pressure' in importeddata:
+                      expeq['pressure'] = mu0*importeddata['pressure']/expeq['B0EXP']**2
+                   else:
+                      expeq['pressure'] = mu0*iterdbdata['pressure']/expeq['B0EXP']**2
+         elif cheasemode == 3:
+              correctParam = {'nppfun':nppfun,'ITEXP':setParam['ITEXP']}
+              correction   = pressure_correction(chease=cheasedata,setParam=correctParam)
+              expeq['pedge'] = mu0*cheasedata['pressure'][-1]/expeq['B0EXP']**2
+              if   nppfun[0] in [8,'pressure','pressuren','p','pn']:
+                   expeq['pressure'] = correction[:]
+              elif nppfun[0] in [4,'pprime','pprimen']:
+                   expeq['pprime'] = correction[:]
+
     elif nppfun[1] in [7,'imported'] and importedflag:
-         if 'pressure' in importeddata:
-            expeq['pedge'] = mu0*importeddata['pressure'][-1]/expeq['B0EXP']**2
-         else:
-            expeq['pedge'] = mu0*eqdskdata['pressure'][-1]/expeq['B0EXP']**2
-         if   nppfun[0] in [4,'pprime','pprimen']:
-              expeq['pprime'] = mu0*importeddata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
-         elif nppfun[0] in [8,'pressure','pressuren','p','pn']:
-              expeq['pressure'] = mu0*importeddata['pressure']/expeq['B0EXP']**2
+         if   cheasemode != 3:
+              if 'pressure' in importeddata:
+                 expeq['pedge'] = mu0*importeddata['pressure'][-1]/expeq['B0EXP']**2
+              else:
+                 expeq['pedge'] = mu0*eqdskdata['pressure'][-1]/expeq['B0EXP']**2
+              if   nppfun[0] in [4,'pprime','pprimen']:
+                   expeq['pprime'] = mu0*importeddata['pprime']*expeq['R0EXP']**2/expeq['B0EXP']
+              elif nppfun[0] in [8,'pressure','pressuren','p','pn']:
+                   expeq['pressure'] = mu0*importeddata['pressure']/expeq['B0EXP']**2
+         elif cheasemode == 3:
+              correctParam = {'nppfun':nppfun,'ITEXP':setParam['ITEXP']}
+              correction   = pressure_correction(chease=cheasedata,setParam=correctParam)
+              expeq['pedge'] = mu0*cheasedata['pressure'][-1]/expeq['B0EXP']**2
+              if   nppfun[0] in [8,'pressure','pressuren','p','pn']:
+                   expeq['pressure'] = correction[:]
+              elif nppfun[0] in [4,'pprime','pprimen']:
+                   expeq['pprime'] = correction[:]
+
 
     if   nsttp[1] in [0,'chease'] and cheaseflag:
-         if   cheasemode == 1:
+         if   cheasemode != 2:
               if   nsttp[0] in [1,'ffprime','ffprimen']:
                    if importedflag and 'ffprime' in importeddata:
                       expeq['ffprime'] = importeddata['ffprime']/expeq['B0EXP']
@@ -1330,7 +1466,7 @@ def write_expeq(setParam={},outfile=True,**kwargs):
               elif nsttp[0] in [4,'jprl','jprln','jparallel','jparalleln']:
                    expeq['Jprl'] = correction[:]
     elif nsttp[1] in [2,'expeq'] and expeqflag:
-         if   cheasemode == 1:
+         if   cheasemode != 2:
               if   nsttp[0] in [1,'ffprime','ffprimen']:
                    if importedflag and 'ffprime' in importeddata:
                       expeq['ffprime'] = importeddata['ffprime']/expeq['B0EXP']
@@ -1368,7 +1504,7 @@ def write_expeq(setParam={},outfile=True,**kwargs):
               elif nsttp[0] in [4,'jprl','jprln','jparallel','jparalleln']:
                    expeq['Jprl'] = correction[:]
     elif nsttp[1] in [1,'eqdsk'] and eqdskflag:
-         if   cheasemode==1:
+         if   cheasemode != 2:
               if   nsttp[0] in [1,'ffprime','ffprimen']:
                    if importedflag and 'ffprime' in importeddata:
                       expeq['ffprime'] = importeddata['ffprime']/expeq['B0EXP']
@@ -1384,7 +1520,7 @@ def write_expeq(setParam={},outfile=True,**kwargs):
          elif cheasemode in [2,3]:
               raise ValueError("FATAL: eqdsk option is not accepted with cheasemode = 2 or 3")
     elif nsttp[1] in [7,'imported'] and importedflag:
-         if   cheasemode == 1:
+         if   cheasemode != 2:
               if   nsttp[0] in [1,'ffprime','ffprimen']:
                    expeq['ffprime'] = importeddata['ffprime']/expeq['B0EXP']
               elif nsttp[0] in [2,'istr','istrn','istar','istarn']:
@@ -1395,8 +1531,8 @@ def write_expeq(setParam={},outfile=True,**kwargs):
                    expeq['Jprl'] = importeddata['Jprl']*mu0*expeq['R0EXP']/expeq['B0EXP']
               elif nsttp[0] in [5,'q','qpsi','qtor']:
                    expeq['q'] = importeddata['q'][:]
-         elif cheasemode in [2,3]:
-              raise ValueError("FATAL: imported option is not accepted with cheasemode = 2 or 3")
+         elif cheasemode == 2:
+              raise ValueError("FATAL: imported option is not accepted with cheasemode = 2")
 
     if outfile:
        ofh = open("EXPEQ",'w')
@@ -2733,7 +2869,7 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
                        if glob('./EXPEQ_iter*.IN'):        os.system('rm EXPEQ_iter*.IN')
                        if glob('./EXPTNZ_iter*.IN'):       os.system('rm EXPTNZ_iter*.IN')
                        if glob('./chease_namelist*'):      os.system('rm chease_namelist*')
-                       if glob('./chease_parameters.csv'): os.system('rm chease_parameters.csv')
+                      #if glob('./chease_parameters.csv'): os.system('rm chease_parameters.csv')
                        sys.exit()
                     elif  selection == 4: sys.exit()
                     else: break
@@ -2926,7 +3062,7 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
           ITERDBexist   = False
           EXPEQexist    = False
           EQDSKexist    = False
-          if os.path.isfile('./chease_parameters.csv'): os.system('rm chease_parameters.csv')
+         #if os.path.isfile('./chease_parameters.csv'): os.system('rm chease_parameters.csv')
 
        while True:
              print(CYLW+'Select CHEASE running mode:'+CEND)
@@ -3084,15 +3220,15 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
           elif pressure_type in [4,'pprime']   and 'pprime'   not in importedVals:
                raise ValueError('importedVals MUST contain pprime with pressure_src = 7 or "imported"')
        if current_src in [7,'imported']:
-          if   current_type in [1,'ffprime'] and 'ffprime' in importedVals:
+          if   current_type in [1,'ffprime'] and 'ffprime' not in importedVals:
                raise ValueError('importedVals MUST contain ffprime current_src = 7 or "imported"')
-          elif current_type in [2,'istr'] and 'Istr' in importedVals:
+          elif current_type in [2,'istr'] and 'Istr' not in importedVals:
                raise ValueError('importedVals MUST contain Istr current_src = 7 or "imported"')
-          elif current_type in [3,'iprl'] and 'Iprl' in importedVals:
+          elif current_type in [3,'iprl'] and 'Iprl' not in importedVals:
                raise ValueError('importedVals MUST contain Iprl current_src = 7 or "imported"')
-          elif current_type in [4,'jprl'] and 'Jprl' in importedVals:
+          elif current_type in [4,'jprl'] and 'Jprl' not in importedVals:
                raise ValueError('importedVals MUST contain Jprl current_src = 7 or "imported"')
-          elif current_type in [5,'q'] and 'q' in importedVals:
+          elif current_type in [5,'q'] and 'q' not in importedVals:
                raise ValueError('importedVals MUST contain q current_src = 7 or "imported"')
 
        if   eqdskrequired and EQDSKexist:
