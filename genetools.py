@@ -18,6 +18,13 @@ from read_write_geometry import *
 
 from scipy.interpolate import interp1d
 
+
+if   sys.version_info[0] > 3:
+     PYTHON3 = True; PYTHON2 = False
+elif sys.version_info[0] < 3:
+     PYTHON2 = True; PYTHON3 = False
+
+
 def create_k_grid(x_grid):
    #Developed by Ehab Hassan on 2019-04-28
     nx  = npy.size(x_grid)
@@ -353,7 +360,7 @@ def read_parameters(paramfpath):
     return geneparam
 
 
-def read_nrg(nrgfpath,nspecs=0,parameters={},normalized=True):
+def read_nrg(nrgfpath,nspecs=0,parameters={},normalized=True,timeslot=None):
    #Developed by Ehab Hassan on 2019-03-12
     if "nrg_" in nrgfpath.strip():
        nrgflist=[nrgfpath.strip()]
@@ -406,8 +413,6 @@ def read_nrg(nrgfpath,nspecs=0,parameters={},normalized=True):
         while True:
               try:
                  ctime = float(nrgfhand.readline())
-                #if not normalized:
-                #   ctime*=(units['Lref']/units['cref'])
                  nrgdata[inrgfkey]['time']=npy.append(nrgdata[inrgfkey]['time'],ctime)
                  for ispecs in specstype:
                      linedata = nrgfhand.readline().split()
@@ -456,6 +461,20 @@ def read_nrg(nrgfpath,nspecs=0,parameters={},normalized=True):
               except ValueError:
                   break
         nrgfhand.close()
+
+        if timeslot != None:
+           t_ind = npy.argmin([abs(itime-timeslot) for itime in nrgdata[inrgfkey]['time']])
+           nrgdata[inrgfkey]['time']             = nrgdata[inrgfkey]['time'][t_ind]
+           nrgdata[inrgfkey][ispecs]['n']        = nrgdata[inrgfkey][ispecs]['n'][t_ind]
+           nrgdata[inrgfkey][ispecs]['upara']    = nrgdata[inrgfkey][ispecs]['upara'][t_ind]
+           nrgdata[inrgfkey][ispecs]['Tpara']    = nrgdata[inrgfkey][ispecs]['Tpara'][t_ind]
+           nrgdata[inrgfkey][ispecs]['Tperp']    = nrgdata[inrgfkey][ispecs]['Tperp'][t_ind]
+           nrgdata[inrgfkey][ispecs]['PFluxes']  = nrgdata[inrgfkey][ispecs]['PFluxes'][t_ind]
+           nrgdata[inrgfkey][ispecs]['PFluxem']  = nrgdata[inrgfkey][ispecs]['PFluxem'][t_ind]
+           nrgdata[inrgfkey][ispecs]['HFluxes']  = nrgdata[inrgfkey][ispecs]['HFluxes'][t_ind]
+           nrgdata[inrgfkey][ispecs]['HFluxem']  = nrgdata[inrgfkey][ispecs]['HFluxem'][t_ind]
+           nrgdata[inrgfkey][ispecs]['Viscoses'] = nrgdata[inrgfkey][ispecs]['Viscoses'][t_ind]
+           nrgdata[inrgfkey][ispecs]['Viscosem'] = nrgdata[inrgfkey][ispecs]['Viscosem'][t_ind]
 
     return nrgdata
 
@@ -581,8 +600,9 @@ def read_scanfile(scanfpath):
     return scandata
 
 
-def read_omega(omegafpath):
+def read_omega(omegafpath,calc_omega=True):
    #Developed by Ehab Hassan on 2019-03-13
+   #Modified  by Ehab Hassan on 2020-02-04
     if   "omega" in omegafpath.strip():
          omegaflist=[omegafpath.strip()]
     else: 
@@ -598,14 +618,40 @@ def read_omega(omegafpath):
            print(iomegaf+' FILE NOT FOUND. Exit!'); sys.exit()
     
         recvr = npy.genfromtxt(iomegaf)
-        kymin.append(float(recvr[0]))
-        gamma.append(float(recvr[1]))
-        omega.append(float(recvr[2]))
+        if   len(recvr) == 0 and calc_omega:
+             recvr = [None,None,None]
+           # frequency = find_mode_frequency(fieldfpath=iomegaf,fraction=0.95,method='fast-mode')
+           # cky    = float(frequency[frequency.keys()[0]]['ky'])
+           # comega = float(frequency[frequency.keys()[0]]['omega_phi'])
+           # cgamma = float(frequency[frequency.keys()[0]]['gamma_phi'])
+           # recvr = [cky,cgamma,comega]
+           ##ofhand = open(iomegaf,'w')
+           ##ofhand.write('%7.3f %9.3f %9.3f\n' % (cky,cgamma,comega))
+           ##ofhand.close()
+           ##recvr = npy.genfromtxt(iomegaf)
+        elif len(recvr) == 0:
+             if   PYTHON3:
+                  response = str(input('Do you want to calculate omega? (Y/N)'))
+             elif PYTHON2:
+                  response = raw_input('Do you want to calculate omega? (Y/N)')
+             if response.lower() in ['1','y','yes','yup']:
+                frequency = find_mode_frequency(fieldfpath,fraction=0.95,method='quick')
+                recvr = npy.genfromtxt(iomegaf)
+             else:
+                print('Omega has to have value to continue!'); sys.exit()
+        try:
+           kymin.append(float(recvr[0]))
+           gamma.append(float(recvr[1]))
+           omega.append(float(recvr[2]))
+        except TypeError:
+           kymin.append(None)
+           gamma.append(None)
+           omega.append(None)
 
     omegadata = {'kymin':npy.array(kymin),'gamma':npy.array(gamma),'omega':npy.array(omega)}
     return omegadata 
 
-def omega_to_hz(genefpath):
+def omega_to_hz(genefpath,calc_omega=False):
    #Developed by Ehab Hassan on 2019-05-16
     if   "omega" in genefpath.strip():
          omegaflist=[genefpath.strip()]
@@ -629,13 +675,16 @@ def omega_to_hz(genefpath):
             iparamf = iomegaf[:-10]+'parameters'+iomegaf[-5:]
 
         paramdata = read_parameters(iparamf)
-        omegadata = read_omega(iomegaf)
+        omegadata = read_omega(iomegaf,calc_omega=calc_omega)
 
         Cs = npy.sqrt(paramdata['units']['Tref']*1000.0*1.602e-19/paramdata['units']['mref']/1.6726e-27)
         omegaref = Cs/paramdata['units']['Lref']
 
         kymin.append(omegadata['kymin'][omegaflist.index(iomegaf)])
-        frequency.append(omegadata['omega'][omegaflist.index(iomegaf)]*omegaref/2.0/npy.pi)
+        if omegadata['omega'][omegaflist.index(iomegaf)] == None:
+           frequency.append(None)
+        else:
+           frequency.append(omegadata['omega'][omegaflist.index(iomegaf)]*omegaref/2.0/npy.pi)
 
     return kymin,frequency
 
@@ -670,7 +719,7 @@ def my_corr_func_complex(v1,v2,time,show_plot=False,v1eqv2=True):
         i+=1
 
     if neg_loc < corr_time:
-        print "WARNING: neg_loc < corr_time"
+        print("WARNING: neg_loc < corr_time")
         corr_time = neg_loc
 
     if show_plot:
@@ -680,13 +729,17 @@ def my_corr_func_complex(v1,v2,time,show_plot=False,v1eqv2=True):
         plt.show()
     return cfunc,tau,corr_time
 
-def read_mom(momfpath,specs='',timeslot=-1):
+def read_mom(momfpath,specs='',Normalized=True,timeslot=None):
    #Developed by Ehab Hassan on 2019-03-15
-    if   "mom_"+specs in momfpath.strip():
-         momflist=[momfpath.strip()]
+    momfpath = momfpath.strip()
+    if os.path.isfile(momfpath):
+       momflist=[momfpath]
     else: 
-         if momfpath[-1] != "/": momfpath+="/"
-         momflist = sorted(glob.glob(momfpath+"mom_%s*" % specs))
+      if momfpath[-1] != "/": momfpath+="/"
+      if   specs in ['e','i','z']:
+           momflist = sorted(glob.glob(momfpath+"mom_%s*" % specs))
+      else:
+           momflist = sorted(glob.glob(momfpath+"mom_*"))
 
     momdata = {}
     for imomf in momflist:
@@ -694,20 +747,38 @@ def read_mom(momfpath,specs='',timeslot=-1):
            print('FATAL in read_mom:')
            print(imomf+' FILE NOT FOUND. Exit!'); sys.exit()
 
+        if 'dat' in momfpath:
+           paramfpath = imomf[:-9]+"parameters"+imomf[-4:]
+        else:
+           paramfpath = imomf[:-10]+"parameters"+imomf[-5:]
+
         momdata[imomf] = {}
 
         par0 = Parameters()
-        par0.Read_Pars(imomf[:-10]+"parameters_"+imomf[-4:])
+        par0.Read_Pars(paramfpath)
         pars = par0.pardict
         mom = momfile(imomf,pars)
-        mom.set_time(mom.tmom[timeslot])
+        if timeslot == None: t_ind = -1
+        else:                t_ind = npy.argmin([abs(itime-timeslot) for itime in mom.tmom])
+        mom.set_time(mom.tmom[t_ind])
 
-        momdata[imomf]['dens']  = mom.dens()[:,:,:]
-        momdata[imomf]['tpar']  = mom.tpar()[:,:,:]
-        momdata[imomf]['tperp'] = mom.tperp()[:,:,:]
-        momdata[imomf]['qpar']  = mom.qpar()[:,:,:]
-        momdata[imomf]['qperp'] = mom.qperp()[:,:,:]
-        momdata[imomf]['upar']  = mom.upar()[:,:,:]
+        momdata[imomf]['t'] = mom.tmom[t_ind]
+
+        if Normalized:
+           momdata[imomf]['dens']  = mom.dens()[:,:,:]
+           momdata[imomf]['tpar']  = mom.tpar()[:,:,:]
+           momdata[imomf]['tperp'] = mom.tperp()[:,:,:]
+           momdata[imomf]['qpar']  = mom.qpar()[:,:,:]
+           momdata[imomf]['qperp'] = mom.qperp()[:,:,:]
+           momdata[imomf]['upar']  = mom.upar()[:,:,:]
+        else:
+           units = units_conversion(paramfpath)
+           momdata[imomf]['dens']  = units['rhostar']*mom.dens()[:,:,:]
+           momdata[imomf]['tpar']  = units['rhostar']*mom.tpar()[:,:,:]
+           momdata[imomf]['tperp'] = units['rhostar']*mom.tperp()[:,:,:]
+           momdata[imomf]['qpar']  = units['cref']*units['rhostar']*mom.qpar()[:,:,:]
+           momdata[imomf]['qperp'] = units['cref']*units['rhostar']*mom.qperp()[:,:,:]
+           momdata[imomf]['upar']  = units['cref']*units['rhostar']*mom.upar()[:,:,:]
 
        #nx  = int(mom.pars['nx0'])
        #nky = int(mom.pars['nky0'])
@@ -726,7 +797,7 @@ def read_mom(momfpath,specs='',timeslot=-1):
     return momdata
 
 
-def read_field(fieldfpath,timeslot=None,fieldfmt=None):
+def read_field(fieldfpath,Normalized=True,timeslot=None,fieldfmt=None):
    #Developed by Ehab Hassan on 2019-03-13
     '''
     fieldfmt argument takes three choices:
@@ -755,14 +826,15 @@ def read_field(fieldfpath,timeslot=None,fieldfmt=None):
 
         par0 = Parameters()
         if 'field.dat' in ifieldf:
-           par0.Read_Pars(ifieldf[:-9]+"parameters"+ifieldf[-4:])
+           paramfpath = ifieldf[:-9]+"parameters"+ifieldf[-4:]
         else:
-           par0.Read_Pars(ifieldf[:-10]+"parameters"+ifieldf[-5:])
+           paramfpath = ifieldf[:-10]+"parameters"+ifieldf[-5:]
+        par0.Read_Pars(paramfpath)
         pars = par0.pardict
         field = fieldfile(ifieldf,pars)
 
         if timeslot == None: t_ind = -1
-        else:                t_ind = timeslot
+        else:                t_ind = npy.argmin([abs(itime-timeslot) for itime in field.tfld])
         field.set_time(field.tfld[t_ind])
 
         if 'x_local' in pars:
@@ -777,16 +849,29 @@ def read_field(fieldfpath,timeslot=None,fieldfmt=None):
            phi  = field.phi()
            apar = field.apar()
 
-           zgrid = npy.arange(field.nx*field.nz)/float(field.nx*field.nz-1)*float(2.0*field.nx-(2.0/field.nz))-float(field.nx)
+           nx = field.nx
+           ny = field.ny
+           nz = field.nz
+           zgrid = npy.arange(nz)/float(nz-1)*(2.0-(2.0/nz))-1.0
+           if 'lx_a' in field.pars:
+               xgrid = npy.arange(nx)/float(nx-1)*float(pars['lx_a'])+float(pars['x0'])-float(pars['lx_a'])/2.0
+           else:
+               xgrid = npy.arange(nx)/float(nx-1)*float(pars['lx'])-float(pars['lx'])/2.0
 
-           fielddata[ifieldf]['t']       = field.tfld
-           fielddata[ifieldf]['nx']      = field.nx
-           fielddata[ifieldf]['ny']      = field.ny
-           fielddata[ifieldf]['nz']      = field.nz
-           fielddata[ifieldf]['phi']     = phi
-           fielddata[ifieldf]['apar']    = apar
-           fielddata[ifieldf]['zgrid']   = zgrid
-           fielddata[ifieldf]['nfields'] = field.nfields
+           fielddata[ifieldf]['t']        = field.tfld
+           fielddata[ifieldf]['nx']       = field.nx
+           fielddata[ifieldf]['ny']       = field.ny
+           fielddata[ifieldf]['nz']       = field.nz
+           fielddata[ifieldf]['zgrid']    = zgrid
+           fielddata[ifieldf]['xgrid']    = xgrid
+           fielddata[ifieldf]['nfields']  = field.nfields
+           if Normalized:
+              fielddata[ifieldf]['phi']   = phi
+              fielddata[ifieldf]['apar']  = apar
+           else:
+              units = units_conversion(paramfpath)
+              fielddata[ifieldf]['phi']   = units['Tref']*units['rhostar']*phi/units['qref']
+              fielddata[ifieldf]['apar']  = units['Bref']*units['gyroradius']*units['rhostar']*apar
 
         elif fieldfmt in fieldfmttypes:
            phi3d  = field.phi()
@@ -1100,11 +1185,17 @@ def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='fa
     Developed by Ehab Hassan on 2019-04-18
     Modified  by Ehab Hassan on 2019-09-03
     '''
-    if "field" not in fieldfpath:
-       if fieldfpath[-1]!="/": fieldfpath+="/"
-       fieldflist = glob.glob(fieldfpath+"field*")
-    else:
-       fieldflist = [fieldfpath]
+    if   "omega" in fieldfpath[-11:]:
+         if fieldfpath[-1]!="/": fieldfpath+="/"
+         if "omega.dat" in fieldfpath:
+            fieldflist = glob.glob(fieldfpath[:-10]+"field*")
+         else:
+            fieldflist = glob.glob(fieldfpath[:-11]+"field*")
+    elif "field" not in fieldfpath[-11:]:
+         if fieldfpath[-1]!="/": fieldfpath+="/"
+         fieldflist = glob.glob(fieldfpath+"field*")
+    elif "field" in fieldfpath[-11:]:
+         fieldflist = [fieldfpath]
 
     frequency = {}
     for ifieldf in fieldflist:
@@ -1152,7 +1243,7 @@ def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='fa
 
            if end_t == None: end_t  = tlist[-1]
            end_t_ind = npy.argmin(abs(npy.array(tlist)-end_t))
-          #if bgn_t == None: bgn_t  = tlist[-1]*fraction
+           if bgn_t == None: bgn_t  = tlist[-1]*fraction
            bgn_t_ind = npy.argmin(abs(npy.array(tlist)-bgn_t))
            if bgn_t == None:
               bgn_t     = tlist[-1]*fraction
@@ -1445,6 +1536,8 @@ def mode_info(genefpath):
            omegaid = 'omega_%04d' % (imode+1)
            fieldid = 'field_%04d' % (imode+1)
 
+        if len(paramflist)==1: imode = 0
+
         nrgfpath   = os.path.abspath(nrgid)
         fieldfpath = os.path.abspath(fieldid)
         omegafpath = os.path.abspath(omegaid)
@@ -1534,16 +1627,16 @@ def flux_type(fluxinfo,parameters,tol=1.0e-2):
     De_over_Xt = fluxinfo['e']['Dee']/(fluxinfo['i']['Chi']+fluxinfo['e']['Chi'])
     Dz_over_Xt = fluxinfo['z']['Dee']/(fluxinfo['i']['Chi']+fluxinfo['e']['Chi'])
 
-    if   all(npy.array([abs(Xi_over_Xe-1.0),abs(De_over_Xe-0.33),abs(Dz_over_Xe-0.33)])<tol): flux_type = 'KBM'
-    elif all(npy.array([abs(Xi_over_Xe-0.1),abs(De_over_Xe-0.10),abs(Dz_over_Xe-0.10)])<tol): flux_type = 'MTM'
-    elif all(npy.array([abs(Xi_over_Xe-0.1),abs(De_over_Xe-0.05),abs(Dz_over_Xe-0.05)])<tol): flux_type = 'ETG'
-    elif abs(Dz_over_Xt-1.0)<tol:
-      if (De_over_Xt>=-1.0 and De_over_Xt<=0.33) and (Xe_over_Xi>=0.25 and Xe_over_Xi<=1.0):flux_type = 'ITG/TEM'
-    else:                                                                                   flux_type = 'N/A'
+    flux_type = 'N/A'
+   #if   all(npy.array([abs(Xi_over_Xe-1.0),abs(De_over_Xe-0.33),abs(Dz_over_Xe-0.33)])<tol):  flux_type = 'KBM'
+   #elif all(npy.array([abs(Xi_over_Xe-0.1),abs(De_over_Xe-0.10),abs(Dz_over_Xe-0.10)])<tol):  flux_type = 'MTM'
+   #elif all(npy.array([abs(Xi_over_Xe-0.1),abs(De_over_Xe-0.05),abs(Dz_over_Xe-0.05)])<tol):  flux_type = 'ETG'
+   #elif abs(Dz_over_Xt-1.0)<tol:
+   #     if (De_over_Xt>=-1.0 and De_over_Xt<=0.33) and (Xe_over_Xi>=0.25 and Xe_over_Xi<=1.0):flux_type = 'ITG/TEM'
     return flux_type
 
 
-def flux_info(genefpath):
+def flux_info(genefpath,timeslot=None):
    #Developed by Ehab Hassan on 2019-03-27
     if   'parameters' in genefpath:
           paramflist = [genefpath]
@@ -1565,33 +1658,50 @@ def flux_info(genefpath):
         paramdata = read_parameters(paramfpath)
         iky = paramdata['box']['kymin']
         if 'dat' in paramid:
-           nrgid = 'nrg.dat'
+            nrgid = paramid[:-14]+'nrg.dat'
         else:
-           nrgid = 'nrg_%04d' % int(paramid[-4:])
+            nrgid = paramid[:-15]+'nrg_%04d' % int(paramid[-4:])
 
         nrgfpath = os.path.abspath(nrgid)
-        nrgdata = read_nrg(nrgfpath)
+        nrgdata = read_nrg(nrgfpath,timeslot=timeslot)
         nrgid   = nrgdata.keys()[0]
 
         flux_info[iky]={}
         for ispecs in range(paramdata['box']['n_spec']):
              specid    = 'species'+str(ispecs+1)
              specname  = paramdata[specid]['name']
-             PFlux_es  = nrgdata[nrgid][specname]['PFluxes'][-1]
-             PFlux_em  = nrgdata[nrgid][specname]['PFluxem'][-1]
-             PFlux     = PFlux_es + PFlux_em
-             HFlux_es  = nrgdata[nrgid][specname]['HFluxes'][-1]
-             if type(paramdata[specid]['temp'])==list:
-                HFlux_es -= (3./2.)*PFlux_es*max(paramdata[specid]['temp'])
-             else:
-                HFlux_es -= (3./2.)*PFlux_es*paramdata[specid]['temp']
-             HFlux_em  = nrgdata[nrgid][specname]['HFluxem'][-1]
-             if type(paramdata[specid]['temp'])==list:
-                HFlux_em -= (3./2.)*PFlux_em*max(paramdata[specid]['temp'])
-             else:
-                HFlux_em -= (3./2.)*PFlux_em*paramdata[specid]['temp']
-             HFlux     = HFlux_es + HFlux_em
-             Dee       = PFlux
+             try:
+                PFlux_es  = nrgdata[nrgid][specname]['PFluxes'][-1]
+                PFlux_em  = nrgdata[nrgid][specname]['PFluxem'][-1]
+                PFlux     = PFlux_es + PFlux_em
+                HFlux_es  = nrgdata[nrgid][specname]['HFluxes'][-1]
+                if type(paramdata[specid]['temp'])==list:
+                   HFlux_es -= (3./2.)*PFlux_es*max(paramdata[specid]['temp'])
+                else:
+                   HFlux_es -= (3./2.)*PFlux_es*paramdata[specid]['temp']
+                HFlux_em  = nrgdata[nrgid][specname]['HFluxem'][-1]
+                if type(paramdata[specid]['temp'])==list:
+                   HFlux_em -= (3./2.)*PFlux_em*max(paramdata[specid]['temp'])
+                else:
+                   HFlux_em -= (3./2.)*PFlux_em*paramdata[specid]['temp']
+                HFlux     = HFlux_es + HFlux_em
+                Dee       = PFlux
+             except IndexError:
+                PFlux_es  = nrgdata[nrgid][specname]['PFluxes']
+                PFlux_em  = nrgdata[nrgid][specname]['PFluxem']
+                PFlux     = PFlux_es + PFlux_em
+                HFlux_es  = nrgdata[nrgid][specname]['HFluxes']
+                if type(paramdata[specid]['temp'])==list:
+                   HFlux_es -= (3./2.)*PFlux_es*max(paramdata[specid]['temp'])
+                else:
+                   HFlux_es -= (3./2.)*PFlux_es*paramdata[specid]['temp']
+                HFlux_em  = nrgdata[nrgid][specname]['HFluxem']
+                if type(paramdata[specid]['temp'])==list:
+                   HFlux_em -= (3./2.)*PFlux_em*max(paramdata[specid]['temp'])
+                else:
+                   HFlux_em -= (3./2.)*PFlux_em*paramdata[specid]['temp']
+                HFlux     = HFlux_es + HFlux_em
+                Dee       = PFlux
              if 'omn' in paramdata[specid]:
                 if type(paramdata[specid]['omn'])==list:
                    Dee      /= max(paramdata[specid]['omn'])
@@ -1615,11 +1725,89 @@ def flux_info(genefpath):
                 Chi      /= max(paramdata[specid]['temp'])
              else:
                 Chi      /= paramdata[specid]['temp']
-             flux_info[iky][specname]={'PFlux_es':PFlux_es,'PFlux_em':PFlux_em,'HFlux_es':HFlux_es,'HFlux_em':HFlux_em,'Dee':Dee,'Chi':Chi}
+             flux_info[iky][specname]={'PFluxes':PFlux_es,'PFluxem':PFlux_em,'HFluxes':HFlux_es,'HFluxem':HFlux_em,'Dee':Dee,'Chi':Chi}
 
         flux_info[iky]['Type']=flux_type(flux_info[iky],paramdata)
 
     return flux_info
+
+def fluct_info(genefpath,timeslot=None):
+   #Developed by Ehab Hassan on 2020-02-17
+    if   'parameters' in genefpath:
+          paramflist = [genefpath]
+    elif 'nrg' in genefpath:
+         if 'dat' in genefpath[-4:]:
+            paramflist = [genefpath[:-7]+'parameters.dat']
+         else:
+            paramflist = [genefpath[:-8]+'parameters_'+genefpath[-4:]]
+    else:
+         if genefpath[-1] != "/": genefpath+="/"
+         paramflist = sorted(glob(genefpath+'parameters_????'))
+         if paramlist == []:
+            paramflist = glob(genefpath+'parameters.dat')
+
+    fluct_info = {}
+
+    for paramid in paramflist:
+        paramfpath = os.path.abspath(paramid)
+        paramdata = read_parameters(paramfpath)
+        iky = paramdata['box']['kymin']
+        fluct_info[iky]={}
+
+        for ispecs in range(paramdata['box']['n_spec']):
+            if paramdata['species'+str(ispecs+1)]['name'] == 'e':
+               if 'dat' in paramid: momeid = paramid[:-14]+'mom_e.dat'
+               else:                momeid = paramid[:-15]+'mom_e_%04d' % int(paramid[-4:])
+               momefpath = os.path.abspath(momeid)
+               momedata  = read_mom(momefpath,specs='e',timeslot=timeslot)
+               momeid    = momedata.keys()[0]
+               fluct_info[iky]['e']=momedata[momeid]
+            if paramdata['species'+str(ispecs+1)]['name'] == 'i':
+               if 'dat' in paramid: momiid = paramid[:-14]+'mom_i.dat'
+               else:                momiid = paramid[:-15]+'mom_i_%04d' % int(paramid[-4:])
+               momifpath = os.path.abspath(momiid)
+               momidata  = read_mom(momifpath,specs='i',timeslot=timeslot)
+               momiid    = momidata.keys()[0]
+               fluct_info[iky]['i']=momidata[momiid]
+            if paramdata['species'+str(ispecs+1)]['name'] == 'z':
+               if 'dat' in paramid: momzid = paramid[:-14]+'mom_z.dat'
+               else:                momzid = paramid[:-15]+'mom_z_%04d' % int(paramid[-4:])
+               momzfpath = os.path.abspath(momzid)
+               momzdata  = read_mom(momzfpath,specs='z',timeslot=timeslot)
+               momzid    = momzdata.keys()[0]
+               fluct_info[iky]['z']=momzdata[momzid]
+
+        if 'dat' in paramid: fieldid = paramid[:-14]+'field.dat'
+        else:                fieldid = paramid[:-15]+'field_%04d' % int(paramid[-4:])
+        fieldfpath = os.path.abspath(fieldid)
+        fielddata  = read_field(fieldfpath,timeslot=momedata[momeid]['t'])
+        fieldid    = fielddata.keys()[0]
+
+        fluct_info[iky]['bpar']  = paramdata['box']['kymin']*fielddata[fieldid]['apar']/paramdata['units']['Bref']
+        fluct_info[iky]['nx']    = fielddata[fieldid]['nx']
+        fluct_info[iky]['ny']    = fielddata[fieldid]['ny']
+        fluct_info[iky]['nz']    = fielddata[fieldid]['nz']
+        fluct_info[iky]['xgrid'] = fielddata[fieldid]['xgrid']
+        fluct_info[iky]['zgrid'] = fielddata[fieldid]['zgrid']
+
+        if 'dat' in paramid: nrgid = paramid[:-14]+'nrg.dat'
+        else:                nrgid = paramid[:-15]+'nrg_%04d' % int(paramid[-4:])
+        nrgfpath = os.path.abspath(nrgid)
+        nrgdata  = read_nrg(nrgfpath,timeslot=momedata[momeid]['t'])
+        nrgid    = nrgdata.keys()[0]
+
+        for ispecs in range(paramdata['box']['n_spec']):
+            specname = paramdata['species'+str(ispecs+1)]['name']
+            fluct_info[iky][specname].update({'HFluxes':nrgdata[nrgid][specname]['HFluxes']})
+            fluct_info[iky][specname].update({'HFluxem':nrgdata[nrgid][specname]['HFluxem']})
+            fluct_info[iky][specname].update({'PFluxes':nrgdata[nrgid][specname]['HFluxes']})
+            fluct_info[iky][specname].update({'PFluxem':nrgdata[nrgid][specname]['HFluxem']})
+
+       #print momedata[momeid]['t']
+       #print fielddata[fieldid]['t'][-1]
+
+    return fluct_info
+
 
 def calc_tau(psi,profilepath='',iterdbpath=''):
    #Developed by Ehab Hassan on 2019-03-27
@@ -1636,7 +1824,8 @@ def calc_tau(psi,profilepath='',iterdbpath=''):
          tau     = Zeff*Te/Ti
 
          taupsi  = interp1d(psinorm,tau,kind='linear')
-         return taupsi(psi)
+         Zeffpsi = interp1d(psinorm,Zeff,kind='linear')
+         return taupsi(psi),Zeffpsi(psi)
     elif iterdbpath:
          iterdbdata = read_iterdb.read_iterdb(iterdbpath)
     else:
@@ -1752,3 +1941,11 @@ def merge_runs(runspathlist,destination='./'):
     wfh.close()
 
     return ntotalfiles
+
+
+def read_geometry(geomfpath):
+    try:
+       params,geomdata = read_geometry_local(geomfpath.strip())
+    except ValueError:
+       params,geomdata = read_geometry_global(geomfpath.strip())
+    return params,geomdata
