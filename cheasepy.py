@@ -3,24 +3,30 @@
 
 import os
 import sys
+import csv
 import time
 import h5py
 import traceback
 import subprocess
 
 import numpy             as npy
+import statsmodels.api   as sm
 import matplotlib.pyplot as plt
 
 from glob import glob
+
 from efittools import read_efit_file
 from efittools import psi2phi,phi2psi
 from efittools import read_iterdb_file
 from efittools import magsurf_solvflines
 from efittools import read_profiles_file
+
+from scipy.optimize    import curve_fit
 from scipy.integrate   import trapz,simps,quad
 from scipy.interpolate import splrep,splev
 from scipy.interpolate import interp1d,interp2d
 from scipy.interpolate import CubicSpline,RectBivariateSpline
+
 from matplotlib.backends.backend_pdf import PdfPages
 
 mu0 = 4.0e-7*npy.pi
@@ -55,7 +61,7 @@ def current_correction(chease,expeq={},setParam={}):
              #############
              # METHOD 01 #
              #############
-             #Iohmic  = (1.0-error)*(chease['Iprl']-chease['Ibs'])
+              Iohmic  = (1.0-error)*(chease['Iprl']-chease['Ibs'])
              #############
              # METHOD 02 #
              #############
@@ -69,24 +75,24 @@ def current_correction(chease,expeq={},setParam={}):
              #############
              # METHOD 03 #
              #############
-              eqdskpath   = 'shots/CASE2_20190509/CASE2_20190509_EQDSK'
-              eqdskdata   = read_eqdsk(eqdskfpath=eqdskpath)
-              cheasefiles = sorted(glob('chease_iter???.h5'))
-              cheasedata  = read_chease(cheasefpath=cheasefiles[-1],eqdsk=eqdskpath)
-              qratio      = cheasedata['q']/eqdskdata['q']
+             #eqdskpath   = 'shots/CASE2_20190509/CASE2_20190509_EQDSK'
+             #eqdskdata   = read_eqdsk(eqdskfpath=eqdskpath)
+             #cheasefiles = sorted(glob('chease_iter???.h5'))
+             #cheasedata  = read_chease(cheasefpath=cheasefiles[-1],eqdsk=eqdskpath)
+             #qratio      = cheasedata['q']/eqdskdata['q']
          elif current_src in [2,'expeq']:
               Iohmic  = (1.0-error)*((chease['B0EXP']*expeq['Iprl']*chease['R0EXP']/mu0)-chease['Ibs'])
-        #Iprl   = chease['Ibs'] + Iohmic
-         Iprl   = qratio*cheasedata['Iprl']
+         Iprl   = chease['Ibs'] + Iohmic
+        #Iprl   = qratio*cheasedata['Iprl']
     elif current_type in [4,'jprl','jprln','jparallel','jparalleln']:
          if   current_src in [0,'chease']:
-             #Johmic  = (1.0-error)*(chease['Jprl']-chease['Jbs'])
-              JPRLPSI = integrate(chease['CHI'],chease['Jprl']*chease['J']/chease['R'],axis=0,method='trapz')
-              JPRLT   = integrate(chease['PSI'],JPRLPSI,axis=0)
-              JSIGPSI = integrate(chease['CHI'],chease['signeo']*chease['J']/chease['R'],axis=0,method='trapz')
-              JSIGT   = integrate(chease['PSI'],JSIGPSI,axis=0)
-              Eparall = (ITEXP-JPRLT)/JSIGT
-              Johmic  = chease['signeo']*Eparall
+              Johmic  = (1.0-error)*(chease['Jprl']-chease['Jbs'])
+             #JPRLPSI = integrate(chease['CHI'],chease['Jprl']*chease['J']/chease['R'],axis=0,method='trapz')
+             #JPRLT   = integrate(chease['PSI'],JPRLPSI,axis=0)
+             #JSIGPSI = integrate(chease['CHI'],chease['signeo']*chease['J']/chease['R'],axis=0,method='trapz')
+             #JSIGT   = integrate(chease['PSI'],JSIGPSI,axis=0)
+             #Eparall = (ITEXP-JPRLT)/JSIGT
+             #Johmic  = chease['signeo']*Eparall
          elif current_src in [2,'expeq']:
               Johmic  = (1.0-error)*(expeq['Jprl']-chease['Jbs'])
               Johmic  = (1.0-error)*((chease['B0EXP']*expeq['Iprl']/chease['R0EXP']/mu0)-chease['Ibs'])
@@ -150,6 +156,307 @@ def pressure_correction(chease,expeq={},setParam={}):
          correction = npy.zeros_like(chease['pressure'])
 
     return correction
+
+def fit_profile(rhotor,in_profile,method='stefanikova',setParam={},fitParam={},fitBounds={}):
+    global profile
+
+    if 'alpha'      in fitParam and fitParam['alpha'] != None:
+       global set_alpha;      set_alpha      = fitParam['alpha']
+    if 'ped_sol'    in fitParam and fitParam['ped_sol'] != None:
+       global set_ped_sol;    set_ped_sol    = fitParam['ped_sol']
+    if 'ped_mid'    in fitParam and fitParam['ped_mid'] != None:
+       global set_ped_mid;    set_ped_mid    = fitParam['ped_mid']
+    if 'ped_width'  in fitParam and fitParam['ped_width'] != None:
+       global set_ped_width;  set_ped_width  = fitParam['ped_width']
+    if 'ped_height' in fitParam and fitParam['ped_height'] != None:
+       global set_ped_height; set_ped_height = fitParam['ped_height']
+    if 'cor_exp'    in fitParam and fitParam['cor_exp'] != None:
+       global set_cor_exp;    set_cor_exp    = fitParam['cor_exp']
+    if 'cor_width'  in fitParam and fitParam['cor_width'] != None:
+       global set_cor_width;  set_cor_width  = fitParam['cor_width']
+    if 'cor_height' in fitParam and fitParam['cor_height'] != None:
+       global set_cor_height; set_cor_height = fitParam['cor_height']
+
+
+    if   method.lower()=='stefanikova':
+         lw_bound = [-npy.inf for i in range(8)]
+         up_bound = [ npy.inf for i in range(8)]
+    elif method.lower()=='groebner':
+         lw_bound = [-npy.inf for i in range(5)]
+         up_bound = [ npy.inf for i in range(5)]
+
+    if 'alpha'      in fitBounds and fitBounds['alpha'] != None:
+       if type(fitBounds['alpha']) in [list,tuple]:
+          lw_bound[0] = fitBounds['alpha'][0]
+          up_bound[0] = fitBounds['alpha'][1]
+       else:
+          lw_bound[0] = fitBounds['alpha']
+    if 'ped_sol'    in fitBounds and fitBounds['ped_sol'] != None:
+       if type(fitBounds['ped_sol']) in [list,tuple]:
+          lw_bound[1] = fitBounds['ped_sol'][0]
+          up_bound[1] = fitBounds['ped_sol'][1]
+       else:
+          lw_bound[1] = fitBounds['ped_sol']
+    if 'ped_mid'    in fitBounds and fitBounds['ped_mid'] != None:
+       if type(fitBounds['ped_mid']) in [list,tuple]:
+          lw_bound[2] = fitBounds['ped_mid'][0]
+          up_bound[2] = fitBounds['ped_mid'][1]
+       else:
+          lw_bound[2] = fitBounds['ped_mid']
+    if 'ped_width'  in fitBounds and fitBounds['ped_width'] != None:
+       if type(fitBounds['ped_width']) in [list,tuple]:
+          lw_bound[3] = fitBounds['ped_width'][0]
+          up_bound[3] = fitBounds['ped_width'][1]
+       else:
+          lw_bound[3] = fitBounds['ped_width']
+    if 'ped_height' in fitBounds and fitBounds['ped_height'] != None:
+       if type(fitBounds['ped_height']) in [list,tuple]:
+          lw_bound[4] = fitBounds['ped_height'][0]
+          up_bound[4] = fitBounds['ped_height'][1]
+       else:
+          lw_bound[4] = fitBounds['ped_height']
+    if 'cor_exp'    in fitBounds and fitBounds['cor_exp'] != None:
+       if type(fitBounds['cor_exp']) in [list,tuple]:
+          lw_bound[5] = fitBounds['cor_exp'][0]
+          up_bound[5] = fitBounds['cor_exp'][1]
+       else:
+          lw_bound[5] = fitBounds['cor_exp']
+    if 'cor_width'  in fitBounds and fitBounds['cor_width'] != None:
+       if type(fitBounds['cor_width']) in [list,tuple]:
+          lw_bound[6] = fitBounds['cor_width'][0]
+          up_bound[6] = fitBounds['cor_width'][1]
+       else:
+          lw_bound[6] = fitBounds['cor_width']
+    if 'cor_height' in fitBounds and fitBounds['cor_height'] != None:
+       if type(fitBounds['cor_height']) in [list,tuple]:
+          lw_bound[7] = fitBounds['cor_height'][0]
+          up_bound[7] = fitBounds['cor_height'][1]
+       else:
+          lw_bound[7] = fitBounds['cor_height']
+    fit_bounds=(lw_bound,up_bound)
+
+
+    if 'Normalize' in setParam:
+       Normalize = setParam['Normalize']
+    else:
+       Normalize = False
+
+    if 'fit_plot' in setParam:
+       fit_plot = setParam['fit_plot']
+    else:
+       fit_plot = True
+
+    if Normalize:
+       fmin    = npy.min(in_profile)
+       fmax    = npy.max(in_profile)
+    else:
+       fmin    = 0.0
+       fmax    = 1.0
+
+    profile = (in_profile-fmin)/(fmax-fmin)
+    if 'set_ped_sol'    in globals(): set_ped_sol    = (set_ped_sol-fmin)/(fmax-fmin)
+    if 'set_ped_height' in globals(): set_ped_height = (set_ped_height-fmin)/(fmax-fmin)
+    if 'set_cor_height' in globals(): set_cor_height = (set_cor_height-fmin)/(fmax-fmin)
+
+    if   method.lower()=='stefanikova':
+         try:
+            popt,pcov = curve_fit(stefanikova_fit,rhotor,profile,bounds=fit_bounds)
+         except RuntimeError:
+            result = [npy.nan for i in range(8)]
+            popt,pcov = (result,npy.nan)
+
+         fit_parameters               = {}
+         if 'set_alpha'      in globals(): fit_parameters['alpha']      = set_alpah
+         else:                             fit_parameters['alpha']      = popt[0]
+         if 'set_ped_height' in globals(): fit_parameters['ped_height'] = (fmax-fmin)*set_ped_height+fmin
+         else:                             fit_parameters['ped_height'] = (fmax-fmin)*popt[1]+fmin
+         if 'set_ped_sol'    in globals(): fit_parameters['ped_sol']    = (fmax-fmin)*set_ped_sol+fmin
+         else:                             fit_parameters['ped_sol']    = (fmax-fmin)*popt[2]+fmin
+         if 'set_ped_width'  in globals(): fit_parameters['ped_width']  = set_ped_width
+         else:                             fit_parameters['ped_width']  = popt[3]
+         if 'set_ped_mid'    in globals(): fit_parameters['ped_mid']    = set_ped_mid
+         else:                             fit_parameters['ped_mid']    = popt[4]
+         if 'set_cor_exp'    in globals(): fit_parameters['cor_exp']    = set_cor_exp
+         else:                             fit_parameters['cor_exp']    = popt[5]
+         if 'set_cor_width'  in globals(): fit_parameters['cor_width']  = set_cor_width
+         else:                             fit_parameters['cor_width']  = popt[6]
+         if 'set_cor_height' in globals(): fit_parameters['cor_height'] = (fmax-fmin)*set_cor_height+fmin
+         else:                            fit_parameters['cor_height'] = (fmax-fmin)*popt[7]+fmin
+
+         if fit_plot:
+            plt.plot(rhotor,stefanikova_fit(rhotor,*popt),'r',label='CRVFIT')
+            plt.plot(rhotor,profile,'b--',label='EXP')
+            plt.legend()
+            plt.show()
+            plt.close()
+
+    elif method.lower()=='groebner':
+         try:
+            popt,pcov = curve_fit(groebner_fit,rhotor,profile,bounds=fit_bounds)
+         except RuntimeError:
+            result = [npy.nan for i in range(5)]
+            popt,pcov = (result,npy.nan)
+
+         fit_parameters               = {}
+         if 'set_alpha'      in globals(): fit_parameters['alpha']      = set_alpah
+         else:                             fit_parameters['alpha']      = popt[0]
+         if 'set_ped_height' in globals(): fit_parameters['ped_height'] = (fmax-fmin)*set_ped_height+fmin
+         else:                             fit_parameters['ped_height'] = (fmax-fmin)*popt[1]+fmin
+         if 'set_ped_sol'    in globals(): fit_parameters['ped_sol']    = (fmax-fmin)*set_ped_sol+fmin
+         else:                             fit_parameters['ped_sol']    = (fmax-fmin)*popt[2]+fmin
+         if 'set_ped_width'  in globals(): fit_parameters['ped_width']  = set_ped_width
+         else:                             fit_parameters['ped_width']  = popt[3]
+         if 'set_ped_mid'    in globals(): fit_parameters['ped_mid']    = set_ped_mid
+         else:                             fit_parameters['ped_mid']    = popt[4]
+
+         if fit_plot:
+            plt.plot(rhotor,groebner_fit(rhotor,*popt),'r',label='CRVFIT')
+            plt.plot(rhotor,profile,'b--',label='EXP')
+            plt.legend()
+            plt.show()
+            plt.close()
+
+    if 'set_alpha'      in globals(): del set_alpha
+    if 'set_ped_sol'    in globals(): del set_ped_sol
+    if 'set_ped_mid'    in globals(): del set_ped_mid
+    if 'set_ped_width'  in globals(): del set_ped_width
+    if 'set_ped_height' in globals(): del set_ped_height
+    if 'set_cor_exp'    in globals(): del set_cor_exp
+    if 'set_cor_width'  in globals(): del set_cor_width
+    if 'set_cor_height' in globals(): del set_cor_height
+
+    return fit_parameters
+
+
+def stefanikova_fit(rho,alpha,ped_height,ped_sol,ped_width,ped_mid,cor_exp,cor_width,cor_height):
+    profileFlag=False
+    if  'profile' in locals() or 'profile' in globals():
+        f = profile[:]
+        profileFlag=True
+    else:
+        print("No profile in the locals() or globals()?")
+        sys.exit()
+
+    if 'set_alpha'      in globals(): alpha      = set_alpha
+    if 'set_ped_sol'    in globals(): ped_sol    = set_ped_sol
+    if 'set_ped_mid'    in globals(): ped_mid    = set_ped_mid
+    if 'set_ped_width'  in globals(): ped_width  = set_ped_width
+    if 'set_ped_height' in globals(): ped_height = set_ped_height
+    if 'set_cor_exp'    in globals(): cor_exp    = set_cor_exp
+    if 'set_cor_width'  in globals(): cor_width  = set_cor_width
+    if 'set_cor_height' in globals(): cor_height = set_cor_height
+
+    arg       = 2.0*(ped_mid-rho)/ped_width
+    mtanh     = ((1.0+alpha*arg)*npy.exp(arg)-npy.exp(-arg))/(npy.exp(arg)+npy.exp(-arg))
+    fprof_ped = ((ped_height-ped_sol)*(mtanh+1.0)/2.0)+ped_sol
+    fprof_cor = (cor_height-fprof_ped)*npy.exp(-npy.power(rho/cor_width,cor_exp))
+    fprof_ful = fprof_cor+fprof_ped
+
+    return fprof_ful
+
+def groebner_fit(rho,alpha,ped_height,ped_sol,ped_width,ped_mid):
+    profileFlag=False; refprofFlag=False
+    if  'profile' in locals() or 'profile' in globals():
+        f = profile[:]
+        profileFlag=True
+    else:
+        print("No profile in the locals() or globals()?")
+        sys.exit()
+
+    if 'set_alpha'      in globals(): alpha      = set_alpha
+    if 'set_ped_sol'    in globals(): ped_sol    = set_ped_sol
+    if 'set_ped_mid'    in globals(): ped_mid    = set_ped_mid
+    if 'set_ped_width'  in globals(): ped_width  = set_ped_width
+    if 'set_ped_height' in globals(): ped_height = set_ped_height
+
+    A = (ped_height-ped_sol)/2.0
+    B = (ped_height+ped_sol)/2.0
+
+    arg       = 2.0*(ped_mid-rho)/ped_width
+    mtanh     = ((1.0+alpha*arg)*npy.exp(arg)-npy.exp(-arg))/(npy.exp(arg)+npy.exp(-arg))
+    fprof_ped = A*mtanh+B
+
+    return fprof_ped
+
+
+def find_pedestal(profilefpath,profileftype,setParam={},**kwargs):
+    pedParam = {}
+
+    eqdskflag    = False
+    cheaseflag   = False
+    for key,value in kwargs.items():
+        if   key in ['chease','cheasedata','cheasefpath']:
+             cheaseflag = True
+             cheasepath = value.strip()
+        elif key in ['eqdsk','eqdskdata','eqdskfpath']:
+             eqdskflag = True
+             eqdskpath = value.strip()
+
+    if 'nrhomesh' not in setParam:
+       setParam = {'nrhomesh':1}
+
+    if os.path.isfile(profilefpath):
+       if   eqdskflag:
+            if   profileftype.lower()=='iterdb':
+                 profiledata = read_iterdb(iterdbfpath=profilefpath,setParam=setParam,eqdsk=eqdskpath)
+            elif profileftype.lower()=='chease':
+                 profiledata = read_chease(cheasefpath=profilefpath,setParam=setParam,eqdsk=eqdskpath)
+            elif profileftype.lower()=='profiles':
+                 profiledata = read_profiles(profilesfpath=profilefpath,setParam=setParam,eqdsk=eqdskpath)
+       elif cheaseflag:
+            if   profileftype.lower()=='iterdb':
+                 profiledata = read_iterdb(iterdbfpath=profilefpath,setParam=setParam,chease=cheasepath)
+            elif profileftype.lower()=='chease':
+                 profiledata = read_chease(cheasefpath=profilefpath)
+            elif profileftype.lower()=='profiles':
+                 profiledata = read_profiles(profilesfpath=profilefpath,setParam=setParam,chease=cheasepath)
+       else:
+            if   profileftype.lower()=='iterdb':
+                 profiledata = read_iterdb(iterdbfpath=profilefpath)
+            elif profileftype.lower()=='chease':
+                 profiledata = read_chease(cheasefpath=profilefpath)
+            elif profileftype.lower()=='profiles':
+                 profiledata = read_profiles(profilesfpath=profilefpath)
+
+    if setParam['nrhomesh'] == 1:
+       rho = profiledata['rhotor']
+    else:
+       rho = profiledata['rhopsi']
+
+    for prof in ('ne','Te','pressure'):
+        f        = profiledata[prof]
+        df       = npy.gradient(f,edge_order=2)
+        d2f      = npy.gradient(df,edge_order=2)
+
+        lowess = sm.nonparametric.lowess(d2f,rho,frac=0.005)
+        d2f = lowess[:,1]
+
+        ped_sol_ind = npy.argmin(abs(f-npy.min(f)))
+        ped_mid_ind = npy.argmin(abs(df-npy.min(df)))
+        ped_top_ind = npy.argmin(abs(d2f-npy.min(d2f)))
+        ped_fot_ind = npy.argmin(abs(d2f-npy.max(d2f)))
+
+        ped_top     = rho[ped_top_ind]
+        ped_mid     = rho[ped_mid_ind]
+        ped_fot     = rho[ped_fot_ind]
+
+        if (ped_mid-ped_top)>(ped_fot-ped_mid):
+           ped_hwd     = ped_mid-ped_top
+           ped_fot     = ped_mid+ped_hwd
+           ped_fot_ind = npy.argmin(abs(rho-ped_fot))
+        else:
+           ped_hwd     = ped_fot-ped_mid
+           ped_top     = ped_mid-ped_hwd
+           ped_top_ind = npy.argmin(abs(rho-ped_top))
+
+        pedParam[prof]               = {}
+        pedParam[prof]['ped_sol']    = f[ped_sol_ind]
+        pedParam[prof]['ped_mid']    = ped_mid
+        pedParam[prof]['ped_width']  = ped_fot-ped_top
+        pedParam[prof]['ped_slope']  = -1.0/f[ped_mid_ind]*df[ped_mid_ind]
+        pedParam[prof]['ped_height'] = f[ped_top_ind]
+
+    return pedParam,profiledata
 
 
 def interp(xin,fxin,xnew,ynew=[],yout=[]):
@@ -265,13 +572,45 @@ def getrecord(rec,datain):
 
 
 def read_csv(csvfn):
-    import csv
-    infid = open(csvfn, "r")
-    csvdata = {}
-    for row in csv.reader(infid):
-        csvdata[row[0]] = row[1:]
-    infid.close()
-    return csvdata
+    with open(csvfn, mode='r') as csvfid:
+         csvdata = csv.DictReader(csvfid)
+         recordid = 0
+         csvdict  = {}
+         for record in csvdata:
+             headers = record.keys()
+             for iheader in sorted(headers):
+                 if recordid < len(headers):
+                    csvdict[iheader] = []
+                    recordid += 1
+                 try:
+                    csvdict[iheader].append(int(record[iheader]))
+                 except ValueError:
+                    csvdict[iheader].append(npy.float64(record[iheader]))
+         for iheader in csvdict:
+             csvdict[iheader] = npy.array(csvdict[iheader])
+    return csvdict
+
+def write_csv(csvfn,csvdict):
+    headers   = sorted(csvdict.keys())
+    nheaders  = npy.size(headers)
+    nrows     = npy.size(csvdict[headers[0]])
+
+    with open(csvfn, mode='w') as csvfid:
+         writer = csv.DictWriter(csvfid, fieldnames=headers)
+         writer.writeheader()
+         for irow in range(nrows):
+             record = {}
+             for iheader in headers:
+                 if   type(csvdict[iheader][irow]) == int:
+                      record.update({iheader:"%d" % csvdict[iheader][irow]})
+                 elif type(csvdict[iheader][irow]) == float:
+                      record.update({iheader:"%8.4e" % csvdict[iheader][irow]})
+                 elif type(csvdict[iheader][irow]) == npy.float64:
+                      record.update({iheader:"%8.4e" % csvdict[iheader][irow]})
+                 elif type(csvdict[iheader][irow]) == npy.float128:
+                      record.update({iheader:"%8.4e" % csvdict[iheader][irow]})
+             writer.writerow(record)
+    return 1
 
 
 def create_namelist(setParam={}):
@@ -544,6 +883,9 @@ def read_chease(cheasefpath,setParam={},Normalized=False,**kwargs):
     CHEASEdata['Jtor']     = npy.trapz(y=CHEASEdata['Jphi']*CHEASEdata['J']/CHEASEdata['R'],x=CHEASEdata['CHI'],axis=0)
     CHEASEdata['Itor']     = npy.trapz(y=CHEASEdata['Jtor'],x=CHEASEdata['PSI'],axis=0)
 
+    CHEASEdata['<B>']      = npy.trapz(y=CHEASEdata['J']*CHEASEdata['B'],x=CHEASEdata['CHI'],axis=0)/CHEASEdata['C1']
+    CHEASEdata['beta']     = 2.0*mu0*npy.mean(CHEASEdata['pressure'])/npy.mean(CHEASEdata['<B>']**2)
+    CHEASEdata['beta_N']   = 100.0*CHEASEdata['beta']*((CHEASEdata['Itor']/1.0e6)/npy.max(CHEASEdata['ageom'])/CHEASEdata['B0EXP'])
 
     CHEASEdata['Ibs']      = CHEASEdata['R0EXP']*CHEASEdata['Jbs']/CHEASEdata['<T/R2>']
     CHEASEdata['Iohmic']   = CHEASEdata['Iprl']-CHEASEdata['Ibs']
@@ -1091,7 +1433,25 @@ def write_expeq(setParam={},outfile=True,**kwargs):
 
     expeq = {}
 
-    if   'cheasedata' in locals():
+    if   'imported' in locals():
+         if   'R0EXP' in imported:
+              expeq['R0EXP'] = imported['R0EXP']
+         else:
+              expeq['R0EXP'] = 1.0
+         if   'B0EXP' in imported:
+              expeq['B0EXP'] = imported['B0EXP']
+         else:
+              expeq['B0EXP'] = 1.0
+         expeq['nRZmesh'] = npy.size(imported['rbound'])
+         expeq['rbound']  = imported['rbound']/expeq['R0EXP']
+         expeq['zbound']  = imported['zbound']/expeq['R0EXP']
+         expeq['aspect']  = (max(imported['rbound'])-min(imported['rbound']))
+         expeq['aspect'] /= (max(imported['rbound'])+min(imported['rbound']))
+         if   'ZMAX' in setParam.keys():
+              expeq['zgeom'] = setParam['ZMAX']
+         else:
+              expeq['zgeom'] = 0.0
+    elif 'cheasedata' in locals():
          expeq['R0EXP']   = cheasedata['R0EXP']
          expeq['B0EXP']   = cheasedata['B0EXP']
          expeq['nRZmesh'] = npy.size(cheasedata['rbound'])
@@ -2162,8 +2522,8 @@ def write_exptnz(setParam={},outfile=True,**kwargs):
          else:
             exptnz['ne'] = iterdbdata['ne']
     elif eprofile in [7,'imported'] and importedflag:
-         if   rhopsiflag: exptnz['rhopsi'] = importeddata['rhopsiN']
-         elif rhotorflag: exptnz['rhotor'] = importeddata['rhotorN']
+         if   rhopsiflag: exptnz['rhopsi'] = importeddata['rhopsi']
+         elif rhotorflag: exptnz['rhotor'] = importeddata['rhotor']
          exptnz['Te'] = importeddata['Te']
          exptnz['ne'] = importeddata['ne']
 
@@ -2238,8 +2598,18 @@ def write_exptnz(setParam={},outfile=True,**kwargs):
     elif iprofile in [7,'imported'] and importedflag:
          exptnz['Ti']   = importeddata['Ti']
          exptnz['ni']   = importeddata['ni']
-         exptnz['nz']   = importeddata['nz']
-         exptnz['Zeff'] = importeddata['Zeff']
+         if 'Zeff' in importeddata:
+            if type(importeddata['Zeff']) == list:
+               exptnz['Zeff'] = importeddata['Zeff']
+            else:
+               exptnz['Zeff'] = npy.ones(npy.size(importeddata['Ti']))
+               exptnz['Zeff']*= importeddata['Zeff']
+         else:
+               exptnz['Zeff'] = npy.ones(npy.size(importeddata['Ti']))
+         if 'nz' in importeddata:
+            exptnz['nz']= importeddata['nz']
+         else:
+            exptnz['nz']= npy.zeros(npy.size(importeddata['Ti']))
 
     if 'Zi' not in exptnz: exptnz['Zi'] = 1.0
     if 'Zz' not in exptnz: exptnz['Zz'] = 6.0
@@ -2324,7 +2694,8 @@ def read_profiles(profilesfpath,setParam={},Zeffprofile=True,**kwargs):
     PROFILESdata['PSIN']    = profiles['psinorm'][:]
     PROFILESdata['Te']      = profiles['te'][:]
     PROFILESdata['Ti']      = profiles['ti'][:]
-    PROFILESdata['Tb']      = profiles['tb'][:]
+    if 'tb' in profiles:
+       PROFILESdata['Tb']      = profiles['tb'][:]
     PROFILESdata['ne']      = profiles['ne'][:]
     PROFILESdata['ni']      = profiles['ni'][:]
     PROFILESdata['nb']      = profiles['nb'][:]
@@ -2358,7 +2729,8 @@ def read_profiles(profilesfpath,setParam={},Zeffprofile=True,**kwargs):
          if   rhopsiflag:
               PROFILESdata['Te']       = interp(PROFILESdata['PSIN'],PROFILESdata['Te'],psi)
               PROFILESdata['Ti']       = interp(PROFILESdata['PSIN'],PROFILESdata['Ti'],psi)
-              PROFILESdata['Tb']       = interp(PROFILESdata['PSIN'],PROFILESdata['Tb'],psi)
+              if 'tb' in profiles:
+                 PROFILESdata['Tb']       = interp(PROFILESdata['PSIN'],PROFILESdata['Tb'],psi)
               PROFILESdata['ne']       = interp(PROFILESdata['PSIN'],PROFILESdata['ne'],psi)
               PROFILESdata['ni']       = interp(PROFILESdata['PSIN'],PROFILESdata['ni'],psi)
               PROFILESdata['nb']       = interp(PROFILESdata['PSIN'],PROFILESdata['nb'],psi)
@@ -2376,7 +2748,8 @@ def read_profiles(profilesfpath,setParam={},Zeffprofile=True,**kwargs):
          elif rhotorflag:
               PROFILESdata['Te']       = interp(PROFILESdata['PSIN'],PROFILESdata['Te'],psi,phi,phi)
               PROFILESdata['Ti']       = interp(PROFILESdata['PSIN'],PROFILESdata['Ti'],psi,phi,phi)
-              PROFILESdata['Tb']       = interp(PROFILESdata['PSIN'],PROFILESdata['Tb'],psi,phi,phi)
+              if 'tb' in profiles:
+                 PROFILESdata['Tb']       = interp(PROFILESdata['PSIN'],PROFILESdata['Tb'],psi,phi,phi)
               PROFILESdata['ne']       = interp(PROFILESdata['PSIN'],PROFILESdata['ne'],psi,phi,phi)
               PROFILESdata['ni']       = interp(PROFILESdata['PSIN'],PROFILESdata['ni'],psi,phi,phi)
               PROFILESdata['nb']       = interp(PROFILESdata['PSIN'],PROFILESdata['nb'],psi,phi,phi)
@@ -2542,6 +2915,32 @@ def read_iterdb(iterdbfpath,setParam={},**kwargs):
          ITERDBdata['pprime']= derivative(x=ITERDBdata['rhotor'],fx=ITERDBdata['pressure'],method='CubicSpline')
 
     return ITERDBdata
+
+def write_iterdb(iterdbfpath,setParam={},**kwargs):
+
+    if 'file_base' in setParam:
+       file_base = setParam['file_base']
+    else:
+       slashinds = findall(iterfpath,'/')
+       if slashinds: file_base = iterdbfpath[slashinds[-1]:-7]
+       else:         file_base = iterdbfpath[:-7]
+
+    if 'shot_num' in setParam:
+       shot_num = setParam['shot_num']
+    else:
+       shot_num = '0000'
+
+    if 'time_string' in setParam:
+       time_string = setParam['time_string']
+    else:
+       time_string = '9999'
+
+    output_iterdb(rhot,rhop,ne,te,ni,ti,file_base,shot_num,time_string,vrot,nimp)
+
+
+    return ITERDBdata
+
+
 
 def plot_chease(OSPATH,reportpath='',skipfigs=1):
     from matplotlib.backends.backend_pdf import PdfPages
@@ -2869,7 +3268,6 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
                        if glob('./EXPEQ_iter*.IN'):        os.system('rm EXPEQ_iter*.IN')
                        if glob('./EXPTNZ_iter*.IN'):       os.system('rm EXPTNZ_iter*.IN')
                        if glob('./chease_namelist*'):      os.system('rm chease_namelist*')
-                      #if glob('./chease_parameters.csv'): os.system('rm chease_parameters.csv')
                        sys.exit()
                     elif  selection == 4: sys.exit()
                     else: break
@@ -2988,8 +3386,8 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
     elif current_src  in [2,'expeq']:    expeqrequired    = True
     elif current_src  in [7,'imported']: importedrequired = True
 
-    if not (cheaserequired or eqdskrequired or expeqrequired):
-       raise IOError('FATAL: No Geometry File is provided!')
+   #if not (cheaserequired or eqdskrequired or expeqrequired):
+   #   raise IOError('FATAL: No Geometry File is provided!')
 
     if   pressure_src in [0,'chease']:   cheaserequired   = True
     elif pressure_src in [1,'eqdsk']:    eqdskrequired    = True
@@ -3084,9 +3482,9 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
        namelistParam = {}
        namelistUpdate = False
        if namelistVals:
-          namelistValsKeys = namelistVals.keys()
-          if type(namelistVals[namelistVals.keys()[0]]) in [float,int,complex]:
-             for ikey in namelistVals.keys():
+          namelistValsKeys = list(namelistVals.keys())
+          if type(namelistVals[namelistValsKeys[0]]) in [float,int,complex]:
+             for ikey in namelistValsKeys:
                  namelistParam[ikey] = namelistVals[ikey]
           else:
              namelistrecs   = len(namelistVals[namelistVals.keys()[0]])
@@ -3231,6 +3629,7 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
           elif current_type in [5,'q'] and 'q' not in importedVals:
                raise ValueError('importedVals MUST contain q current_src = 7 or "imported"')
 
+       print(shotpath,shotfile)
        if   eqdskrequired and EQDSKexist:
             os.system('cp   %s/%s_EQDSK .'          % (shotpath,shotfile))
             eqdskfpath =      '%s_EQDSK'            %          (shotfile)
@@ -3444,9 +3843,18 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
        if runchease not in ['yes','y',1,True]: sys.exit()
 
        eqdskdata = read_eqdsk(eqdskfpath=eqdskfpath)
-       R0EXP = abs(eqdskdata['RCTR'])
-       B0EXP = abs(eqdskdata['BCTR'])
-       ITEXP = abs(eqdskdata['CURNT'])
+       if 'R0EXP' in namelistVals:
+           R0EXP = namelistVals['R0EXP']
+       else:
+           R0EXP = abs(eqdskdata['RCTR'])
+       if 'B0EXP' in namelistVals:
+           B0EXP = namelistVals['B0EXP']
+       else:
+           B0EXP = abs(eqdskdata['BCTR'])
+       if 'ITEXP' in namelistVals:
+           ITEXP = namelistVals['ITEXP']
+       else:
+           ITEXP = abs(eqdskdata['CURNT'])
 
        expeqParam = {}
        if   int(namelist['NEQDSK']) == 1:
@@ -3692,8 +4100,8 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
        cheasefname = sorted(glob('./chease_*.h5'))
        if   len(cheasefname)==0:
             it=0
-            exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % it)
-           #exit_status = os.system('./chease_hdf5 chease_namelist')
+           #exit_status = os.system('./chease_hdf5 chease_namelist > iter%03d.OUT' % it)
+            exit_status = os.system('./chease_hdf5 chease_namelist')
            #exit_status = subprocess.call(['./chease_hdf5','chease_namelist'])
             if abs(exit_status) > 0: sys.exit()
             if os.path.isfile('./chease_namelist'): os.system('cp ./chease_namelist ./chease_namelist_iter%03d' % it)
@@ -4172,14 +4580,6 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
            print('ITErr = ', abs(ITErr))
     
            it+=1
-    
-       #REMOVING CHEASE FILES NOT NEEDED IN CHEASEPY
-       #if glob('./NGA'):            os.system('rm NGA')
-       #if glob('./NDES'):           os.system('rm NDES')
-       #if glob('./NOUT'):           os.system('rm NOUT')
-       #if glob('./EQDSK_COCOS_*'):  os.system('rm EQDSK_COCOS_*')
-       #if glob('./EXPEQ.OUT.TOR'):  os.system('rm EXPEQ.OUT.TOR')
-       #if glob('./EXPEQ_EQDSK.IN'): os.system('rm EXPEQ_EQDSK.IN')
     
        pltValsKeys = pltVals.keys()
        if 'skipfigs' in pltValsKeys: skipfigs = pltVals['skipfigs']     
