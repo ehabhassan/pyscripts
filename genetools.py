@@ -24,6 +24,28 @@ if   sys.version_info[0] > 3:
 elif sys.version_info[0] < 3:
      PYTHON2 = True; PYTHON3 = False
 
+def convert_extension(genefpath,targetext=''):
+    if targetext == 'dat': targetext = '.dat'
+
+    if genefpath[-1] != '/': genefpath+='/'
+    flist = glob.glob(genefpath+"*")
+    sourceext = flist[0][-4:]
+    if sourceext == targetext:
+       print('There is no conversion to do.')
+       return 0
+    
+    for ifile in flist:
+        if sourceext not in ifile[-4:]: continue
+        if sourceext == '.dat':
+           if targetext == '': targetext = '0001'
+           fname = ifile[:-4]+'_'+targetext
+        else:
+           if targetext == '': targetext = '.dat'
+           fname = ifile[:-4]+targetext
+        os.system('mv '+ifile+' '+fname)
+
+    return 1
+
 
 def create_k_grid(x_grid):
    #Developed by Ehab Hassan on 2019-04-28
@@ -49,6 +71,34 @@ def findall(inlist,item):
 def str2bool(vin):
    #Developed by Ehab Hassan on 2019-03-28
     return (vin.strip()).lower() in ('t','.t.','true','.true.')
+
+def read_profiles(profilesfpath,setParam={}):
+   #Developed by Ehab Hassan on 2020-04-13
+    if not os.path.isfile(profilesfpath):
+       print('Fatal: file %s not found.' % profilesfpath)
+       sys.exit()
+
+    ofh = open(profilesfpath,'r')
+
+    profiles = {}
+    lines = ofh.readlines()
+    for line in lines:
+        recs = line.split()
+        if   'x/a' in recs and 'x/rho_ref' in recs:
+             for i in range(1,len(recs)):
+                 profiles[recs[i]] = []
+        elif '#' in recs:
+             continue
+        else:
+             profiles['x/a']       = recs[0]
+             profiles['x/rho_ref'] = recs[1]
+             profiles['T']         = recs[2]
+             profiles['n']         = recs[3]
+             profiles['omt']       = recs[4]
+             profiles['omn']       = recs[5]
+
+    return profiles
+
 
 def read_parameters(paramfpath):
    #Developed by Ehab Hassan on 2019-02-07
@@ -659,8 +709,9 @@ def omega_to_hz(genefpath,calc_omega=False):
          if genefpath[-1] != "/": genefpath+="/"
          omegaflist = sorted(glob.glob(genefpath+"omega*"))
 
-    kymin     = []
-    frequency = []
+    kymin      = []
+    frequency  = []
+    growthrate = []
     for iomegaf in omegaflist:
         if not os.path.isfile(iomegaf):
            raise IOError('FATAL: '+iomegaf+' FILE NOT FOUND. Exit!')
@@ -683,10 +734,12 @@ def omega_to_hz(genefpath,calc_omega=False):
         kymin.append(omegadata['kymin'][omegaflist.index(iomegaf)])
         if omegadata['omega'][omegaflist.index(iomegaf)] == None:
            frequency.append(None)
+           growthrate.append(None)
         else:
            frequency.append(omegadata['omega'][omegaflist.index(iomegaf)]*omegaref/2.0/npy.pi)
+           growthrate.append(omegadata['gamma'][omegaflist.index(iomegaf)])
 
-    return kymin,frequency
+    return kymin,frequency,growthrate
 
 
 def my_corr_func_complex(v1,v2,time,show_plot=False,v1eqv2=True):
@@ -729,8 +782,18 @@ def my_corr_func_complex(v1,v2,time,show_plot=False,v1eqv2=True):
         plt.show()
     return cfunc,tau,corr_time
 
-def read_mom(momfpath,specs='',Normalized=True,timeslot=None):
+def read_mom(momfpath,specs='',Normalized=True,timeslot=None,momfmt=None):
    #Developed by Ehab Hassan on 2019-03-15
+    '''
+    momfmt argument takes three choices:
+    momfmt = 'original' returns the moms as read from file
+    momfmt = 'local-central' returns the moms at the central point
+    momfmt = 'local-flatten' returns the moms flattened over all dimensions
+    '''
+
+    momfmttypes = ['local-central','local-flatten','global-modes','global-flatten']
+    if momfmt not in momfmttypes: momfmt = 'original'
+
     momfpath = momfpath.strip()
     if os.path.isfile(momfpath):
        momflist=[momfpath]
@@ -739,7 +802,7 @@ def read_mom(momfpath,specs='',Normalized=True,timeslot=None):
       if   specs in ['e','i','z']:
            momflist = sorted(glob.glob(momfpath+"mom_%s*" % specs))
       else:
-           momflist = sorted(glob.glob(momfpath+"mom_*"))
+           raise ValueError('Species type is missing as a function input')
 
     momdata = {}
     for imomf in momflist:
@@ -757,6 +820,12 @@ def read_mom(momfpath,specs='',Normalized=True,timeslot=None):
         par0 = Parameters()
         par0.Read_Pars(paramfpath)
         pars = par0.pardict
+
+        if 'x_local' in pars:
+           if pars['x_local'].lower() in ['t','true']: x_local = True
+           else:                                       x_local = False
+        else:
+                                                       x_local = True
         mom = momfile(imomf,pars)
         if timeslot == None: t_ind = -1
         else:                t_ind = npy.argmin([abs(itime-timeslot) for itime in mom.tmom])
@@ -764,35 +833,93 @@ def read_mom(momfpath,specs='',Normalized=True,timeslot=None):
 
         momdata[imomf]['t'] = mom.tmom[t_ind]
 
-        if Normalized:
-           momdata[imomf]['dens']  = mom.dens()[:,:,:]
-           momdata[imomf]['tpar']  = mom.tpar()[:,:,:]
-           momdata[imomf]['tperp'] = mom.tperp()[:,:,:]
-           momdata[imomf]['qpar']  = mom.qpar()[:,:,:]
-           momdata[imomf]['qperp'] = mom.qperp()[:,:,:]
-           momdata[imomf]['upar']  = mom.upar()[:,:,:]
-        else:
-           units = units_conversion(paramfpath)
-           momdata[imomf]['dens']  = units['rhostar']*mom.dens()[:,:,:]
-           momdata[imomf]['tpar']  = units['rhostar']*mom.tpar()[:,:,:]
-           momdata[imomf]['tperp'] = units['rhostar']*mom.tperp()[:,:,:]
-           momdata[imomf]['qpar']  = units['cref']*units['rhostar']*mom.qpar()[:,:,:]
-           momdata[imomf]['qperp'] = units['cref']*units['rhostar']*mom.qperp()[:,:,:]
-           momdata[imomf]['upar']  = units['cref']*units['rhostar']*mom.upar()[:,:,:]
+        nx = int(mom.pars['nx0'])
+        nz = int(mom.pars['nz0'])
+        ny = int(mom.pars['nky0'])
 
-       #nx  = int(mom.pars['nx0'])
-       #nky = int(mom.pars['nky0'])
-       #nz  = int(mom.pars['nz0'])
-       #dz  = 2.0/nz
+        if momfmt=='original':
+           if Normalized:
+              momdata[imomf]['dens']  = mom.dens()[:,:,:]
+              momdata[imomf]['tpar']  = mom.tpar()[:,:,:]
+              momdata[imomf]['tperp'] = mom.tperp()[:,:,:]
+              momdata[imomf]['qpar']  = mom.qpar()[:,:,:]
+              momdata[imomf]['qperp'] = mom.qperp()[:,:,:]
+              momdata[imomf]['upar']  = mom.upar()[:,:,:]
+           else:
+              units = units_conversion(paramfpath)
+              momdata[imomf]['dens']  = units['rhostar']*mom.dens()[:,:,:]
+              momdata[imomf]['tpar']  = units['rhostar']*mom.tpar()[:,:,:]
+              momdata[imomf]['tperp'] = units['rhostar']*mom.tperp()[:,:,:]
+              momdata[imomf]['qpar']  = units['cref']*units['rhostar']*mom.qpar()[:,:,:]
+              momdata[imomf]['qperp'] = units['cref']*units['rhostar']*mom.qperp()[:,:,:]
+              momdata[imomf]['upar']  = units['cref']*units['rhostar']*mom.upar()[:,:,:]
 
-       #if 'lx_a' in mom.pars:
-       #     xgrid = npy.arange(nx)/float(nx-1)*float(mom.pars['lx_a']) + float(mom.pars['x0']) - float(mom.pars['lx_a'])/2.0
-       #else:
-       #     xgrid = npy.arange(nx)/float(nx-1)*float(mom.pars['lx'])   - float(mom.pars['lx'])/2.0
-       #zgrid = npy.arange(nz)/float(nz-1)*(2.0-dz)-1.0
+              dz  = 2.0/nz
+              if 'lx_a' in pars:
+                   xgrid = npy.arange(nx)/float(nx-1)*float(pars['lx_a'])+float(pars['x0'])-float(pars['lx_a'])/2.0
+              else:
+                   xgrid = npy.arange(nx)/float(nx-1)*float(pars['lx'])-float(pars['lx'])/2.0
+              zgrid = npy.arange(nz)/float(nz-1)*(2.0-dz)-1.0
 
-       #momdata[imomf]['xgrid'] = xgrid
-       #momdata[imomf]['zgrid'] = xgrid
+              momdata[imomf]['xgrid'] = xgrid
+              momdata[imomf]['zgrid'] = xgrid
+
+        elif momfmt in momfmttypes:
+           dens3d  = mom.dens()[:,:,:]
+           tpar3d  = mom.tpar()[:,:,:]
+           tperp3d = mom.tperp()[:,:,:]
+           qpar3d  = mom.qpar()[:,:,:]
+           qperp3d = mom.qperp()[:,:,:]
+           upar3d  = mom.upar()[:,:,:]
+
+           if x_local:
+              if   momfmt=='local-central': nx = 1
+              dens  = npy.zeros(nx*nz,dtype='complex128')
+              tpar  = npy.zeros(nx*nz,dtype='complex128')
+              tperp = npy.zeros(nx*nz,dtype='complex128')
+              qpar  = npy.zeros(nx*nz,dtype='complex128')
+              qperp = npy.zeros(nx*nz,dtype='complex128')
+              upar  = npy.zeros(nx*nz,dtype='complex128')
+
+              zgrid = npy.arange(nx*nz)/float(nx*nz-1)*(2.0*nx-(2.0/nz))-nx
+
+              if 'n0_global' in pars:
+                 n0_global = int(pars['n0_global'])
+                 q0        = float(pars['q0'])
+                 phase     = -npy.e**(-2.0*npy.pi*(0.0+1.0J)*n0_global*q0)
+              else:
+                 shat      = float(pars['shat'])
+                 kymin     = float(pars['kymin'])
+                 lx        = float(pars['lx'])
+                 phase     = -npy.e**(-npy.pi*(0.0+1.0J)*shat*kymin*lx)
+              shatsgn = int(npy.sign(float(pars['shat'])))
+
+              for iy in range(ny):
+                for ix in range(nx/2):
+                  dens[ (ix+nx/2)*nz:(ix+nx/2+1)*nz] = dens3d[ :,iy,ix*shatsgn]*phase**ix
+                  tpar[ (ix+nx/2)*nz:(ix+nx/2+1)*nz] = tpar3d[ :,iy,ix*shatsgn]*phase**ix
+                  tperp[(ix+nx/2)*nz:(ix+nx/2+1)*nz] = tperp3d[:,iy,ix*shatsgn]*phase**ix
+                  qpar[ (ix+nx/2)*nz:(ix+nx/2+1)*nz] = qpar3d[ :,iy,ix*shatsgn]*phase**ix
+                  qperp[(ix+nx/2)*nz:(ix+nx/2+1)*nz] = qperp3d[:,iy,ix*shatsgn]*phase**ix
+                  upar[ (ix+nx/2)*nz:(ix+nx/2+1)*nz] = upar3d[ :,iy,ix*shatsgn]*phase**ix
+                  if ix < nx/2:
+                     dens[ (nx/2-ix-1)*nz:(nx/2-ix)*nz] = dens3d[ :,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                     tpar[ (nx/2-ix-1)*nz:(nx/2-ix)*nz] = tpar3d[ :,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                     tperp[(nx/2-ix-1)*nz:(nx/2-ix)*nz] = tperp3d[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                     qpar[ (nx/2-ix-1)*nz:(nx/2-ix)*nz] = qpar3d[ :,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                     qperp[(nx/2-ix-1)*nz:(nx/2-ix)*nz] = qperp3d[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                     upar[ (nx/2-ix-1)*nz:(nx/2-ix)*nz] = upar3d[ :,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+
+              momdata[imomf]['nx']    = nx
+              momdata[imomf]['ny']    = ny
+              momdata[imomf]['nz']    = nz
+              momdata[imomf]['dens']  = dens
+              momdata[imomf]['tpar']  = tpar
+              momdata[imomf]['tperp'] = tperp
+              momdata[imomf]['qpar']  = qpar
+              momdata[imomf]['qperp'] = qperp
+              momdata[imomf]['upar']  = upar
+              momdata[imomf]['zgrid'] = zgrid
 
     return momdata
 
@@ -858,7 +985,7 @@ def read_field(fieldfpath,Normalized=True,timeslot=None,fieldfmt=None):
            else:
                xgrid = npy.arange(nx)/float(nx-1)*float(pars['lx'])-float(pars['lx'])/2.0
 
-           fielddata[ifieldf]['t']        = field.tfld
+           fielddata[ifieldf]['t']        = field.tfld[t_ind]
            fielddata[ifieldf]['nx']       = field.nx
            fielddata[ifieldf]['ny']       = field.ny
            fielddata[ifieldf]['nz']       = field.nz
@@ -908,7 +1035,7 @@ def read_field(fieldfpath,Normalized=True,timeslot=None,fieldfmt=None):
                      if ix < nx/2:
                         apar[(nx/2-ix-1)*nz:(nx/2-ix)*nz]=apar3d[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
 
-              fielddata[ifieldf]['t']       = field.tfld
+              fielddata[ifieldf]['t']       = field.tfld[t_ind]
               fielddata[ifieldf]['nx']      = field.nx
               fielddata[ifieldf]['ny']      = field.ny
               fielddata[ifieldf]['nz']      = field.nz
@@ -918,7 +1045,10 @@ def read_field(fieldfpath,Normalized=True,timeslot=None,fieldfmt=None):
               fielddata[ifieldf]['nfields'] = field.nfields
 
            elif not x_local:
-              gpars,geometry = read_geometry_global(ifieldf[:-10]+pars['magn_geometry'][1:-1]+'_'+ifieldf[-4:])
+              if 'dat' in ifieldf[-4:]:
+                 gpars,geometry = read_geometry_global(ifieldf[:-9]+pars['magn_geometry'][1:-1]+ifieldf[-4:])
+              else:
+                 gpars,geometry = read_geometry_global(ifieldf[:-10]+pars['magn_geometry'][1:-1]+'_'+ifieldf[-4:])
               n0_global      = int(pars['n0_global'])
               q              = geometry['q']
               phase          = 2.0*npy.pi*(0.0+1.0J)*n0_global*q
@@ -946,7 +1076,7 @@ def read_field(fieldfpath,Normalized=True,timeslot=None,fieldfmt=None):
                  apar = apar3d
              #   apar = apar3d*float(pars['rhostar'])
 
-              fielddata[ifieldf]['t']       = field.tfld
+              fielddata[ifieldf]['t']       = field.tfld[t_ind]
               fielddata[ifieldf]['nx']      = field.nx
               fielddata[ifieldf]['ny']      = field.ny
               fielddata[ifieldf]['nz']      = field.nz
@@ -1022,15 +1152,13 @@ def field_info(field,param={}):
    #Developed by Ehab Hassan on 2019-03-14
     for ifieldf in field:
         if not param.keys():
-           param = read_parameters(ifieldf[:-10]+"parameters_"+ifieldf[-4:])
-
-        if 'x_local' in param['general'].keys():
-           if param['general']['x_local']:
-            x_local = True
+           if os.path.isfile(ifieldf[:-10]+"parameters_"+ifieldf[-4:]):
+              param = read_parameters(ifieldf[:-10]+"parameters_"+ifieldf[-4:])
            else:
-            x_local = False
-        else:
-            x_local = True
+              param = read_parameters(ifieldf[:-9]+"parameters.dat")
+
+        if 'x_local' in param['general']: x_local = param['general']['x_local']
+        else:                             x_local = True
 
         if x_local:
            nx      = field[ifieldf]['nx']
@@ -1081,6 +1209,7 @@ def field_info(field,param={}):
            else:
               gpars,geometry = read_geometry_local(ifieldf[:-9]+param['geometry']['magn_geometry']+'.'+ifieldf[-3:])
               omegafpath = ifieldf[:-9]+"omega."+ifieldf[-3:]
+
            jacxB = geometry['gjacobian']*geometry['gBfield']
            omegadata = read_omega(omegafpath)
            omega_complex = (omegadata['omega']*(0.0+1.0J) + omegadata['gamma'])
@@ -1122,6 +1251,7 @@ def field_info(field,param={}):
            #==> if L_gradients / L_eigenmode is large then the mode can survive in global 
            #Note: filter_local_modes in plot_scan_info_efit.py
            field_info['global_factor'] = kxavg/(float(param['geometry']['rhostar'])*0.5*(param['species1']['omn']+param['species1']['omt']))
+           field_info['zgrid'] = zgrid
 
         elif not x_local:
            nx      = field[ifieldf]['nx']
@@ -1133,8 +1263,8 @@ def field_info(field,param={}):
            zgrid = npy.arange(nz+4)/float(nz+4-1)*(2.0+3.0*(2.0/nz))-(1.0+2.0*(2.0/nz))
            xgrid = npy.arange(nx)/float(nx-1)*param['box']['lx_a']+param['box']['x0']-param['box']['lx_a']/2.0
 
-           if os.path.isfile( ifieldf[:-10]+param['geometry']['magn_geometry']+'.dat'):
-              geomfpath = ifieldf[:-10]+param['geometry']['magn_geometry']+'.dat'
+           if os.path.isfile( ifieldf[:-9]+param['geometry']['magn_geometry']+'.dat'):
+              geomfpath = ifieldf[:-9]+param['geometry']['magn_geometry']+'.dat'
            else:
               geomfpath = ifieldf[:-10]+param['geometry']['magn_geometry']+'_'+ifieldf[-4:]
            gpars,geometry = read_geometry_global(geomfpath)
@@ -1142,38 +1272,71 @@ def field_info(field,param={}):
            phase = (0.0+1.0J)*param['box']['n0_global']*2.0*npy.pi*geometry['q']
 
            phi_bnd = npy.zeros((nz+4,ny,nx),dtype = 'complex128')
-           gradphi = npy.zeros((nz+4,nx)   ,dtype = 'complex128')
+           gradphi = npy.zeros((nz+4,ny,nx),dtype = 'complex128')
            phi_bnd[2:-2,:,:] = phi
 
            for j in range(nx):
-               phi_bnd[-2,0,j] = phi_bnd[ 2,0,j]*npy.e**(-phase[j])
-               phi_bnd[-1,0,j] = phi_bnd[ 3,0,j]*npy.e**(-phase[j])
-               phi_bnd[ 0,0,j] = phi_bnd[-4,0,j]*npy.e**( phase[j])
-               phi_bnd[ 1,0,j] = phi_bnd[-3,0,j]*npy.e**( phase[j])
+               phi_bnd[-2,:,j]   = phi_bnd[ 2,:,j]*npy.e**(-phase[j])
+               phi_bnd[-1,:,j]   = phi_bnd[ 3,:,j]*npy.e**(-phase[j])
+               phi_bnd[ 0,:,j]   = phi_bnd[-4,:,j]*npy.e**( phase[j])
+               phi_bnd[ 1,:,j]   = phi_bnd[-3,:,j]*npy.e**( phase[j])
 
-               gradphi[:,j]    = fd_d1_o4(phi_bnd[:,0,j],zgrid)
-               gradphi[2:-2,j] = gradphi[2:-2,j]/npy.pi/(geometry['jacobian'][:,j]*geometry['Bfield'][:,j])
+               gradphi[:,0,j]    = fd_d1_o4(phi_bnd[:,0,j],zgrid)
+               gradphi[2:-2,0,j] = gradphi[2:-2,0,j]/npy.pi/(geometry['jacobian'][:,j]*geometry['Bfield'][:,j])
 
            field_info = {}
 
-           field_info['phi'] = phi
-           field_info['apar']= apar
+           field_info['phi']   = phi
+           field_info['apar']  = apar
+           field_info['dphi']  = gradphi
 
-           field_info['zavg'] = npy.nan
+           field_info['zavg']  = npy.nan
+           field_info['xgrid'] = xgrid
+           field_info['zgrid'] = zgrid
 
-           imaxphi  = np.unravel_index(npy.argmax(abs(phi)),(nz,nx))
-           imaxapar = np.unravel_index(npy.argmax(abs(apar)),(nz,nx))
+           imaxphi  = npy.unravel_index(npy.argmax(abs(phi)),(nz,nx))
+           imaxapar = npy.unravel_index(npy.argmax(abs(apar)),(nz,nx))
            cfunc,zed,corr_len=my_corr_func_complex(phi[:,0,imaxphi[1]],phi[:,0,imaxphi[1]],zgrid,show_plot=False)
            field_info['corr_len'] = corr_len
-           field_info['parity_factor_apar'] = npy.abs(npy.sum(apar[:,0,imaxapar[1]]))/npy.sum(npy.abs(apar[:,0,imaxapar[1]]))
-           field_info['parity_factor_phi']  = npy.abs(npy.sum( phi[:,0,imaxphi[1]])) /npy.sum(npy.abs( phi[:,0,imaxphi[1]]))
+           field_info['parity_factor_phi']   = npy.abs(npy.sum( phi[:,0,imaxphi[1]]))
+           field_info['parity_factor_phi']  /= npy.sum(npy.abs( phi[:,0,imaxphi[1]]))
+           field_info['parity_factor_apar']  = npy.abs(npy.sum(apar[:,0,imaxapar[1]]))
+           field_info['parity_factor_apar'] /= npy.sum(npy.abs(apar[:,0,imaxapar[1]]))
 
-           omegadata = read_omega(ifieldf[:-10]+"omega_"+ifieldf[-4:])
+           if os.path.isfile(ifieldf[:-10]+"omega_"+ifieldf[-4:]):
+              omegadata = read_omega(ifieldf[:-10]+"omega_"+ifieldf[-4:])
+           else:
+              omegadata = read_omega(ifieldf[:-9]+"omega.dat")
            omega_complex = (omegadata['omega']*(0.0+1.0J) + omegadata['gamma'])
 
-           diff = np.sum(np.abs(gradphi[2:-2,:] + omega_complex*apar[:,0,:]))
-           phi_cont = np.sum(np.abs(gradphi[2:-2,:]))
-           apar_cont = np.sum(np.abs(omega_complex*apar[:,0,:]))
+           if 'ExBrate' in param['external_contr'] and param['external_contr']['ExBrate'] == -1111:
+              if 'iterdb_file' in param['in_out'] and os.path.isfile(param['in_out']['iterdb_file']):
+                  iterdbfpath = param['in_out']['iterdb_file']
+              else:      
+                  iterdbfpath = input("Path to ITERDB File: ")
+              if 'dat' in ifieldf[-4:]: profilesfpath = ifieldf[:-9]+"profiles_e.dat"
+              else:                     profilesfpath = ifieldf[:-10]+"profiles_e_"+ifieldf[-4:]
+              if not os.path.isfile(profilesfpath):
+                 profilesfpath = input("Path to Profiles File:\n")
+              rhot_idb,profs_idb,units_idb = read_iterdb.read_iterdb(iterdbfpath)
+              profs = np.genfromtxt(profilesfpath)
+              omegator0 = interp(rhot_idb['VROT'],profs_idb['VROT'],profs[:,0])
+              mi = 1.673e-27
+              ee = 1.602e-19
+              mref = param['units']['mref']*mi
+              time_ref = param['units']['Lref']/(param['units']['Tref']*1000.0*ee/mref)**0.5
+              apar_cont = 0.0
+              diff = 0.0
+              apar_cont_2D = npy.empty_like(apar[:,0,:],dtype='complex128')
+              for i in range(param['box']['nx0']):
+                  diff += npy.sum(npy.abs(gradphi[2:-2,0,i]+(omega_complex+(0.0+1.0J)*param['box']['n0_global']*omegator0[i]*time_ref)*apar[:,0,i]))
+                  apar_cont += npy.sum(npy.abs((omega_complex+(0.0+1.0J)*param['box']['n0_global']*omegator0[i]*time_ref)*apar[:,0,i]))
+                  apar_cont_2D[:,i] = (omega_complex+(0.0+1.0J)*param['box']['n0_global']*omegator0[i]*time_ref)*apar[:,0,i]
+           else:
+               diff = npy.sum(npy.abs(gradphi[2:-2,0,:]+omega_complex*apar[:,0,:]))
+               apar_cont = npy.sum(npy.abs(omega_complex*apar[:,0,:]))
+           phi_cont = npy.sum(npy.abs(gradphi[2:-2,0,:]))
+
            field_info['Epar_Cancellation'] = diff/(phi_cont+apar_cont)
 
            field_info['global_factor'] = npy.nan
@@ -1204,10 +1367,8 @@ def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='fa
               param   = read_parameters(ifieldf[:-9]+"parameters"+ifieldf[-4:])
            else:
               param   = read_parameters(ifieldf[:-10]+"parameters"+ifieldf[-5:])
-           if 'x_local' in param['general']:
-              if param['general']['x_local']: x_local = True
-              else:                           x_local = False
-           else:                              x_local = True
+           if 'x_local' in param['general']: x_local = param['general']['x_local']
+           else:                             x_local = True
 
            if 'field.dat' in ifieldf:
               modeid = "mode"+ifieldf[-4:]
@@ -1476,7 +1637,7 @@ def mode_type(modeinfo,parameters):
     #Mostly EM transport
     if modeinfo['Qem/Qes']>0.5 and modeinfo['parity_factor_apar']/modeinfo['parity_factor_phi'] >= 0.8 and not mode_type:
         if not wExBshear:
-            if modeinfo[imode,5] < 0.0:
+            if modeinfo['omega'] < 0.0:
                mode_type = 'MTM'
         else:
             mode_type = 'MTM'
@@ -1518,23 +1679,23 @@ def mode_info(genefpath):
             paramflist = [genefpath[:-10]+'parameters_'+genefpath[-4:]]
     else:
          if genefpath[-1] != "/": genefpath+="/"
-         paramflist = sorted(glob(genefpath+'parameters_????'))
-         if paramlist == []:
-            paramflist = glob(genefpath+'parameters.dat')
+         paramflist = sorted(glob.glob(genefpath+'parameters_????'))
+         if paramflist == []:
+            paramflist = glob.glob(genefpath+'parameters.dat')
 
     mode_info = {}
 
     for paramid in paramflist:
         if 'dat' in paramid:
            imode   = 'dat'
-           nrgid   = 'nrg.dat'
-           omegaid = 'omega.dat'
-           fieldid = 'field.dat'
+           nrgid   = paramid[:-14]+'nrg.dat'
+           omegaid = paramid[:-14]+'omega.dat'
+           fieldid = paramid[:-14]+'field.dat'
         else:
            imode   = int(paramid[-4:])-1
-           nrgid   = 'nrg_%04d'   % (imode+1)
-           omegaid = 'omega_%04d' % (imode+1)
-           fieldid = 'field_%04d' % (imode+1)
+           nrgid   = paramid[:-15]+'nrg_%04d'   % (imode+1)
+           omegaid = paramid[:-15]+'omega_%04d' % (imode+1)
+           fieldid = paramid[:-15]+'field_%04d' % (imode+1)
 
         if len(paramflist)==1: imode = 0
 
@@ -1606,12 +1767,18 @@ def mode_info(genefpath):
              mode_info[iky]['glabal_factor'] = npy.nan
 
         inrgf  = nrgdata.keys()[0]
-        if   len(nrgdata[inrgf].keys()) >= 3:
-              mode_info[iky]['Qem/Qes']  = nrgdata[inrgf]['i']['HFluxem'][-1]
-              mode_info[iky]['Qem/Qes'] /= (abs(nrgdata[inrgf]['i']['HFluxes'][-1])+abs(nrgdata[inrgf]['e']['HFluxes'][-1]))
-        elif len(nrgdata[inrgf].keys()) >= 2:
-              mode_info[iky]['Qem/Qes']  = nrgdata[inrgf]['e']['HFluxem'][-1]
-              mode_info[iky]['Qem/Qes'] /= abs(nrgdata[inrgf]['e']['HFluxes'][-1])
+
+        if 'e' in nrgdata[inrgf]:
+           mode_info[iky]['Qem/Qes']  = abs(nrgdata[inrgf]['e']['HFluxem'][-1])
+           mode_info[iky]['Qem/Qes'] /= abs(nrgdata[inrgf]['e']['HFluxes'][-1])
+
+        if 'i' in nrgdata[inrgf]:
+           mode_info[iky]['Qim/Qis']  = abs(nrgdata[inrgf]['i']['HFluxem'][-1])
+           mode_info[iky]['Qim/Qis'] /= abs(nrgdata[inrgf]['i']['HFluxes'][-1])
+
+        if 'z' in nrgdata[inrgf]:
+           mode_info[iky]['Qzm/Qzs']  = abs(nrgdata[inrgf]['z']['HFluxem'][-1])
+           mode_info[iky]['Qzm/Qzs'] /= abs(nrgdata[inrgf]['z']['HFluxes'][-1])
 
         mode_info[iky]['Type']=mode_type(mode_info[iky],paramdata)
 
@@ -1647,9 +1814,9 @@ def flux_info(genefpath,timeslot=None):
             paramflist = [genefpath[:-8]+'parameters_'+genefpath[-4:]]
     else:
          if genefpath[-1] != "/": genefpath+="/"
-         paramflist = sorted(glob(genefpath+'parameters_????'))
-         if paramlist == []:
-            paramflist = glob(genefpath+'parameters.dat')
+         paramflist = sorted(glob.glob(genefpath+'parameters_????'))
+         if paramflist == []:
+            paramflist = glob.glob(genefpath+'parameters.dat')
 
     flux_info = {}
 
@@ -1731,7 +1898,7 @@ def flux_info(genefpath,timeslot=None):
 
     return flux_info
 
-def fluct_info(genefpath,timeslot=None):
+def fluct_info(genefpath,timeslot=None,setParam={}):
    #Developed by Ehab Hassan on 2020-02-17
     if   'parameters' in genefpath:
           paramflist = [genefpath]
@@ -1742,9 +1909,15 @@ def fluct_info(genefpath,timeslot=None):
             paramflist = [genefpath[:-8]+'parameters_'+genefpath[-4:]]
     else:
          if genefpath[-1] != "/": genefpath+="/"
-         paramflist = sorted(glob(genefpath+'parameters_????'))
-         if paramlist == []:
-            paramflist = glob(genefpath+'parameters.dat')
+         paramflist = sorted(glob.glob(genefpath+'parameters_????'))
+         if paramflist == []:
+            paramflist = glob.glob(genefpath+'parameters.dat')
+
+    if 'local_central' in setParam: local_central = setParam['local_central']
+    else:                           local_central = False
+
+    if 'local_flatten' in setParam: local_flatten = setParam['local_flatten']
+    else:                           local_flatten = False
 
     fluct_info = {}
 
@@ -1752,43 +1925,80 @@ def fluct_info(genefpath,timeslot=None):
         paramfpath = os.path.abspath(paramid)
         paramdata = read_parameters(paramfpath)
         iky = paramdata['box']['kymin']
+        if 'x_local' in paramdata['general']: x_local = paramdata['general']['x_local']
+        else:                                 x_local = True
+
         fluct_info[iky]={}
+
+        units = units_conversion(parameters=paramdata)
 
         for ispecs in range(paramdata['box']['n_spec']):
             if paramdata['species'+str(ispecs+1)]['name'] == 'e':
                if 'dat' in paramid: momeid = paramid[:-14]+'mom_e.dat'
                else:                momeid = paramid[:-15]+'mom_e_%04d' % int(paramid[-4:])
                momefpath = os.path.abspath(momeid)
-               momedata  = read_mom(momefpath,specs='e',timeslot=timeslot)
+               if   not x_local:
+                    momedata  = read_mom(momefpath,specs='e',timeslot=timeslot)
+               elif local_flatten:
+                    momedata  = read_mom(momefpath,specs='e',timeslot=timeslot,momfmt = 'local-flatten')
+               elif local_central:
+                    momedata  = read_mom(momefpath,specs='e',timeslot=timeslot,momfmt = 'local-central')
                momeid    = momedata.keys()[0]
                fluct_info[iky]['e']=momedata[momeid]
             if paramdata['species'+str(ispecs+1)]['name'] == 'i':
                if 'dat' in paramid: momiid = paramid[:-14]+'mom_i.dat'
                else:                momiid = paramid[:-15]+'mom_i_%04d' % int(paramid[-4:])
                momifpath = os.path.abspath(momiid)
-               momidata  = read_mom(momifpath,specs='i',timeslot=timeslot)
+               if   not x_local:
+                    momidata  = read_mom(momifpath,specs='i',timeslot=timeslot)
+               elif local_flatten:
+                    momidata  = read_mom(momifpath,specs='i',timeslot=timeslot,momfmt = 'local-flatten')
+               elif local_central:
+                    momidata  = read_mom(momifpath,specs='i',timeslot=timeslot,momfmt = 'local-central')
                momiid    = momidata.keys()[0]
                fluct_info[iky]['i']=momidata[momiid]
             if paramdata['species'+str(ispecs+1)]['name'] == 'z':
                if 'dat' in paramid: momzid = paramid[:-14]+'mom_z.dat'
                else:                momzid = paramid[:-15]+'mom_z_%04d' % int(paramid[-4:])
                momzfpath = os.path.abspath(momzid)
-               momzdata  = read_mom(momzfpath,specs='z',timeslot=timeslot)
+               if   not x_local:
+                    momzdata  = read_mom(momzfpath,specs='z',timeslot=timeslot)
+               elif local_flatten:
+                    momzdata  = read_mom(momzfpath,specs='z',timeslot=timeslot,momfmt = 'local-flatten')
+               elif local_central:
+                    momzdata  = read_mom(momzfpath,specs='z',timeslot=timeslot,momfmt = 'local-central')
                momzid    = momzdata.keys()[0]
                fluct_info[iky]['z']=momzdata[momzid]
 
         if 'dat' in paramid: fieldid = paramid[:-14]+'field.dat'
         else:                fieldid = paramid[:-15]+'field_%04d' % int(paramid[-4:])
+
         fieldfpath = os.path.abspath(fieldid)
-        fielddata  = read_field(fieldfpath,timeslot=momedata[momeid]['t'])
+        if   not x_local:
+             fielddata  = read_field(fieldfpath,timeslot=momedata[momeid]['t'])
+             kperp,vcurv,gradB = get_kperp(paramfpath=paramid)
+        elif local_flatten:
+             fielddata  = read_field(fieldfpath,timeslot=momedata[momeid]['t'],fieldfmt = 'local-flatten')
+             kperp,vcurv,gradB = get_kperp(paramfpath=paramid,setParam={'local_flatten':True})
+        elif local_central:
+             fielddata  = read_field(fieldfpath,timeslot=momedata[momeid]['t'],fieldfmt = 'local-central')
+             kperp,vcurv,gradB = get_kperp(paramfpath=paramid,setParam={'local_central':True})
         fieldid    = fielddata.keys()[0]
 
-        fluct_info[iky]['bpar']  = paramdata['box']['kymin']*fielddata[fieldid]['apar']/paramdata['units']['Bref']
-        fluct_info[iky]['nx']    = fielddata[fieldid]['nx']
-        fluct_info[iky]['ny']    = fielddata[fieldid]['ny']
-        fluct_info[iky]['nz']    = fielddata[fieldid]['nz']
-        fluct_info[iky]['xgrid'] = fielddata[fieldid]['xgrid']
-        fluct_info[iky]['zgrid'] = fielddata[fieldid]['zgrid']
+
+        if 'bpar' in fielddata[fieldid]:
+           fluct_info[iky]['bpar']  = fielddata[fieldid]['bpar']
+        if 'apar' in fielddata[fieldid]:
+           fluct_info[iky]['apar']  = fielddata[fieldid]['apar']
+           fluct_info[iky]['bperp'] = kperp*fielddata[fieldid]['apar']
+
+        fluct_info[iky]['nx']       = fielddata[fieldid]['nx']
+        fluct_info[iky]['ny']       = fielddata[fieldid]['ny']
+        fluct_info[iky]['nz']       = fielddata[fieldid]['nz']
+        if 'xgrid' in fielddata[fieldid]:
+           fluct_info[iky]['xgrid']    = fielddata[fieldid]['xgrid']
+        if 'zgrid' in fielddata[fieldid]:
+           fluct_info[iky]['zgrid']    = fielddata[fieldid]['zgrid']
 
         if 'dat' in paramid: nrgid = paramid[:-14]+'nrg.dat'
         else:                nrgid = paramid[:-15]+'nrg_%04d' % int(paramid[-4:])
@@ -1800,11 +2010,8 @@ def fluct_info(genefpath,timeslot=None):
             specname = paramdata['species'+str(ispecs+1)]['name']
             fluct_info[iky][specname].update({'HFluxes':nrgdata[nrgid][specname]['HFluxes']})
             fluct_info[iky][specname].update({'HFluxem':nrgdata[nrgid][specname]['HFluxem']})
-            fluct_info[iky][specname].update({'PFluxes':nrgdata[nrgid][specname]['HFluxes']})
-            fluct_info[iky][specname].update({'PFluxem':nrgdata[nrgid][specname]['HFluxem']})
-
-       #print momedata[momeid]['t']
-       #print fielddata[fieldid]['t'][-1]
+            fluct_info[iky][specname].update({'PFluxes':nrgdata[nrgid][specname]['PFluxes']})
+            fluct_info[iky][specname].update({'PFluxem':nrgdata[nrgid][specname]['PFluxem']})
 
     return fluct_info
 
@@ -1867,10 +2074,8 @@ def calculate_surface_area(geometry,parameters):
     else:
          paramdata = parameters.copy()
 
-    if 'x_local' in paramdata['general']:
-       if paramdata['general']['x_local']: x_local = True
-       else:                               x_local = False
-    else:                                  x_local = True
+    if 'x_local' in paramdata['general']: x_local = paramdata['general']['x_local']
+    else:                                 x_local = True
 
     if type(geometry)==str:
        if x_local:
@@ -1949,3 +2154,526 @@ def read_geometry(geomfpath):
     except ValueError:
        params,geomdata = read_geometry_global(geomfpath.strip())
     return params,geomdata
+
+
+def get_kperp(paramfpath,setParam={}):
+    #Modified by Ehab Hassan on 2020-03-17
+    #following Xing work.
+    paramdata = read_parameters(paramfpath=paramfpath)
+    paramfpath = paramdata['filepath']
+    if 'dat' in paramfpath[-15:]: datext = True
+    else:                         datext = False
+
+    for geomftype in ['tracer_efit','miller','s_alpha','chease']:
+        if datext:
+           geomfpath = paramfpath[:-14]+geomftype+'.dat'
+        else:
+           paramind = paramfpath[-5:]
+           geomfpath = paramfpath[:-15]+geomftype+paramind
+        if os.path.isfile(geomfpath): break
+    params,geomdata = read_geometry(geomfpath=geomfpath)
+
+    if 'x_local' in paramdata['general']: x_local = paramdata['general']['x_local']
+    else:                                 x_local = True
+
+    if 'local_central' in setParam:
+       local_central = setParam['local_central']
+    else:
+       local_central = False
+
+    nx = paramdata['box']['nx0']
+    if local_central: ikx_grid = [0]
+    else:             ikx_grid = npy.arange(-nx//2+1,nx//2+1)
+    if   'lx' in paramdata['box']:  lx = paramdata['box']['lx']
+    elif 'lx' in paramdata['info']: lx = paramdata['info']['lx']
+    else:                           lx = None
+
+    if 'kx_center' in paramdata['box']: kx_center = paramdata['box']['kx_center']
+    else:                               kx_center = 0.0
+
+    nz = paramdata['box']['nz0']
+
+    ky = paramdata['box']['kymin']
+    if 'shat' in paramdata['geometry']: shat = paramdata['geometry']['shat']
+    else:                               shat = 1.0
+    dkx = 2.0*npy.pi*shat*ky
+
+    if x_local:
+       if local_central:
+          kperp = np.zeros(nz,dtype='float128')
+          vcurv = np.zeros(nz,dtype='float128')
+          gradB = np.zeros(nz,dtype='float128')
+       else:
+          kperp = np.zeros(nx*nz,dtype='float128')
+          vcurv = np.zeros(nx*nz,dtype='float128')
+          gradB = np.zeros(nx*nz,dtype='float128')
+    else:
+          kperp = np.zeros((nx,nz),dtype='float128')
+          vcurv = np.zeros((nx,nz),dtype='float128')
+          gradB = np.zeros((nx,nz),dtype='float128')
+
+   #if x_local:
+   #   dpdx_tot = paramdata['general']['beta']*(paramdata['species1']['omn']+paramdata['species1']['omt'])
+   #   if 'species2' in paramdata:
+   #      dpdx_tot = dpdx_tot+paramdata['general']['beta']*(paramdata['species2']['omn']+paramdata['species2']['omt'])
+   #   if 'species3' in paramdata:
+   #      dpdx_tot = dpdx_tot+paramdata['general']['beta']*(paramdata['species3']['omn']+paramdata['species3']['omt'])
+   #else:
+   #   if datext:
+   #      profilefpath = paramfpath[:-14]+'profiles_%s.dat' % paramdata['species1']['name']
+   #   else:
+   #      profilefpath = paramfpath[:-15]+'profiles_%s'+paramind % paramdata['species1']['name']
+   #   profilesdata = read_profiles(profilesfpath=profilefpath)
+   #   dpdx_tot = paramdata['general']['beta']*(paramdata['species1']['omn']+paramdata['species1']['omt'])
+   #   if 'species2' in paramdata:
+   #      dpdx_tot = dpdx_tot+paramdata['general']['beta']*(paramdata['species2']['omn']+paramdata['species2']['omt'])
+   #   if 'species3' in paramdata:
+   #      dpdx_tot = dpdx_tot+paramdata['general']['beta']*(paramdata['species3']['omn']+paramdata['species3']['omt'])
+
+    if x_local:
+       gxx    = geomdata['ggxx']
+       gxy    = geomdata['ggxy']
+       gyy    = geomdata['ggyy']
+       gyz    = geomdata['ggyz']
+       gxz    = geomdata['ggxz']
+       gzz    = geomdata['ggzz']
+       dBdx   = geomdata['gdBdx']
+       dBdy   = geomdata['gdBdy']
+       dBdz   = geomdata['gdBdz']
+       Bfield = geomdata['gBfield']
+    else:
+       gxx    = geomdata['gxx']
+       gxy    = geomdata['gxy']
+       gyy    = geomdata['gyy']
+       gyz    = geomdata['gyz']
+       gxz    = geomdata['gxz']
+       gzz    = geomdata['gzz']
+       dBdx   = geomdata['dBdx']
+       dBdy   = geomdata['dBdy']
+       dBdz   = geomdata['dBdz']
+       Bfield = geomdata['Bfield']
+
+    gamma1 = gxx*gyy-gxy**2
+    gamma2 = gxx*gyz-gxy*gxz
+    gamma3 = gxy*gyz-gyy*gxz
+
+    Kx =-dBdy-gamma2/gamma1*dBdz
+    Ky = dBdx-gamma3/gamma1*dBdz
+
+    if geomftype == 's_alpha':
+        Kx = Kx/Bfield
+        Ky = Ky/Bfield
+
+    for i in ikx_grid:
+        kx        = i*dkx+kx_center
+        loc_kperp = npy.sqrt(gxx*kx**2+2.0*gxy*kx*ky+gyy*ky**2)
+        loc_gradB =-(Kx*kx+Ky*ky)/Bfield
+        loc_vcurv  = loc_gradB+ky*paramdata['geometry']['dpdx_pm']/Bfield**2/2.0
+
+        if x_local:
+           kperp[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz] = loc_kperp
+           vcurv[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz] = loc_vcurv
+           gradB[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz] = loc_gradB
+        else:
+           kperp = loc_kperp
+           vcurv = loc_vcurv
+           gradB = loc_gradB
+
+    if geomftype == 's_alpha':
+        if 'amhd' in paramdata['geometry']: amhd = paramdata['geometry']['amhd']
+        else:                               amhd = 0.
+
+        z_grid    = npy.linspace(-1.,1.,nz,endpoint = False)
+        Kx0       =-npy.sin(z_grid*npy.pi)/paramdata['geometry']['major_R']
+        Ky0       =-(npy.cos(z_grid*npy.pi)+npy.sin(z_grid*npy.pi)*(shat*z_grid*npy.pi-amhd*npy.sin(z_grid*npy.pi)))/paramdata['geometry']['major_R']
+        omega_d0  =-(Kx0*kx_center+Ky0*ky)
+        omega_d00 = omega_d0+amhd/paramdata['geometry']['q0']**2/paramdata['geometry']['major_R']/2.*ky/Bfield**2
+        gxx0 = 1.0
+        gxy0 = shat*z_grid*npy.pi-amhd*npy.sin(z_grid*npy.pi)
+        gyy0 = 1.0+(shat*z_grid*npy.pi-amhd*npy.sin(z_grid*npy.pi))**2
+        kperp0 = npy.sqrt(gxx0*kx_center**2+2.*gxy0*kx_center*ky+gyy0*ky**2)
+
+    if 'plot' in setParam: plot = setParam['plot']
+    else:                  plot = False
+    if plot:
+       plt.plot(kperp,label='kperp')
+       plt.title('entire simulation domain')
+       if geomftype == 's_alpha' and plot and center_only:
+           plt.plot(kperp0,label='check')
+           plt.title('local_central')
+       plt.legend()
+       plt.show()
+       plt.plot(curv,label='curv')
+       plt.plot(gradB,label='gradB')
+       plt.title('entire simulation domain')
+       if geomftype == 's_alpha' and plot and center_only:
+           plt.plot(omega_d0,label='check')
+           plt.plot(omega_d00,label='check')
+           plt.title('center only')
+       plt.legend()
+       plt.show()
+
+    return kperp,vcurv,gradB
+
+def get_zgrid(paramfpath,setParam={}):
+    #Modified by Ehab Hassan on 2020-03-18
+    #following Xing work.
+    paramdata = read_parameters(paramfpath=paramfpath)
+    paramfpath = paramdata['filepath']
+    if 'dat' in paramfpath[-15:]: datext = True
+    else:                         datext = False
+
+    if 'x_local' in paramdata['general']: x_local = paramdata['general']['x_local']
+    else:                                 x_local = True
+
+    for geomftype in ['tracer_efit','miller','s_alpha','chease']:
+        if datext:
+           geomfpath = paramfpath[:-14]+geomftype+'.dat'
+        else:
+           paramind = paramfpath[-5:]
+           geomfpath = paramfpath[:-15]+geomftype+paramind
+        if os.path.isfile(geomfpath): break
+    params,geomdata = read_geometry(geomfpath=geomfpath)
+
+    if 'center_only' in setParam: center_only = setParam['center_only']
+    else:                         center_only = False
+
+    nx = paramdata['box']['nx0']
+    nz = paramdata['box']['nz0']
+    zgrid_even_center = npy.linspace(-1.,1.,nz,endpoint=False)
+
+    if   'gBfield' in geomdata: gBfield = geomdata['gBfield']
+    elif 'Bfield'  in geomdata: gBfield = geomdata['Bfield']
+
+    if   'gjacobian' in geomdata: gjacobian = geomdata['gjacobian']
+    elif 'jacobian'  in geomdata: gjacobian = geomdata['jacobian']
+
+    if center_only: ikx_grid = [0]
+    else:           ikx_grid = npy.arange(-nx//2+1,nx//2+1)
+
+    if not center_only:
+        if nx%2 == 1:
+           zgrid_even = npy.linspace(-nx,nx,nx*nz,endpoint=False)
+        else:
+           zgrid_even = npy.linspace(-(nx-1),(nx+1),nx*nz,endpoint=False)
+
+    if 'edge_opt' in paramdata['geometry']:
+       if 'edge_opt' in setParam: edge_opt = float(setParam['edge_opt'])
+       else:                      edge_opt = paramdata['geometry']['edge_opt'] 
+
+       zgrid_edge = npy.zeros(nx*nz,dtype='float128')
+       N = npy.arcsinh(edge_opt*zgrid_even_center[0]*npy.pi)/zgrid_even_center[0]/npy.pi
+       zgrid_edge_center = 1.0/edge_opt*npy.sinh(N*zgrid_even_center*npy.pi)/npy.pi
+
+       dz = npy.zeros(nz,dtype='float128')
+       for i in npy.arange(nz/2+1,nz):
+           dz[i] = zgrid_edge_center[i]-zgrid_edge_center[i-1]
+       for i in npy.arange(nz/2-1,-1,-1):
+           dz[i] = zgrid_edge_center[i+1]-zgrid_edge_center[i]
+
+       for i in ikx_grid:
+           zgrid_edge[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz] = i*2.0+zgrid_edge_center
+       if center_only: zgrid = zgrid_edge_center
+       else:           zgrid = zgrid_edge
+    else:
+       edge_opt = 0.0
+
+       if 'edge_opt' in paramdata['geometry'] and paramdata['geometry']['edge_opt'] != 0:
+           print('Warning:edge_opt ~= 0 code for zgrid is not ready.')
+       if center_only: zgrid = zgrid_even_center
+       else:           zgrid = zgrid_even
+       dz = np.ones(nz, dtype = 'float128')*2./nz
+
+    jacobian_center = 1.0/npy.pi/gjacobian/gBfield
+
+    if x_local:
+       if   not center_only:
+            jacobian = npy.zeros(nx*nz,dtype='float128')
+            for i in ikx_grid:
+                jacobian[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz] = jacobian_center
+       elif center_only:
+            jacobian = jacobian_center
+    else:
+            jacobian = jacobian_center
+
+    if 'plot' in setParam: plot = setParam['plot']
+    else:                  plot = False
+    if plot:
+        plt.plot(zgrid, label = 'zgrid')
+        plt.legend(loc=2)
+        plt.show()
+        plt.plot(jacobian, label = 'jacobian')
+        plt.legend(loc=2)
+        plt.show()
+
+    return zgrid,jacobian
+
+def get_kpar(paramfpath,fieldname='phi',setParam={}):
+    #Modified by Ehab Hassan on 2020-03-18
+    #Based on Xing work.
+    paramdata = read_parameters(paramfpath=paramfpath)
+    paramfpath = paramdata['filepath']
+    if 'dat' in paramfpath[-15:]: datext = True
+    else:                         datext = False
+
+    if 'x_local' in paramdata['general']: x_local = paramdata['general']['x_local']
+    else:                                 x_local = True
+
+    if 'center_only' in setParam: center_only = setParam['center_only']
+    else:                         center_only = False
+
+    if 'scale_field' in setParam: scale_field = setParam['scale_field']
+    else:                         scale_field = False
+
+    if datext:
+       fieldfpath = paramfpath[:-14]+'field.dat'
+    else:
+       paramind = paramfpath[-5:]
+       fieldfpath = paramfpath[:-15]+'field'+paramind
+
+    nx = paramdata['box']['nx0']
+    nz = paramdata['box']['nz0']
+
+    if x_local:
+       if center_only:
+          ikx_grid  = [0]
+          fielddata = read_field(fieldfpath=fieldfpath,fieldfmt='local-central')
+       else:
+          ikx_grid  = npy.arange(-nx/2+1,nx/2+1)
+          fielddata = read_field(fieldfpath=fieldfpath,fieldfmt='local-flatten')
+    else:
+          ikx_grid  = npy.arange(-nx/2+1,nx/2+1)
+          fielddata = read_field(fieldfpath=fieldfpath)
+
+    if 'zrange' in setParam:
+       zrng = setParam['zrange']
+       if   len(zrng)==1: zbgn = zrng[0]; zend=-1
+       elif len(zrng)==2: zbgn = zrng[0]; zend = zrng[1]
+    else:
+       zbgn = 0.95; zend = 0.95
+
+    zgrid,jacobian = get_zgrid(paramfpath=paramfpath,setParam={})
+
+    if fieldname=='phi': field = fielddata[fielddata.keys()[0]]['phi']
+    else:                field = fielddata[fielddata.keys()[0]]['Apar']
+
+    if scale_field:
+       field =field/npy.max(abs(field))
+
+   #print(npy.shape(field))
+   #print(npy.shape(jacobian))
+   #print(npy.size(zgrid))
+   #sys.exit()
+
+    if x_local:
+       dfielddz = npy.empty(npy.size(field),dtype='complex128')
+       for i in range(len(field)-1):
+           dfielddz[i] = (field[i+1]-field[i])/(zgrid[i+1]-zgrid[i])*jacobian[i]
+    else:
+       dfielddz = npy.empty((nx,nz),dtype='complex128')
+       for i in range(nx):
+           for j in range(nz):
+               dfielddz[i,j] = (field[i+1,0,j]-field[i,0,j])/(zgrid[i+1]-zgrid[i])*jacobian[i,j]
+
+    zbgn_ind = npy.argmin(abs(zgrid-zbgn))
+    zend_ind = npy.argmin(abs(zgrid-zend))
+
+    avgfdz  = 0.
+    avgf2dz = 0.
+    for i in range(zbgn_ind,zend_ind+1):
+        avgf2dz = avgf2dz + 0.5*(abs(dfielddz[i])**2+abs(dfielddz[i+1])**2)*(zgrid[i+1]-zgrid[i])/jacobian[i]
+        avgfdz  = avgfdz  + 0.5*(abs(field[i])**2+abs(field[i+1])**2)*(zgrid[i+1]-zgrid[i])/jacobian[i]
+    kpar = npy.sqrt(avgf2dz/avgfdz)
+
+    if 'plot' in setParam: plot = setParam['plot']
+    else:                  plot = False
+    if plot:
+        plt.plot(zgrid,npy.abs(dfielddz), label='abs d' +fieldname+'/dz')
+        plt.plot(zgrid,npy.real(dfielddz),label='real d'+fieldname+'/dz')
+        plt.plot(zgrid,npy.imag(dfielddz),label='imag d'+fieldname+'/dz')
+        plt.legend()
+        plt.xlabel('z')
+        plt.show()
+ 
+    return kpar
+
+
+def get_plasma_info(genefpath='',setParam={},timeslot=None):
+   #Developed by Ehab Hassan on 2020-04-14
+    if   'parameters' in genefpath:
+          paramflist = [genefpath]
+    elif 'nrg' in genefpath:
+         if 'dat' in genefpath[-4:]:
+            paramflist = [genefpath[:-7]+'parameters.dat']
+         else:
+            paramflist = [genefpath[:-8]+'parameters_'+genefpath[-4:]]
+    else:
+         if genefpath[-1] != "/": genefpath+="/"
+         paramflist = sorted(glob.glob(genefpath+'parameters_????'))
+         if paramflist == []:
+            paramflist = genefpath+'parameters.dat'
+
+    if 'dat' in paramflist[0][-4:]: datext = True
+    else:                           datext = False
+
+    mu0 = 4.0e-7*npy.pi
+
+    plasma_info = {}
+
+    for paramid in paramflist:
+        paramdata = read_parameters(paramfpath=paramid)
+
+        if datext: 
+                   nrgid   = paramid[:-14]+'nrg.dat'
+                   momeid  = paramid[:-14]+'mom_e.dat'
+                   momiid  = paramid[:-14]+'mom_i.dat'
+                   momzid  = paramid[:-14]+'mom_z.dat'
+                   fieldid = paramid[:-14]+'field.dat'
+        else:
+                   nrgid   = paramid[:-15]+'nrg'  +paramfpath[-5:]
+                   momeid  = paramid[:-15]+'mom_e'+paramfpath[-5:]
+                   momiid  = paramid[:-15]+'mom_i'+paramfpath[-5:]
+                   momzid  = paramid[:-15]+'mom_z'+paramfpath[-5:]
+                   fieldid = paramid[:-15]+'field'+paramfpath[-5:]
+
+        momedata  = read_mom(momfpath=momeid,specs='e',timeslot=timeslot)
+        momidata  = read_mom(momfpath=momiid,specs='i',timeslot=timeslot)
+        momzdata  = read_mom(momfpath=momzid,specs='z',timeslot=timeslot)
+
+        momtslot  = momedata[momeid]['t']
+
+        nrgdata   = read_nrg(nrgfpath=nrgid,timeslot=momtslot)
+        fielddata = read_field(fieldfpath=fieldid,timeslot=momtslot)
+
+        nrgtslot  = nrgdata[nrgid]['time']    
+        fieldtslot= fielddata[fieldid]['t']
+
+
+       #plasma_info['ky'] = paramdata['box']['kymin']
+       #plasma_info['n0'] = paramdata['box']['n0_global']
+
+       #print(nrgdata[nrgid]['e'].keys())
+
+       #mp = 1.6726e-27
+       #Mi = paramdata['units']['mref']/mp
+       #plasma_info['alfven_drift'] = paramdata['units']['Bref']/npy.sqrt(mu0*npy.sqrt(nrgdata[nrgid]['i']['n'])*Mi)
+       #plasma_info['diamag_freq'] = 
+
+    return plasma_info
+
+
+def main():
+    scanlist = []
+    for iscan in sys.argv[1:]:
+        scanlist.append(iscan)
+    merge_runs(runspathlist=scanlist,destination='./')
+    sys.exit()
+
+    fieldfname = sys.argv[1]
+    fieldpath  = os.path.abspath(fieldfname)
+    fielddata  = read_field(fieldfpath=fieldpath)
+    fieldinfo  = field_info(field=fielddata)
+    print(fieldinfo['Epar_Cancellation'])
+    sys.exit()
+
+    paramfname = sys.argv[1]
+    paramfpath = os.path.abspath(paramfname)
+    convert_extension(genefpath=paramfname,targetext='')
+    sys.exit()
+    kpar = get_kpar(paramfpath=paramfpath,setParam={'center_only':True,'scale_field':True,'plot':True})
+    print(kpar)
+    sys.exit()
+    plasmainfo = get_plasma_info(genefpath=paramfpath)
+    kperp,vcurv,gradB = get_kperp(paramfpath=paramfpath,setParam={'center_only':True})
+    zgrid,jacobian = get_zgrid(paramfpath=paramfpath,setParam={'center_only':False})
+    kpar = get_kpar(paramfpath=paramfpath,setParam={'center_only':False,'scale_field':True})
+    
+if __name__ == "__main__":
+    main()
+
+
+
+#def get_eigenfunctions(paramfpath,timeslot=-1,Normalize=True,setParam={}):
+#    #Modified by Ehab Hassan on 2020-03-18
+#    #following Xing work.
+#    paramdata = read_parameters(paramfpath=paramfpath)
+#    paramfpath = paramdata['filepath']
+#    if 'dat' in paramfpath[-15:]: datext = True
+#    else:                         datext = False
+#
+#    if 'center_only' in setParam: center_only = setParam['center_only']
+#    else:                         center_only = False
+#
+#    if 'smooth_field' in setParam: smooth_field = setParam['smooth_field']
+#    else:                          smooth_field = False
+#
+#    if datext:
+#       fieldfpath = paramfpath[:-14]+'field.dat'
+#    else:
+#       paramind = paramfpath[-5:]
+#       fieldfpath = paramfpath[:-15]+'field'+paramind
+#
+#    if center_only:
+#       ikx_grid  = [0]
+#       phi       = np.zeros(nz,dtype='complex128')
+#       apar      = np.zeros(nz,dtype='complex128')
+#       fielddata = read_field(fieldfpath=fieldfpath,Normalize=Normalize,fieldfmt='local-central')
+#    else:
+#       ikx_grid  = np.arange(-nx/2+1,nx/2+1)
+#       phi       = np.zeros(nx*nz,dtype='complex128')
+#       apar      = np.zeros(nx*nz,dtype='complex128')
+#       fielddata = read_field(fieldfpath=fieldfpath,Normalize=Normalize,fieldfmt='local-flatten')
+#
+#    nz = paramdata['box']['nz0']
+#    nx = paramdata['box']['nx0']
+#
+#    if 'n0_global' in paramdata['box']:
+#        phase_fac = -npy.e**(-2.0*npy.pi*(0.0+1.0J)*paramdata['box']['n0_global']*paramdata['geometry']['q0'])
+#    else:
+#        phase_fac = -1.0
+#
+#    if float(pars['shat']) > 0.:
+#        for i in ikx_grid:
+#            this_phi = field.phi()[:,0,i]*phase_fac**i
+#            phi[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz]=this_phi
+#            if int(pars['n_fields']) > 1 and float(pars['beta']) !=0:
+#                this_apar = field.apar()[:,0,i]*phase_fac**i
+#                apar[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz]=\
+#                                                                 this_apar
+#    else:
+#        for i in ikx_grid:
+#            this_phi = field.phi()[:,0,-i]*phase_fac**i
+#            phi[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz]=this_phi
+#            if pars['n_fields'] > 1 and pars['beta'] !=0:
+#                this_apar = field.apar()[:,0,-i]*phase_fac**i
+#                apar[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz]=this_apar
+#
+#    # Normalize phi and apar by highest value so that the peak abs val = 1
+#    if scale_field:
+#        phi = phi/np.max(abs(field.phi()[:,0,:]))
+#        if int(pars['n_fields']) > 1 and float(pars['beta']) !=0:
+#            apar = apar/np.max(abs(field.apar()[:,0,:]))
+#    if plot:
+#        if (timeslot == -1):
+#            figTitle='t = '+ str(field.tfld[setTime])
+#        else:
+#            figTitle='t = '+ str(field.tfld[isetTime])
+#        if center_only:
+#            figTitle = figTitle+' center only'
+#        else:
+#            figTitle = figTitle+' entire simulation domain'
+#        plt.plot(np.real(phi),label='Re(phi)')
+#        plt.plot(np.imag(phi),label='Im(phi)')
+#        plt.plot(abs(phi),label='abs(phi)')
+#        plt.title(figTitle)
+#        plt.legend()
+#        plt.show()
+#    if plot and fielddata['nfields']>1 and paramdata['geometry']['beta'] !=0:
+#        plt.plot(np.real(apar),label='Re(apar)')
+#        plt.plot(np.imag(apar),label='Im(apar)')
+#        plt.plot(abs(apar),label='abs(apar)')
+#        plt.title(figTitle)
+#        plt.legend()
+#        plt.show()
+#    return phi,apar
+
