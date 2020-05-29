@@ -222,10 +222,13 @@ for mode in modeorder:
                   saveomega = raw_input('Do you want to update omega file? (Yes/No) ').lower()
              if saveomega in ['yes','y']:
                 if aparFlag:
-                   if   sys.version_info[0] >=3:
-                        omegatype = input('Source?\n(1)Electric Potential,\n(2)Magnetic Potential.\nSelection:  ')
-                   elif sys.version_info[0] < 3:
-                        omegatype = input('Source?\n(1)Electric Potential,\n(2)Magnetic Potential.\nSelection:  ')
+                   while True:
+                         if   sys.version_info[0] >=3:
+                              omegatype = input('Source?\n(1)Electric Potential,\n(2)Magnetic Potential.\nSelection:  ')
+                         elif sys.version_info[0] < 3:
+                              omegatype = input('Source?\n(1)Electric Potential,\n(2)Magnetic Potential.\nSelection:  ')
+                         if omegatype not in [1,2]: continue
+                         else:                      break
                 else:
                    omegatype = 1
                 if saveomega in ['yes','y','no','n']: break
@@ -362,23 +365,16 @@ for mode in modeorder:
       #print(dBpar_over_dn[npy.unravel_index(npy.argmax(dBpar_over_dn),shape=npy.shape(dBpar_over_dn))])
       #print(dTperp_over_dn[npy.unravel_index(npy.argmax(dTperp_over_dn),shape=npy.shape(dTperp_over_dn))])
 
-       xgrid = fluctinfo[kyfluct]['xgrid']
-       zgrid = fluctinfo[kyfluct]['zgrid']
-       nz = npy.size(zgrid)
+      #xgrid = fluctinfo[kyfluct]['xgrid']
+      #zgrid = fluctinfo[kyfluct]['zgrid']
+      #nz = npy.size(zgrid)
 
-       print(npy.mean(dTpar_over_dn))
-       print(npy.mean(dTperp_over_dn))
-       print(npy.mean(dBpar_over_dn))
-       sys.exit()
-
-       (xgrid,zgrid) = npy.meshgrid(xgrid,zgrid)
-       fig = plt.figure("dTpar_over_dn")
-       ax1 = fig.add_subplot(1,1,1)
-       cntrplt = ax1.contourf(xgrid,zgrid,dTpar_over_dn)
-       fig.colorbar(cntrplt,ax=ax1)
-       plt.show()
-
-       
+      #(xgrid,zgrid) = npy.meshgrid(xgrid,zgrid)
+      #fig = plt.figure("dTpar_over_dn")
+      #ax1 = fig.add_subplot(1,1,1)
+      #cntrplt = ax1.contourf(xgrid,zgrid,dTpar_over_dn)
+      #fig.colorbar(cntrplt,ax=ax1)
+      #plt.show()      
 
     if fluxinfo:
        genepath = os.path.abspath('./')
@@ -416,7 +412,10 @@ for mode in modeorder:
           else:
              reportpath = genepath+"report/"
 
-          infofpath = reportpath+'gene_flux_info_%04d' % int(mode)
+          if mode in ['.dat','dat']:
+             infofpath = reportpath+'gene_mode_flux.dat'
+          else:
+             infofpath = reportpath+'gene_mode_flux_%04d' % int(mode)
           ofhand = open(infofpath,'w')
 
           ofhand.write("Mode Flux Info:\n")
@@ -471,7 +470,10 @@ for mode in modeorder:
           else:
              reportpath = genepath+"report/"
 
-          infofpath = reportpath+'gene_mode_info_%04d' % int(mode)
+          if mode in ['.dat','dat']:
+             infofpath = reportpath+'gene_mode_info.dat'
+          else:
+             infofpath = reportpath+'gene_mode_info_%04d' % int(mode)
           ofhand = open(infofpath,'w')
 
           ofhand.write("Mode General Info:\n")
