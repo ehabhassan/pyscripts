@@ -387,34 +387,6 @@ def get_mtm_frequency(iterdbfpath,eqdskfpath,imported={},setParam={}):
            mtm_frequency[n0]['select']['kymin'] = kymin
            mtm_frequency[n0]['select']['omega'] = omega
 
-          #Method 01:
-          #q_vals = mtm_frequency['qtor'][select_ind[0]:select_ind[-1]+1]
-          #m0vals = n0*q_vals
-          #q_rat_surf = []
-          #m0_rat_surf = []
-          #rho_rat_surf = []
-          #omega_rat_surf = []
-          #for iq in range(npy.size(m0vals)):
-          #    if round(m0vals[iq]) not in m0_rat_surf:
-          #       m0_rat_surf.append(round(m0vals[iq]))
-          #       ix = npy.argmin(abs(mtm_frequency['qtor']-q_vals[iq]))
-          #       q_rat_surf.append(mtm_frequency['qtor'][ix])
-          #       rho_rat_surf.append(rho[ix])
-          #       omega_rat_surf.append(omega[ix])
-
-          #Method 02:
-          #q_min  = npy.min(mtm_frequency['qtor'][select_ind[0]:select_ind[-1]+1])
-          #q_max  = npy.max(mtm_frequency['qtor'][select_ind[0]:select_ind[-1]+1])
-          #m_min  = npy.ceil(q_min*n0)
-          #m_max  = npy.floor(q_max*n0)
-          #if m_min>m_max:
-          #   q_rational_surfaces = npy.array([q_max])
-          #   m_nums = npy.array([int(q_rational_surfaces[0]*n0)])
-          #else:
-          #   m_nums = npy.arange(m_min,m_max+1)
-          #   q_rational_surfaces = m_nums/float(n0)
-
-          #Method 03:
            m0ceil = set([npy.ceil(jjj)  for jjj in n0*mtm_frequency['qtor'][select_ind[0]:select_ind[-1]+1]])
            m0flor = set([npy.floor(jjj) for jjj in n0*mtm_frequency['qtor'][select_ind[0]:select_ind[-1]+1]])
            m_nums = npy.array(list(m0flor.union(m0ceil)))
