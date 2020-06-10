@@ -14,7 +14,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 def main():
 
-    geompath    = "DIIID162940/tracer_efit.dat"
     eqdskpath   = "DIIID162940/DIIID162940.eqdsk"
     iterdbpath  = "DIIID162940/DIIID162940.iterdb"
 
@@ -29,9 +28,6 @@ def main():
    #toroidal mode numbers outside the given frequency range(s) will
    #also be plotted if there is any.
     plot_rejected = False
-
-    q_import = False
-    q_eqdsk  = True
 
     eqdskdata = cheasepy.read_eqdsk(eqdskfpath=eqdskpath)
 
@@ -53,30 +49,7 @@ def main():
    #Setup the a percentage from maximum diamagnetic frequency to match
     setParam.update({'omegapct':99.9})
 
-    if   q_import:
-         newrhotor = npy.linspace(eqdskdata['rhotor'][0],eqdskdata['rhotor'][-1],10*npy.size(eqdskdata['rhotor']))
-         newq      = npy.interp(newrhotor,eqdskdata['rhotor'],eqdskdata['q'])
-         
-         paramdata,geomdata  = genetools.read_geometry(geomfpath=geompath)
-         bgnid = npy.argmin(abs(newq-geomdata['q'][0]))
-         endid = npy.argmin(abs(newq-geomdata['q'][-1]))
-         geomdata['rhotor'] = npy.linspace(newrhotor[bgnid],newrhotor[endid],npy.size(geomdata['q']))
-         
-         modrhotor = newrhotor[:bgnid]
-         modrhotor = npy.append(modrhotor,geomdata['rhotor'])
-         modrhotor = npy.append(modrhotor,newrhotor[endid+1:])
-         
-         modq = newq[:bgnid]
-         modq = npy.append(modq,geomdata['q'])
-         modq = npy.append(modq,newq[endid+1:])
-
-         importeddata = {}
-         importeddata.update({'q':modq,'rhotor':modrhotor})
-
-         mtmfreq = get_mtm_frequency(iterdbfpath=iterdbpath,eqdskfpath=eqdskpath,imported=importeddata,setParam=setParam)
-
-    elif q_eqdsk:
-         mtmfreq = get_mtm_frequency(iterdbfpath=iterdbpath,eqdskfpath=eqdskpath,setParam=setParam)
+    mtmfreq = get_mtm_frequency(iterdbfpath=iterdbpath,eqdskfpath=eqdskpath,setParam=setParam)
 
 
     setparam = {'frequency':setParam['frequency']}
