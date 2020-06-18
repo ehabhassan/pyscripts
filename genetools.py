@@ -1188,8 +1188,13 @@ def field_info(field,param={}):
                   if i < nx/2:
                        apar1d[(nx/2-i-1)*nz:(nx/2-i)*nz]=apar[:,0,-(i+1)*shatsgn]*phase**(-(i+1))
 
-           phi  = phi1d/phi[nz/2,0,0]
-           apar = apar1d/apar[nz/2,0,0]
+         # phicentral = phi[nz/2,0,0]
+         # phi  = phi1d /phi[nz/2,0,0]
+         ##apar = apar1d/phicentral
+         # apar = apar1d/apar[nz/2,0,0]
+
+           phi  = phi1d.copy()
+           apar = apar1d.copy()
 
            field_info = {}
 
@@ -1215,9 +1220,11 @@ def field_info(field,param={}):
            omega_complex = (omegadata['omega']*(0.0+1.0J) + omegadata['gamma'])
            gradphi = fd_d1_o4(phi,zgrid)
            for j in range(int(param['box']['nx0'])):
-               gradphi[int(param['box']['nz0'])*j:int(param['box']['nz0'])*(j+1)] = gradphi[int(param['box']['nz0'])*j:int(param['box']['nz0'])*(j+1)]/jacxB[:]/npy.pi
+              #gradphi[param['box']['nz0']*j:param['box']['nz0']*(j+1)] = gradphi[param['box']['nz0']*j:param['box']['nz0']*(j+1)]/jacxB[:]/npy.pi
+               gradphi[param['box']['nz0']*j:param['box']['nz0']*(j+1)] /= (jacxB[:]*npy.pi)
+          #diff = npy.sum(npy.abs(-gradphi + omega_complex*apar))
            diff = npy.sum(npy.abs(gradphi + omega_complex*apar))
-           phi_cont = npy.sum(npy.abs(gradphi))
+           phi_cont  = npy.sum(npy.abs(gradphi))
            apar_cont = npy.sum(npy.abs(omega_complex*apar))
            field_info['Epar_Cancellation'] = diff/(phi_cont+apar_cont)
 
@@ -1976,7 +1983,7 @@ def fluct_info(genefpath,timeslot=None,setParam={}):
         fieldfpath = os.path.abspath(fieldid)
         if   not x_local:
              fielddata  = read_field(fieldfpath,timeslot=momedata[momeid]['t'])
-             kperp,vcurv,gradB = get_kperp(paramfpath=paramid)
+            #kperp,vcurv,gradB = get_kperp(paramfpath=paramid)
         elif local_flatten:
              fielddata  = read_field(fieldfpath,timeslot=momedata[momeid]['t'],fieldfmt = 'local-flatten')
              kperp,vcurv,gradB = get_kperp(paramfpath=paramid,setParam={'local_flatten':True})
@@ -1990,7 +1997,24 @@ def fluct_info(genefpath,timeslot=None,setParam={}):
            fluct_info[iky]['bpar']  = fielddata[fieldid]['bpar']
         if 'apar' in fielddata[fieldid]:
            fluct_info[iky]['apar']  = fielddata[fieldid]['apar']
-           fluct_info[iky]['bperp'] = kperp*fielddata[fieldid]['apar']
+           fluct_info[iky]['bperp'] = npy.zeros_like(fielddata[fieldid]['apar'])
+
+           if x_local:
+              fluct_info[iky]['bperp'][:,0,:] = kperp*fielddata[fieldid]['apar'][:,0,:]
+             #print(npy.shape(kperp))
+             #print(npy.shape(fielddata[fieldid]['apar']))
+             #print(npy.shape(fluct_info[iky]['bperp']))
+           else:
+             #dapardx = npy.zeros_like(fielddata[fieldid]['apar'])
+             #rdapardx = npy.zeros_like(fielddata[fieldid]['apar'])
+             #jdapardx = npy.zeros_like(fielddata[fieldid]['apar'])
+             #xgrid = npy.arange(paramdata['box']['nx0'])/float(paramdata['box']['nx0']-1)*paramdata['box']['lx_a']+paramdata['box']['x0']-paramdata['box']['lx_a']/2.0
+             #for kk in range(paramdata['box']['nz0']):
+             #    rdapardx[kk,0,:] = fd_d1_o4(npy.real(fielddata[fieldid]['apar'][kk,0,:]),xgrid)
+             #    jdapardx[kk,0,:] = fd_d1_o4(npy.imag(fielddata[fieldid]['apar'][kk,0,:]),xgrid)
+             #    dapardx[kk,0,:] = rdapardx[kk,0,:] + 1.0j*jdapardx[kk,0,:]
+             #fluct_info[iky]['bperp'][:,0,:] = -iky*fielddata[fieldid]['apar'][:,0,:]-dapardx[:,0,:]
+              fluct_info[iky]['bperp'][:,0,:] = -iky*fielddata[fieldid]['apar'][:,0,:]
 
         fluct_info[iky]['nx']       = fielddata[fieldid]['nx']
         fluct_info[iky]['ny']       = fielddata[fieldid]['ny']
@@ -2257,18 +2281,20 @@ def get_kperp(paramfpath,setParam={}):
     gamma2 = gxx*gyz-gxy*gxz
     gamma3 = gxy*gyz-gyy*gxz
 
-    Kx =-dBdy-gamma2/gamma1*dBdz
-    Ky = dBdx-gamma3/gamma1*dBdz
+    gradBx =-dBdy-gamma2/gamma1*dBdz
+    gradBy = dBdx-gamma3/gamma1*dBdz
 
     if geomftype == 's_alpha':
-        Kx = Kx/Bfield
-        Ky = Ky/Bfield
+        gradBx = gradBx/Bfield
+        gradBy = gradBy/Bfield
+
+    mu0 = 4.0e-7*npy.pi
 
     for i in ikx_grid:
         kx        = i*dkx+kx_center
         loc_kperp = npy.sqrt(gxx*kx**2+2.0*gxy*kx*ky+gyy*ky**2)
-        loc_gradB =-(Kx*kx+Ky*ky)/Bfield
-        loc_vcurv  = loc_gradB+ky*paramdata['geometry']['dpdx_pm']/Bfield**2/2.0
+        loc_gradB =-(gradBx*kx+gradBy*ky)/Bfield
+        loc_vcurv  = loc_gradB+ky*paramdata['geometry']['dpdx_pm']/Bfield**2/2.0/mu0
 
         if x_local:
            kperp[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz] = loc_kperp
@@ -2455,7 +2481,7 @@ def get_kpar(paramfpath,fieldname='phi',setParam={}):
     zgrid,jacobian = get_zgrid(paramfpath=paramfpath,setParam={})
 
     if fieldname=='phi': field = fielddata[fielddata.keys()[0]]['phi']
-    else:                field = fielddata[fielddata.keys()[0]]['Apar']
+    else:                field = fielddata[fielddata.keys()[0]]['apar']
 
     if scale_field:
        field =field/npy.max(abs(field))
