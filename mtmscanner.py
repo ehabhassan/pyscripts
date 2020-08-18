@@ -1,11 +1,14 @@
+import os
 import sys
+import mathtools
 import fusionfiles
 import fusionprofit
 
 import numpy                                    as npy
 import warnings                                 as warnings
 import matplotlib.pyplot                        as plt
-import matplotlib.backends.backend_pdf.PdfPages as PdfPages
+
+from matplotlib.backends.backend_pdf import PdfPages
 
 #eqdskpath   = "../../Discharges/Houshmandyar/g164880.04600"
 #iterdbpath  = "../../Discharges/Houshmandyar/DIIID_164880_4600.iterdb"
@@ -36,23 +39,38 @@ def main():
     setParam = {}
 
    #Setup a range of toroidal mode numbers to search for MTM over this range
-    setParam.update({'n0':(1,20)})
+    setParam.update({'n0':(1,12)})
    #setParam.update({'n0':(16,13,29)})
 
    #Setup a range or multiple ranges of frequencies from spectrogram
-    setParam.update({'frequency':(50.0e3,300.0e3)})
+    setParam.update({'frequency':(50.0e3,320.0e3)})
    #setParam.update({'frequency':((50.0e3,55.0e3),(85.0e3,105.0e3),(290.0e3,500.0e3))})
 
    #Setup the center of the location you're searching in
     setParam.update({'rhotor':0.975})
 
    #Setup the limits for the location you're searching in
-    setParam.update({'rholim':(0.950,0.990)})
+    setParam.update({'rholim':(0.850,0.990)})
 
    #Setup the a percentage from maximum diamagnetic frequency to match
-    setParam.update({'omegapct':90.0})
+    setParam.update({'omegapct':85.0})
 
     mtmfreq = get_mtm_frequency(iterdbfpath=iterdbpath,eqdskfpath=eqdskpath,setParam=setParam)
+
+    fhand = open("microtearing.info", "w")
+    fhand.write("n0 \t m0 \t kymin \t rho \t omega \n")
+    for ikey in list(mtmfreq.keys()):
+        if type(ikey) == int and 'select' in mtmfreq[ikey]:
+           for icounter in range(len(mtmfreq[ikey]['select']['omega_rat_surf'])):
+               omega = mtmfreq[ikey]['select']['omega_rat_surf'][icounter]
+               iratg = npy.argmin(npy.abs(mtmfreq[ikey]['select']['omega']-omega))
+               kymin = mtmfreq[ikey]['select']['kymin'][iratg]
+
+               rho   = mtmfreq[ikey]['select']['rho_rat_surf'][icounter]
+               n_num = ikey
+               m_num = int(mtmfreq[ikey]['select']['m0_rat_surf'][icounter])
+               fhand.write("%d \t %d \t %5.3f \t %5.3f \t %5.3f \n" % (n_num,m_num,kymin,rho,omega))
+    fhand.close()
 
     setparam = {'frequency':setParam['frequency']}
     pltparam = {}
@@ -75,7 +93,7 @@ def plot_mtm_frequency(mtm_frequency,setParam={},pltParam={}):
     eqdskdata  = fusionfiles.read_eqdsk(eqdskfpath=eqdskpath)
     iterdbdata = fusionfiles.read_iterdb(iterdbfpath=iterdbpath)
 
-    q_rhotor = interp(eqdskdata['PSIN'],eqdskdata['q'],iterdbdata['rhotor'])
+    q_rhotor = mathtools.interp(eqdskdata['PSIN'],eqdskdata['q'],iterdbdata['rhotor'])
 
     n0  = mtm_frequency.keys()
 
@@ -177,9 +195,13 @@ def plot_mtm_frequency(mtm_frequency,setParam={},pltParam={}):
                   for i in range(len(f0bgn)):
                       ax1.fill_between(mtm_frequency['rho'],f0bgn[i]*unity,f0end[i]*unity,color="orange",alpha=0.9)
 
-         fig.savefig('mtmscanner.png')
+        #fig.savefig('mtmscanner.png')
          mtmfreqfigs.savefig(fig)
+         ax1.clear()
+         ax2.clear()
+         fig.clear()
          plt.close(fig)
+
     elif individual:
          for in0 in n0:
              fig = plt.figure('mtmscanner',dpi=150)
@@ -232,8 +254,10 @@ def plot_mtm_frequency(mtm_frequency,setParam={},pltParam={}):
                       ax1.fill_between(mtm_frequency['rho'],f0bgn[i]*unity,f0end[i]*unity,color="orange",alpha=0.9)
 
              mtmfreqfigs.savefig(fig)
+             fig.clear()
+             ax1.clear()
+             ax2.clear()
              plt.close(fig)
-
 
     mtmfreqfigs.close()
 
@@ -328,9 +352,9 @@ def get_mtm_frequency(iterdbfpath,eqdskfpath,imported={},setParam={}):
 
     rho = iterdbdata['rhotor']
     if 'q' in imported:
-      q_rhotor = interp(imported['PSIN'],imported['q'],iterdbdata['rhotor'])
+      q_rhotor = mathtools.interp(imported['PSIN'],imported['q'],iterdbdata['rhotor'])
     else:
-      q_rhotor = interp(eqdskdata['rhotor'],eqdskdata['q'],iterdbdata['rhotor'])
+      q_rhotor = mathtools.interp(eqdskdata['rhotor'],eqdskdata['q'],iterdbdata['rhotor'])
 
     ped_mid_id = npy.argmin(abs(rho-ped_mid))     # Location of Pedestal Middle Point
     q0_ped_mid = q_rhotor[ped_mid_id]             # Value of q-profile at ped_mid
@@ -341,8 +365,8 @@ def get_mtm_frequency(iterdbfpath,eqdskfpath,imported={},setParam={}):
     fg_ped_mid = qe*Bref/mi                       # Value of Gyrofrequency
     rs_ped_mid = cs_ped_mid/fg_ped_mid            # Value of rho_s at ped_mid
 
-    TePrime = -fd_d1_o4(iterdbdata['Te'],rho)/iterdbdata['Te']
-    nePrime = -fd_d1_o4(iterdbdata['ne'],rho)/iterdbdata['ne']
+    TePrime = -mathtools.fd_d1_o4(iterdbdata['Te'],rho)/iterdbdata['Te']
+    nePrime = -mathtools.fd_d1_o4(iterdbdata['ne'],rho)/iterdbdata['ne']
 
     mtm_frequency = {}
 
