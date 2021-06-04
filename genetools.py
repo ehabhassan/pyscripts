@@ -19,9 +19,9 @@ from read_write_geometry import *
 from scipy.interpolate import interp1d
 
 
-if   sys.version_info[0] > 3:
+if   sys.version_info[0] >= 3:
      PYTHON3 = True; PYTHON2 = False
-elif sys.version_info[0] < 3:
+elif sys.version_info[0] <  3:
      PYTHON2 = True; PYTHON3 = False
 
 def convert_extension(genefpath,targetext=''):
@@ -231,7 +231,7 @@ def read_parameters(paramfpath):
                                  geneparam[pkey][skey]  = [geneparam[pkey][skey],int(items[1])]
                  elif "species" in pkey:
                       if skey not in skeys:
-                         if   skey in ['omn','omt','mass','temp','dens']:
+                         if   skey in ['omn','omt','mass','temp','dens','charge']:
                               geneparam[pkey][skey] = float(items[1])
                          elif skey in ['charge','prof_type']:
                               geneparam[pkey][skey] = int(items[1])
@@ -249,7 +249,7 @@ def read_parameters(paramfpath):
                          elif skey in ['name']:
                               geneparam[pkey][skey].append(items[1].strip()[1:-1])
                       else:
-                         if   skey in ['omn','omt','mass','temp','dens']:
+                         if   skey in ['omn','omt','mass','temp','dens','charge']:
                               if geneparam[pkey][skey] != float(items[1]):
                                  geneparam[pkey][skey] = [geneparam[pkey][skey],float(items[1])]
                          elif skey in ['charge','prof_type']:
@@ -662,6 +662,7 @@ def read_omega(omegafpath,calc_omega=True):
     kymin = []
     gamma = []
     omega = []
+
     for iomegaf in omegaflist:
         if not os.path.isfile(iomegaf):
            print('FATAL in read_omega:')
@@ -670,15 +671,6 @@ def read_omega(omegafpath,calc_omega=True):
         recvr = npy.genfromtxt(iomegaf)
         if   len(recvr) == 0 and calc_omega:
              recvr = [None,None,None]
-           # frequency = find_mode_frequency(fieldfpath=iomegaf,fraction=0.95,method='fast-mode')
-           # cky    = float(frequency[frequency.keys()[0]]['ky'])
-           # comega = float(frequency[frequency.keys()[0]]['omega_phi'])
-           # cgamma = float(frequency[frequency.keys()[0]]['gamma_phi'])
-           # recvr = [cky,cgamma,comega]
-           ##ofhand = open(iomegaf,'w')
-           ##ofhand.write('%7.3f %9.3f %9.3f\n' % (cky,cgamma,comega))
-           ##ofhand.close()
-           ##recvr = npy.genfromtxt(iomegaf)
         elif len(recvr) == 0:
              if   PYTHON3:
                   response = str(input('Do you want to calculate omega? (Y/N)'))
@@ -693,12 +685,17 @@ def read_omega(omegafpath,calc_omega=True):
            kymin.append(float(recvr[0]))
            gamma.append(float(recvr[1]))
            omega.append(float(recvr[2]))
+
         except TypeError:
            kymin.append(None)
            gamma.append(None)
            omega.append(None)
 
-    omegadata = {'kymin':npy.array(kymin),'gamma':npy.array(gamma),'omega':npy.array(omega)}
+    if len(omegaflist)>1:
+       omegadata = {'kymin':npy.array(kymin),'gamma':npy.array(gamma),'omega':npy.array(omega)}
+    else:
+       omegadata = {'kymin':kymin[0],'gamma':gamma[0],'omega':omega[0]}
+
     return omegadata 
 
 def omega_to_hz(genefpath,calc_omega=False):
@@ -726,18 +723,29 @@ def omega_to_hz(genefpath,calc_omega=False):
             iparamf = iomegaf[:-10]+'parameters'+iomegaf[-5:]
 
         paramdata = read_parameters(iparamf)
+        normvals  = units_conversion(parameters=paramdata)
         omegadata = read_omega(iomegaf,calc_omega=calc_omega)
 
-        Cs = npy.sqrt(paramdata['units']['Tref']*1000.0*1.602e-19/paramdata['units']['mref']/1.6726e-27)
-        omegaref = Cs/paramdata['units']['Lref']
+        cs       = normvals['cref']
+        Lref     = normvals['Lref']
+        omegaref = cs/Lref
 
-        kymin.append(omegadata['kymin'][omegaflist.index(iomegaf)])
-        if omegadata['omega'][omegaflist.index(iomegaf)] == None:
-           frequency.append(None)
-           growthrate.append(None)
+        if type(omegadata['kymin']) in [list,tuple]:
+           kymin.append(omegadata['kymin'][omegaflist.index(iomegaf)])
+           if omegadata['omega'][omegaflist.index(iomegaf)] == None:
+              frequency.append(None)
+              growthrate.append(None)
+           else:
+              frequency.append(omegadata['omega'][omegaflist.index(iomegaf)]*omegaref/2.0/npy.pi)
+              growthrate.append(omegadata['gamma'][omegaflist.index(iomegaf)])
         else:
-           frequency.append(omegadata['omega'][omegaflist.index(iomegaf)]*omegaref/2.0/npy.pi)
-           growthrate.append(omegadata['gamma'][omegaflist.index(iomegaf)])
+           kymin = omegadata['kymin']
+           if omegadata['omega'] == None:
+              frequency  = None
+              growthrate = None
+           else:
+              frequency  = omegadata['omega']*omegaref/2.0/npy.pi
+              growthrate = omegadata['gamma']*omegaref/2.0/npy.pi
 
     return kymin,frequency,growthrate
 
@@ -1026,14 +1034,14 @@ def read_field(fieldfpath,Normalized=True,timeslot=None,fieldfmt=None):
               shatsgn = int(npy.sign(float(pars['shat'])))
 
               for iy in range(ny):
-                for ix in range(nx/2):
-                  phi[(ix+nx/2)*nz:(ix+nx/2+1)*nz]=phi3d[:,iy,ix*shatsgn]*phase**ix
-                  if ix < nx/2:
-                     phi[(nx/2-ix-1)*nz:(nx/2-ix)*nz]=phi3d[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                for ix in range(nx//2):
+                  phi[(ix+nx//2)*nz:(ix+nx//2+1)*nz]=phi3d[:,iy,ix*shatsgn]*phase**ix
+                  if ix < nx//2:
+                     phi[(nx//2-ix-1)*nz:(nx//2-ix)*nz]=phi3d[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
                   if int(field.nfields)>1  and float(pars['beta'])!=0:
-                     apar[(ix+nx/2)*nz:(ix+nx/2+1)*nz]=apar3d[:,iy,ix*shatsgn]*phase**ix
-                     if ix < nx/2:
-                        apar[(nx/2-ix-1)*nz:(nx/2-ix)*nz]=apar3d[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                     apar[(ix+nx//2)*nz:(ix+nx//2+1)*nz]=apar3d[:,iy,ix*shatsgn]*phase**ix
+                     if ix < nx//2:
+                        apar[(nx//2-ix-1)*nz:(nx//2-ix)*nz]=apar3d[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
 
               fielddata[ifieldf]['t']       = field.tfld[t_ind]
               fielddata[ifieldf]['nx']      = field.nx
@@ -1179,19 +1187,14 @@ def field_info(field,param={}):
            apar1d = npy.zeros(nx*nz,dtype='complex128')
 
            shatsgn = int(npy.sign(param['geometry']['shat']))
-           for i in range(nx/2):
-               phi1d[(i+nx/2)*nz:(i+nx/2+1)*nz]=phi[:,0,i*shatsgn]*phase**i
-               if i < nx/2:
-                   phi1d[(nx/2-i-1)*nz:(nx/2-i)*nz]=phi[:,0,-(i+1)*shatsgn]*phase**(-(i+1))
+           for i in range(nx//2):
+               phi1d[(i+nx//2)*nz:(i+nx//2+1)*nz]=phi[:,0,i*shatsgn]*phase**i
+               if i < nx//2:
+                   phi1d[(nx//2-i-1)*nz:(nx//2-i)*nz]=phi[:,0,-(i+1)*shatsgn]*phase**(-(i+1))
                if int(nfields)>1:
-                  apar1d[(i+nx/2)*nz:(i+nx/2+1)*nz]=apar[:,0,i*shatsgn]*phase**i
+                  apar1d[(i+nx//2)*nz:(i+nx//2+1)*nz]=apar[:,0,i*shatsgn]*phase**i
                   if i < nx/2:
-                       apar1d[(nx/2-i-1)*nz:(nx/2-i)*nz]=apar[:,0,-(i+1)*shatsgn]*phase**(-(i+1))
-
-         # phicentral = phi[nz/2,0,0]
-         # phi  = phi1d /phi[nz/2,0,0]
-         ##apar = apar1d/phicentral
-         # apar = apar1d/apar[nz/2,0,0]
+                       apar1d[(nx//2-i-1)*nz:(nx//2-i)*nz]=apar[:,0,-(i+1)*shatsgn]*phase**(-(i+1))
 
            phi  = phi1d.copy()
            apar = apar1d.copy()
@@ -1220,9 +1223,7 @@ def field_info(field,param={}):
            omega_complex = (omegadata['omega']*(0.0+1.0J) + omegadata['gamma'])
            gradphi = fd_d1_o4(phi,zgrid)
            for j in range(int(param['box']['nx0'])):
-              #gradphi[param['box']['nz0']*j:param['box']['nz0']*(j+1)] = gradphi[param['box']['nz0']*j:param['box']['nz0']*(j+1)]/jacxB[:]/npy.pi
                gradphi[param['box']['nz0']*j:param['box']['nz0']*(j+1)] /= (jacxB[:]*npy.pi)
-          #diff = npy.sum(npy.abs(-gradphi + omega_complex*apar))
            diff = npy.sum(npy.abs(gradphi + omega_complex*apar))
            phi_cont  = npy.sum(npy.abs(gradphi))
            apar_cont = npy.sum(npy.abs(omega_complex*apar))
@@ -1245,9 +1246,9 @@ def field_info(field,param={}):
               kxgrid[0] = float(param['box']['kx_center'])
            else:
               kxgrid[0] = 0.0
-           for k in range(int(param['box']['nx0'])/2):
+           for k in range(int(param['box']['nx0'])//2):
               kxgrid[k+1] = kxgrid[0] + (k+1)*dkx
-           for k in range((int(param['box']['nx0'])-1)/2):
+           for k in range((int(param['box']['nx0'])-1)//2):
               kxgrid[-k-1] = kxgrid[0] - (k+1)*dkx
            kxavg = 0.0
            #Get eigenmode averaged |kx|
@@ -1479,14 +1480,14 @@ def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='fa
                   shatsgn = int(npy.sign(float(pars['shat'])))
 
                   for iy in range(ny):
-                    for ix in range(nx/2):
-                      phi[(ix+nx/2)*nz:(ix+nx/2+1)*nz]=field.phi()[:,iy,ix*shatsgn]*phase**ix
-                      if ix < nx/2:
-                         phi[(nx/2-ix-1)*nz:(nx/2-ix)*nz]=field.phi()[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                    for ix in range(nx//2):
+                      phi[(ix+nx//2)*nz:(ix+nx//2+1)*nz]=field.phi()[:,iy,ix*shatsgn]*phase**ix
+                      if ix < nx//2:
+                         phi[(nx//2-ix-1)*nz:(nx//2-ix)*nz]=field.phi()[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
                       if int(field.nfields)>1  and float(pars['beta'])!=0:
-                         apar[(ix+nx/2)*nz:(ix+nx/2+1)*nz]=field.apar()[:,iy,ix*shatsgn]*phase**ix
-                         if ix < nx/2:
-                            apar[(nx/2-ix-1)*nz:(nx/2-ix)*nz]=field.apar()[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                         apar[(ix+nx//2)*nz:(ix+nx//2+1)*nz]=field.apar()[:,iy,ix*shatsgn]*phase**ix
+                         if ix < nx//2:
+                            apar[(nx//2-ix-1)*nz:(nx//2-ix)*nz]=field.apar()[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
                 elif not x_local:
                   if 'field.dat' in ifieldf:
                      gpars,geometry = read_geometry_global(ifieldf[:-9]+pars['magn_geometry'][1:-1]+ifieldf[-4:])
@@ -1527,14 +1528,14 @@ def find_mode_frequency(fieldfpath,fraction=0.9,bgn_t=None,end_t=None,method='fa
                      apar = npy.zeros(nx*(nz+4),dtype='complex128')
 
                   for iy in range(ny):
-                    for ix in range(nx/2):
-                      phi[(ix+nx/2)*(nz+4):(ix+nx/2+1)*(nz+4)]=phix[:,iy,ix*shatsgn]*phase**ix
-                      if ix < nx/2:
-                         phi[(nx/2-ix-1)*(nz+4):(nx/2-ix)*(nz+4)]=phix[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                    for ix in range(nx//2):
+                      phi[(ix+nx//2)*(nz+4):(ix+nx//2+1)*(nz+4)]=phix[:,iy,ix*shatsgn]*phase**ix
+                      if ix < nx//2:
+                         phi[(nx//2-ix-1)*(nz+4):(nx//2-ix)*(nz+4)]=phix[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
                       if nfields>1  and float(pars['beta'])!=0:
-                         apar[(ix+nx/2)*nz:(ix+nx/2+1)*nz]=aparx[:,iy,ix*shatsgn]*phase**ix
-                         if ix < nx/2:
-                            apar[(nx/2-ix-1)*nz:(nx/2-ix)*nz]=aparx[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
+                         apar[(ix+nx//2)*nz:(ix+nx//2+1)*nz]=aparx[:,iy,ix*shatsgn]*phase**ix
+                         if ix < nx//2:
+                            apar[(nx//2-ix-1)*nz:(nx//2-ix)*nz]=aparx[:,iy,-(ix+1)*shatsgn]*phase**(-(ix+1))
 
                 phi_t.append(phi)
                 if nfields>1:
@@ -1717,7 +1718,10 @@ def mode_info(genefpath):
         paramdata = read_parameters(paramfpath)
         fieldinfo = field_info(fielddata,paramdata)
 
-        iky = omegadata['kymin'][imode]
+        if type(omegadata['kymin']) in [list,tuple,npy.ndarray]:
+           iky = omegadata['kymin'][imode]
+        else:
+           iky = omegadata['kymin']
         mode_info[iky] = {}
 
         mode_info[iky]['kymin'] = paramdata['box']['kymin']
@@ -1737,8 +1741,12 @@ def mode_info(genefpath):
              mode_info[iky]['n0_global'] = npy.nan
 
         if   omegadata:
-             mode_info[iky]['gamma'] = omegadata['gamma'][imode]
-             mode_info[iky]['omega'] = omegadata['omega'][imode]
+             if type(omegadata['kymin']) in [list,tuple,npy.ndarray]:
+                mode_info[iky]['gamma'] = omegadata['gamma'][imode]
+                mode_info[iky]['omega'] = omegadata['omega'][imode]
+             else:
+                mode_info[iky]['gamma'] = omegadata['gamma']
+                mode_info[iky]['omega'] = omegadata['omega']
         else:
              mode_info[iky]['gamma'] = npy.nan
              mode_info[iky]['omega'] = npy.nan
@@ -1773,7 +1781,10 @@ def mode_info(genefpath):
         else:
              mode_info[iky]['glabal_factor'] = npy.nan
 
-        inrgf  = nrgdata.keys()[0]
+        try:
+           inrgf  = nrgdata.keys()[0]
+        except TypeError:
+           inrgf  = list(nrgdata.keys())[0]
 
         if 'e' in nrgdata[inrgf]:
            mode_info[iky]['Qem/Qes']  = abs(nrgdata[inrgf]['e']['HFluxem'][-1])
@@ -1837,8 +1848,11 @@ def flux_info(genefpath,timeslot=None):
             nrgid = paramid[:-15]+'nrg_%04d' % int(paramid[-4:])
 
         nrgfpath = os.path.abspath(nrgid)
-        nrgdata = read_nrg(nrgfpath,timeslot=timeslot)
-        nrgid   = nrgdata.keys()[0]
+        nrgdata  = read_nrg(nrgfpath,timeslot=timeslot)
+        try:
+           nrgid = nrgdata.keys()[0]
+        except TypeError:
+           nrgid = list(nrgdata.keys())[0]
 
         flux_info[iky]={}
         for ispecs in range(paramdata['box']['n_spec']):
@@ -1950,6 +1964,8 @@ def fluct_info(genefpath,timeslot=None,setParam={}):
                     momedata  = read_mom(momefpath,specs='e',timeslot=timeslot,momfmt = 'local-flatten')
                elif local_central:
                     momedata  = read_mom(momefpath,specs='e',timeslot=timeslot,momfmt = 'local-central')
+               else:
+                    momedata  = read_mom(momifpath,specs='e',timeslot=timeslot,momfmt = 'original')
                momeid    = momedata.keys()[0]
                fluct_info[iky]['e']=momedata[momeid]
             if paramdata['species'+str(ispecs+1)]['name'] == 'i':
@@ -1962,6 +1978,8 @@ def fluct_info(genefpath,timeslot=None,setParam={}):
                     momidata  = read_mom(momifpath,specs='i',timeslot=timeslot,momfmt = 'local-flatten')
                elif local_central:
                     momidata  = read_mom(momifpath,specs='i',timeslot=timeslot,momfmt = 'local-central')
+               else:
+                    momidata  = read_mom(momifpath,specs='i',timeslot=timeslot,momfmt = 'original')
                momiid    = momidata.keys()[0]
                fluct_info[iky]['i']=momidata[momiid]
             if paramdata['species'+str(ispecs+1)]['name'] == 'z':
@@ -1974,6 +1992,8 @@ def fluct_info(genefpath,timeslot=None,setParam={}):
                     momzdata  = read_mom(momzfpath,specs='z',timeslot=timeslot,momfmt = 'local-flatten')
                elif local_central:
                     momzdata  = read_mom(momzfpath,specs='z',timeslot=timeslot,momfmt = 'local-central')
+               else:
+                    momzdata  = read_mom(momifpath,specs='z',timeslot=timeslot,momfmt = 'original')
                momzid    = momzdata.keys()[0]
                fluct_info[iky]['z']=momzdata[momzid]
 
@@ -1983,13 +2003,14 @@ def fluct_info(genefpath,timeslot=None,setParam={}):
         fieldfpath = os.path.abspath(fieldid)
         if   not x_local:
              fielddata  = read_field(fieldfpath,timeslot=momedata[momeid]['t'])
-            #kperp,vcurv,gradB = get_kperp(paramfpath=paramid)
         elif local_flatten:
              fielddata  = read_field(fieldfpath,timeslot=momedata[momeid]['t'],fieldfmt = 'local-flatten')
              kperp,vcurv,gradB = get_kperp(paramfpath=paramid,setParam={'local_flatten':True})
         elif local_central:
              fielddata  = read_field(fieldfpath,timeslot=momedata[momeid]['t'],fieldfmt = 'local-central')
              kperp,vcurv,gradB = get_kperp(paramfpath=paramid,setParam={'local_central':True})
+        else:
+             fielddata  = read_field(fieldfpath,timeslot=momedata[momeid]['t'],fieldfmt = 'original')
         fieldid    = fielddata.keys()[0]
 
 
@@ -1998,23 +2019,10 @@ def fluct_info(genefpath,timeslot=None,setParam={}):
         if 'apar' in fielddata[fieldid]:
            fluct_info[iky]['apar']  = fielddata[fieldid]['apar']
            fluct_info[iky]['bperp'] = npy.zeros_like(fielddata[fieldid]['apar'])
-
-           if x_local:
-              fluct_info[iky]['bperp'][:,0,:] = kperp*fielddata[fieldid]['apar'][:,0,:]
-             #print(npy.shape(kperp))
-             #print(npy.shape(fielddata[fieldid]['apar']))
-             #print(npy.shape(fluct_info[iky]['bperp']))
-           else:
-             #dapardx = npy.zeros_like(fielddata[fieldid]['apar'])
-             #rdapardx = npy.zeros_like(fielddata[fieldid]['apar'])
-             #jdapardx = npy.zeros_like(fielddata[fieldid]['apar'])
-             #xgrid = npy.arange(paramdata['box']['nx0'])/float(paramdata['box']['nx0']-1)*paramdata['box']['lx_a']+paramdata['box']['x0']-paramdata['box']['lx_a']/2.0
-             #for kk in range(paramdata['box']['nz0']):
-             #    rdapardx[kk,0,:] = fd_d1_o4(npy.real(fielddata[fieldid]['apar'][kk,0,:]),xgrid)
-             #    jdapardx[kk,0,:] = fd_d1_o4(npy.imag(fielddata[fieldid]['apar'][kk,0,:]),xgrid)
-             #    dapardx[kk,0,:] = rdapardx[kk,0,:] + 1.0j*jdapardx[kk,0,:]
-             #fluct_info[iky]['bperp'][:,0,:] = -iky*fielddata[fieldid]['apar'][:,0,:]-dapardx[:,0,:]
+           if fluct_info[iky]['bperp'].ndim == 3:
               fluct_info[iky]['bperp'][:,0,:] = -iky*fielddata[fieldid]['apar'][:,0,:]
+           else:
+              fluct_info[iky]['bperp'] = -iky*fielddata[fieldid]['apar']
 
         fluct_info[iky]['nx']       = fielddata[fieldid]['nx']
         fluct_info[iky]['ny']       = fielddata[fieldid]['ny']
@@ -2076,9 +2084,10 @@ def units_conversion(paramfpath='',parameters={}):
        units['Lref']       = parameters['units']['Lref']
        units['Bref']       = parameters['units']['Bref']
        units['Tref']       = parameters['units']['Tref']*1.60218e-19*1.0e3
-       units['mref']       = parameters['units']['mref']*1.6726e-27
 
        units['qref']       = 1.60218e-19
+       units['mref']       = parameters['units']['mref']*1.67262e-27
+
        units['vref']       = npy.sqrt(1.0*units['Tref']/units['mref'])
        units['cref']       = npy.sqrt(units['Tref']/units['mref'])
        units['gyrofreq']   = units['qref']*units['Bref']/units['mref']
@@ -2161,13 +2170,13 @@ def merge_runs(runspathlist,destination='./'):
                os.system('cp %s/mom_z_%04d %s/mom_z_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
         ntotalfiles += nlocalfiles
 
-    wfh = open('%s/scan.log' %destination,'w')
-    wfh.write('#Run  | kymin     1  /Eigenvalue1 \n')
-    nlocalfiles = len(glob.glob(destination+'/omega*'))
-    for ifile in range(1,nlocalfiles+1):
-        omega=read_omega('%s/omega_%04d' %(destination,ifile))
-        wfh.write("%04d | %12.6E | %6.4f %6.4f \n" %(ifile,omega['kymin'][0],omega['gamma'][0],omega['omega'][0]))
-    wfh.close()
+   #wfh = open('%s/scan.log' %destination,'w')
+   #wfh.write('#Run  | kymin     1  /Eigenvalue1 \n')
+   #nlocalfiles = len(glob.glob(destination+'/omega*'))
+   #for ifile in range(1,nlocalfiles+1):
+   #    omega=read_omega('%s/omega_%04d' %(destination,ifile))
+   #    wfh.write("%04d | %12.6E | %6.4f %6.4f \n" %(ifile,omega['kymin'][0],omega['gamma'][0],omega['omega'][0]))
+   #wfh.close()
 
     return ntotalfiles
 
@@ -2205,6 +2214,11 @@ def get_kperp(paramfpath,setParam={}):
     else:
        local_central = False
 
+    if 'local_flatten' in setParam:
+       local_flatten = setParam['local_flatten']
+    else:
+       local_flatten = False
+
     nx = paramdata['box']['nx0']
     if local_central: ikx_grid = [0]
     else:             ikx_grid = npy.arange(-nx//2+1,nx//2+1)
@@ -2222,37 +2236,18 @@ def get_kperp(paramfpath,setParam={}):
     else:                               shat = 1.0
     dkx = 2.0*npy.pi*shat*ky
 
-    if x_local:
-       if local_central:
-          kperp = np.zeros(nz,dtype='float128')
-          vcurv = np.zeros(nz,dtype='float128')
-          gradB = np.zeros(nz,dtype='float128')
-       else:
-          kperp = np.zeros(nx*nz,dtype='float128')
-          vcurv = np.zeros(nx*nz,dtype='float128')
-          gradB = np.zeros(nx*nz,dtype='float128')
+    if   x_local and local_central:
+         kperp = np.zeros(nz,dtype='float128')
+         vcurv = np.zeros(nz,dtype='float128')
+         gradB = np.zeros(nz,dtype='float128')
+    elif x_local and local_flatten:
+         kperp = np.zeros(nx*nz,dtype='float128')
+         vcurv = np.zeros(nx*nz,dtype='float128')
+         gradB = np.zeros(nx*nz,dtype='float128')
     else:
-          kperp = np.zeros((nx,nz),dtype='float128')
-          vcurv = np.zeros((nx,nz),dtype='float128')
-          gradB = np.zeros((nx,nz),dtype='float128')
-
-   #if x_local:
-   #   dpdx_tot = paramdata['general']['beta']*(paramdata['species1']['omn']+paramdata['species1']['omt'])
-   #   if 'species2' in paramdata:
-   #      dpdx_tot = dpdx_tot+paramdata['general']['beta']*(paramdata['species2']['omn']+paramdata['species2']['omt'])
-   #   if 'species3' in paramdata:
-   #      dpdx_tot = dpdx_tot+paramdata['general']['beta']*(paramdata['species3']['omn']+paramdata['species3']['omt'])
-   #else:
-   #   if datext:
-   #      profilefpath = paramfpath[:-14]+'profiles_%s.dat' % paramdata['species1']['name']
-   #   else:
-   #      profilefpath = paramfpath[:-15]+'profiles_%s'+paramind % paramdata['species1']['name']
-   #   profilesdata = read_profiles(profilesfpath=profilefpath)
-   #   dpdx_tot = paramdata['general']['beta']*(paramdata['species1']['omn']+paramdata['species1']['omt'])
-   #   if 'species2' in paramdata:
-   #      dpdx_tot = dpdx_tot+paramdata['general']['beta']*(paramdata['species2']['omn']+paramdata['species2']['omt'])
-   #   if 'species3' in paramdata:
-   #      dpdx_tot = dpdx_tot+paramdata['general']['beta']*(paramdata['species3']['omn']+paramdata['species3']['omt'])
+         kperp = np.zeros((nx,nz),dtype='float128')
+         vcurv = np.zeros((nx,nz),dtype='float128')
+         gradB = np.zeros((nx,nz),dtype='float128')
 
     if x_local:
        gxx    = geomdata['ggxx']
@@ -2281,8 +2276,8 @@ def get_kperp(paramfpath,setParam={}):
     gamma2 = gxx*gyz-gxy*gxz
     gamma3 = gxy*gyz-gyy*gxz
 
-    gradBx =-dBdy-gamma2/gamma1*dBdz
-    gradBy = dBdx-gamma3/gamma1*dBdz
+    gradBx =-dBdy-(gamma2/gamma1)*dBdz
+    gradBy = dBdx-(gamma3/gamma1)*dBdz
 
     if geomftype == 's_alpha':
         gradBx = gradBx/Bfield
@@ -2293,8 +2288,8 @@ def get_kperp(paramfpath,setParam={}):
     for i in ikx_grid:
         kx        = i*dkx+kx_center
         loc_kperp = npy.sqrt(gxx*kx**2+2.0*gxy*kx*ky+gyy*ky**2)
-        loc_gradB =-(gradBx*kx+gradBy*ky)/Bfield
-        loc_vcurv  = loc_gradB+ky*paramdata['geometry']['dpdx_pm']/Bfield**2/2.0/mu0
+        loc_gradB =-(kx*gradBx+ky*gradBy)/Bfield
+        loc_vcurv  = ky*paramdata['geometry']['dpdx_pm']/Bfield**2/2.0/mu0
 
         if x_local:
            kperp[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz] = loc_kperp
@@ -2311,7 +2306,8 @@ def get_kperp(paramfpath,setParam={}):
 
         z_grid    = npy.linspace(-1.,1.,nz,endpoint = False)
         Kx0       =-npy.sin(z_grid*npy.pi)/paramdata['geometry']['major_R']
-        Ky0       =-(npy.cos(z_grid*npy.pi)+npy.sin(z_grid*npy.pi)*(shat*z_grid*npy.pi-amhd*npy.sin(z_grid*npy.pi)))/paramdata['geometry']['major_R']
+        Ky0       =-(npy.cos(z_grid*npy.pi)+npy.sin(z_grid*npy.pi)*(shat*z_grid*npy.pi-amhd*npy.sin(z_grid*npy.pi)))
+        Ky0      /= paramdata['geometry']['major_R']
         omega_d0  =-(Kx0*kx_center+Ky0*ky)
         omega_d00 = omega_d0+amhd/paramdata['geometry']['q0']**2/paramdata['geometry']['major_R']/2.*ky/Bfield**2
         gxx0 = 1.0
@@ -2480,8 +2476,13 @@ def get_kpar(paramfpath,fieldname='phi',setParam={}):
 
     zgrid,jacobian = get_zgrid(paramfpath=paramfpath,setParam={})
 
-    if fieldname=='phi': field = fielddata[fielddata.keys()[0]]['phi']
-    else:                field = fielddata[fielddata.keys()[0]]['apar']
+    if   PYTHON3:
+         fieldfnID = list(fielddata.keys())[0]
+    elif PYTHON2:
+         fieldfnID = fielddata.keys()[0]
+
+    if fieldname=='phi': field = fielddata[fieldfnID]['phi']
+    else:                field = fielddata[fieldfnID]['apar']
 
     if scale_field:
        field =field/npy.max(abs(field))
@@ -2586,6 +2587,84 @@ def get_plasma_info(genefpath='',setParam={},timeslot=None):
        #plasma_info['diamag_freq'] = 
 
     return plasma_info
+
+
+def get_vAlfven(parampath='',parameters={},setParam={}):
+    if   parampath and not parameters:
+         parameters = read_parameters(paramfpath=parampath)
+    elif not parameters:
+         raise IOError('Parameters can not be retrieved from the inputs. EXIT!')
+         sys.exit()
+
+    mu0 = 4.0e-7*npy.pi
+
+    if 'e' in setParam and setParam['e'] == True: inc_e = True
+    else:                                         inc_e = False
+    if 'i' in setParam and setParam['i'] == True: inc_i = True
+    else:                                         inc_i = False
+    if 'z' in setParam and setParam['z'] == True: inc_z = True
+    else:                                         inc_z = False
+
+    normvals = units_conversion(parameters=parameters)
+
+    mi   = parameters['species1']['mass']*normvals['mref']
+    ni   = parameters['species1']['dens']*normvals['nref']
+    me   = parameters['species2']['mass']*normvals['mref']
+    ne   = parameters['species2']['dens']*normvals['nref']
+    mz   = parameters['species3']['mass']*normvals['mref']
+    nz   = parameters['species3']['dens']*normvals['nref']
+
+    Bref = parameters['units']['Bref']
+
+    if   inc_e and inc_i and inc_z:
+         vAlfven  = Bref/npy.sqrt(mu0*(ni*mi+ne*me+nz*mz))
+    elif inc_e and inc_i:
+         vAlfven  = Bref/npy.sqrt(mu0*(ni*mi+ne*me))
+    elif inc_i:
+         vAlfven  = Bref/npy.sqrt(mu0*(ni*mi))
+    elif inc_e:
+         vAlfven  = Bref/npy.sqrt(mu0*(ne*me))
+    elif inc_z:
+         vAlfven  = Bref/npy.sqrt(mu0*(nz*mz))
+    else:
+         vAlfven  = Bref/npy.sqrt(mu0*(ni*mi+ne*me+nz*mz))
+
+    return vAlfven
+
+
+def n0_to_ky(parampath='',parameters={},setParam={}):
+    if   parampath and not parameters:
+         parameters = read_parameters(paramfpath=parampath)
+    elif not parameters:
+         raise IOError('Parameters can not be retrieved from the inputs. EXIT!')
+         sys.exit()
+
+    if    'q'    in setParam:   q = setParam['q0']
+    elif  'q0'   in parameters: q = parameters['q0']
+    else: raise ValueError('q-profile not found. Exit!');    sys.exit()
+
+    if    'x'    in setParam:   x = setParam['x']
+    elif  'x0'   in parameters: x = parameters['x0']
+    else: raise ValueError('x-location not found. Exit!');   sys.exit()
+
+    if    'a'    in setParam:   a = setParam['a']
+    elif  'Lref' in parameters: a = parameters['Lref']
+    else: raise ValueError('minor radius not found. Exit!'); sys.exit()
+
+    if    'n'    in setParam:   n = setParam['n']
+    elif  'n0'   in parameters: n = parameters['n0']
+    else: raise ValueError('mode number not found. Exit!');  sys.exit()
+
+    if    'gyroR' in setParam:
+          gyroR = setParam['gyroradius']
+    elif  parameters:
+          normvals = units_conversion(parameters=parameters)
+          gyroR = normvals['gyroradius']
+    else: raise ValueError('gyro-radius not found. Exit!');  sys.exit()
+
+    ky = n*q*gyroR/a/x
+
+    return ky
 
 
 def main():
