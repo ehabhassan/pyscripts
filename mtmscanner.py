@@ -1,19 +1,23 @@
 import os
 import sys
+import mathtools
+import fusionfiles
+import fusionprofit
 
-import scipy             as spy
-import numpy             as npy
-import warnings          as warnings
-import cheasepy          as cheasepy
-import genetools         as genetools
-import matplotlib.pyplot as plt
+import numpy                                    as npy
+import warnings                                 as warnings
+import matplotlib.pyplot                        as plt
 
-from finite_differences import *
 from matplotlib.backends.backend_pdf import PdfPages
 
+#eqdskpath   = "../../Discharges/Houshmandyar/g164880.04600"
+#iterdbpath  = "../../Discharges/Houshmandyar/DIIID_164880_4600.iterdb"
 
-def main():
+eqdskpath   = "../../Discharges/Houshmandyar/g164900.04100"
+iterdbpath  = "../../Discharges/Houshmandyar/DIIID_164900_4100.iterdb"
 
+
+<<<<<<< HEAD
     eqdskpath   = "DIIID162940/DIIID162940.eqdsk"
     iterdbpath  = "/global/cscratch1/sd/ehab/ITERDB//DIIID162940.iterdb"
     iterdbdata  = cheasepy.read_iterdb(iterdbpath)
@@ -62,10 +66,31 @@ def main():
    #sys.exit()
 
     profilepath = "/global/cscratch1/sd/ehab/PROFILES/p164880.4600.0"
+=======
+def main():
+
+   #'collective' is used to plot the rational surfaces for all
+   #toroidal mode numbers in the same figure, however, 'individual'
+   #is used to plot the rational surface of each toroidal mode number
+   #in a separate figure.
+    collective = False
+    individual = True
+
+   #If 'plot_rejected' is set to True, the rational surfaces for the
+   #toroidal mode numbers outside the given frequency range(s) will
+   #also be plotted if there is any.
+    plot_rejected = True
+
+    q_import = False
+    q_eqdsk  = True
+
+    eqdskdata = fusionfiles.read_eqdsk(eqdskfpath=eqdskpath)
+>>>>>>> 7c0d900362339af9fc7ea7341e74170f46748f28
 
     setParam = {}
 
    #Setup a range of toroidal mode numbers to search for MTM over this range
+<<<<<<< HEAD
    #setParam.update({'n0':(2,6)})
     setParam.update({'n0':(1,30)})
 
@@ -73,19 +98,45 @@ def main():
    #setParam.update({'frequency':(1.0e3,550.0e3)})
    #setParam.update({'frequency':((50.0e3,55.0e3),(85.0e3,105.0e3),(290.0e3,500.0e3))})
     setParam.update({'frequency':((50.0e3,55.0e3),(85.0e3,105.0e3))})
+=======
+    setParam.update({'n0':(1,12)})
+   #setParam.update({'n0':(16,13,29)})
+
+   #Setup a range or multiple ranges of frequencies from spectrogram
+    setParam.update({'frequency':(50.0e3,320.0e3)})
+   #setParam.update({'frequency':((50.0e3,55.0e3),(85.0e3,105.0e3),(290.0e3,500.0e3))})
+>>>>>>> 7c0d900362339af9fc7ea7341e74170f46748f28
 
    #Setup the center of the location you're searching in
-    setParam.update({'rhotor':0.970})
+    setParam.update({'rhotor':0.975})
 
    #Setup the limits for the location you're searching in
-   #setParam.update({'rholim':(0.950,0.990)})
+    setParam.update({'rholim':(0.850,0.990)})
 
    #Setup the a percentage from maximum diamagnetic frequency to match
+<<<<<<< HEAD
     setParam.update({'omegapct':80.0})
+=======
+    setParam.update({'omegapct':85.0})
+>>>>>>> 7c0d900362339af9fc7ea7341e74170f46748f28
 
     mtmfreq = get_mtm_frequency(profilefpath=profilepath,eqdskfpath=eqdskpath,setParam=setParam)
    #mtmfreq = get_mtm_frequency(iterdbfpath=iterdbpath,eqdskfpath=eqdskpath,setParam=setParam)
 
+    fhand = open("microtearing.info", "w")
+    fhand.write("n0 \t m0 \t kymin \t rho \t omega \n")
+    for ikey in list(mtmfreq.keys()):
+        if type(ikey) == int and 'select' in mtmfreq[ikey]:
+           for icounter in range(len(mtmfreq[ikey]['select']['omega_rat_surf'])):
+               omega = mtmfreq[ikey]['select']['omega_rat_surf'][icounter]
+               iratg = npy.argmin(npy.abs(mtmfreq[ikey]['select']['omega']-omega))
+               kymin = mtmfreq[ikey]['select']['kymin'][iratg]
+
+               rho   = mtmfreq[ikey]['select']['rho_rat_surf'][icounter]
+               n_num = ikey
+               m_num = int(mtmfreq[ikey]['select']['m0_rat_surf'][icounter])
+               fhand.write("%d \t %d \t %5.3f \t %5.3f \t %5.3f \n" % (n_num,m_num,kymin,rho,omega))
+    fhand.close()
 
    #'collective' is used to plot the rational surfaces for all
    #toroidal mode numbers in the same figure, however, 'individual'
@@ -104,7 +155,8 @@ def main():
     if   individual:
          pltparam.update({'plot':'individual','rotation':'vertical'})
     elif collective:
-         pltparam.update({'plot':'collective','rotation':'horizontal'})
+         pltparam.update({'plot':'collective','rotation':'vertical'})
+        #pltparam.update({'plot':'collective','rotation':'horizontal'})
 
     if   plot_rejected:
          pltparam.update({'plot_rejected':plot_rejected})
@@ -116,13 +168,10 @@ def main():
 
 def plot_mtm_frequency(mtm_frequency,setParam={},pltParam={}):
 
-    eqdskpath   = "DIIID162940/DIIID162940.eqdsk"
-    eqdskdata = cheasepy.read_eqdsk(eqdskfpath=eqdskpath)
+    eqdskdata  = fusionfiles.read_eqdsk(eqdskfpath=eqdskpath)
+    iterdbdata = fusionfiles.read_iterdb(iterdbfpath=iterdbpath)
 
-    iterdbpath  = "DIIID162940/DIIID162940.iterdb"
-    iterdbdata = cheasepy.read_iterdb(iterdbfpath=iterdbpath)
-
-    q_rhotor = interp(eqdskdata['PSIN'],eqdskdata['q'],iterdbdata['rhotor'])
+    q_rhotor = mathtools.interp(eqdskdata['PSIN'],eqdskdata['q'],iterdbdata['rhotor'])
 
     n0  = mtm_frequency.keys()
 
@@ -174,16 +223,17 @@ def plot_mtm_frequency(mtm_frequency,setParam={},pltParam={}):
 
     mtmfreqfigs = PdfPages('MTM_Frequencies.pdf')
     if   collective:
-         fig, ax1 = plt.subplots()
+         fig = plt.figure('mtmscanner',dpi=150)
+         ax1 = fig.add_subplot(1,1,1)
          ax2 = ax1.twinx()
          red_color = 'tab:red'
          blu_color = 'tab:blue'
          grn_color = 'tab:green'
          for in0 in n0:
              if type(in0) == str: continue
-             ax1.set_xlabel('$\\rho_{\\phi}$')
-             ax1.set_ylabel('$f(\\rho_{\\phi}$) (kHz)', color=grn_color)
-             ax1.set_title('Rational Surfaces for Microtearing Modes')
+             ax1.set_xlabel('$\\rho_{\\phi}$',fontsize=14)
+             ax1.set_ylabel('$f(\\rho_{\\phi}$) (kHz)', color=grn_color,fontsize=14)
+             ax1.set_title('Rational Surfaces for Microtearing Modes',fontsize=16)
              ax1.tick_params(axis='y', labelcolor=grn_color)
              ax1.set_ylim((0.0,1.1*fmax/1.0e3))
              if   'select' in mtm_frequency[in0]:
@@ -211,22 +261,29 @@ def plot_mtm_frequency(mtm_frequency,setParam={},pltParam={}):
                       elif vertical:
                            ax1.text(mtm_frequency[in0]['reject']['rho_rat_surf'][ind],0.9*omega_max/1.0e3,linelabel,color=red_color,rotation=90.0)
 
-             ax2.set_ylabel('$q(\\rho_{\\phi})$', color=blu_color)
+             ax2.set_ylabel('$q(\\rho_{\\phi})$', color=blu_color,fontsize=14)
              ax2.plot(mtm_frequency['rho'], mtm_frequency['qtor'], color=blu_color)
              ax2.tick_params(axis='y', labelcolor=blu_color)
 
              unity = 0.001*npy.ones(npy.size(mtm_frequency['rho']))
-             if   type(f0bgn) == float and f0end <= omega_max:
+            #if   type(f0bgn) == float and f0end <= omega_max:
+             if   type(f0bgn) == float:
                       ax1.fill_between(mtm_frequency['rho'],f0bgn*unity,f0end*unity,color='orange',alpha=0.9)
              elif type(f0bgn) == list:
                   for i in range(len(f0bgn)):
                       ax1.fill_between(mtm_frequency['rho'],f0bgn[i]*unity,f0end[i]*unity,color="orange",alpha=0.9)
 
+        #fig.savefig('mtmscanner.png')
          mtmfreqfigs.savefig(fig)
+         ax1.clear()
+         ax2.clear()
+         fig.clear()
          plt.close(fig)
+
     elif individual:
          for in0 in n0:
-             fig, ax1 = plt.subplots()
+             fig = plt.figure('mtmscanner',dpi=150)
+             ax1 = fig.add_subplot(1,1,1)
              ax2 = ax1.twinx()
              red_color = 'tab:red'
              blu_color = 'tab:blue'
@@ -275,8 +332,10 @@ def plot_mtm_frequency(mtm_frequency,setParam={},pltParam={}):
                       ax1.fill_between(mtm_frequency['rho'],f0bgn[i]*unity,f0end[i]*unity,color="orange",alpha=0.9)
 
              mtmfreqfigs.savefig(fig)
+             fig.clear()
+             ax1.clear()
+             ax2.clear()
              plt.close(fig)
-
 
     mtmfreqfigs.close()
 
@@ -285,33 +344,52 @@ def plot_mtm_frequency(mtm_frequency,setParam={},pltParam={}):
 
 def get_mtm_frequency(iterdbfpath,eqdskfpath,imported={},setParam={}):
     if os.path.isfile(eqdskfpath):
-       eqdskdata  = cheasepy.read_eqdsk(eqdskfpath=eqdskfpath)
+       eqdskdata  = fusionfiles.read_eqdsk(eqdskfpath=eqdskfpath)
        eqdskfile  = True
     else:
        print("The path to the EQDSK file is INCORRECT!")
 
     if os.path.isfile(iterdbfpath):
        if 'rhotor' in setParam:
-          iterdbdata = cheasepy.read_iterdb(iterdbfpath=iterdbfpath)
+          iterdbdata = fusionfiles.read_iterdb(iterdbfpath=iterdbfpath)
           ped_mid = setParam['rhotor']
        else:
-          pedestalParam,iterdbdata = cheasepy.find_pedestal(profilefpath=iterdbfpath,profileftype='iterdb')
+          pedestalParam,iterdbdata = fusionprofit.find_pedestal(profilefpath=iterdbfpath,profileftype='iterdb')
           ped_mid = pedestalParam['Te']['ped_mid']
     else:
        print("The path to the ITERDB file is INCORRECT!")
 
     if 'n0' in setParam:
        if type(setParam['n0']) in [int,float,str]:
+<<<<<<< HEAD
           n0bgn = int(setParam['n0'])
           n0end = int(setParam['n0'])
+=======
+          n0bgn  = int(setParam['n0'])
+          n0end  = int(setParam['n0'])
+          nrange = range(n0bgn,n0end+1)
+>>>>>>> 7c0d900362339af9fc7ea7341e74170f46748f28
        else:
-          n0bgn = int(setParam['n0'][0])
-          n0end = int(setParam['n0'][1])
+          if   len(setParam['n0']) == 2:
+               n0bgn  = int(setParam['n0'][0])
+               n0end  = int(setParam['n0'][1])
+               nrange = range(n0bgn,n0end+1)
+          elif len(setParam['n0']) == 3:
+               n0bgn  = int(setParam['n0'][0])
+               n0stp  = int(setParam['n0'][1])
+               n0end  = int(setParam['n0'][2])
+               nrange = range(n0bgn,n0end+1,n0stp)
+          elif len(setParam['n0']) >= 4:
+               n0bgn  = int(setParam['n0'][0])
+               n0end  = int(setParam['n0'][-1])
+               nrange = []
+               for in0 in setParam['n0']:
+                   nrange.append(in0)
     else:
           n0bgn = 1
           n0end = 100
 
-
+               
     if 'frequency' in setParam:
        if type(setParam['frequency']) in [int,float,str]:
           f0bgn = float(setParam['frequency'])
@@ -345,20 +423,21 @@ def get_mtm_frequency(iterdbfpath,eqdskfpath,imported={},setParam={}):
     else:
           omegapct = 0.8
 
+
     qe   = 1.6022e-19
     me   = 9.1093e-31
     mp   = 1.6726e-27
     mref = 2.0
 
     mi   = mref*mp
-    Bref = eqdskdata['BCTR']
+    Bref = npy.abs(eqdskdata['BCTR'])
     Lref = npy.mean(npy.sqrt((eqdskdata['rbound']-eqdskdata['RCTR'])**2+(eqdskdata['zbound']-eqdskdata['ZMID'])**2))
 
     rho = iterdbdata['rhotor']
     if 'q' in imported:
-      q_rhotor = interp(imported['PSIN'],imported['q'],iterdbdata['rhotor'])
+      q_rhotor = mathtools.interp(imported['PSIN'],imported['q'],iterdbdata['rhotor'])
     else:
-      q_rhotor = interp(eqdskdata['rhotor'],eqdskdata['q'],iterdbdata['rhotor'])
+      q_rhotor = mathtools.interp(eqdskdata['rhotor'],eqdskdata['q'],iterdbdata['rhotor'])
 
     ped_mid_id = npy.argmin(abs(rho-ped_mid))     # Location of Pedestal Middle Point
     q0_ped_mid = q_rhotor[ped_mid_id]             # Value of q-profile at ped_mid
@@ -369,8 +448,8 @@ def get_mtm_frequency(iterdbfpath,eqdskfpath,imported={},setParam={}):
     fg_ped_mid = qe*Bref/mi                       # Value of Gyrofrequency
     rs_ped_mid = cs_ped_mid/fg_ped_mid            # Value of rho_s at ped_mid
 
-    TePrime = -fd_d1_o4(iterdbdata['Te'],rho)/iterdbdata['Te']
-    nePrime = -fd_d1_o4(iterdbdata['ne'],rho)/iterdbdata['ne']
+    TePrime = -mathtools.fd_d1_o4(iterdbdata['Te'],rho)/iterdbdata['Te']
+    nePrime = -mathtools.fd_d1_o4(iterdbdata['ne'],rho)/iterdbdata['ne']
 
     mtm_frequency = {}
 
@@ -387,11 +466,24 @@ def get_mtm_frequency(iterdbfpath,eqdskfpath,imported={},setParam={}):
 
     mtm_frequency['rho']  = iterdbdata['rhotor'][bgnid:endid]
     mtm_frequency['qtor'] = q_rhotor[bgnid:endid]
+<<<<<<< HEAD
     for n0 in range(n0bgn,n0end+1):
         rs        = npy.sqrt(qe*iterdbdata['Te'][bgnid:endid]/mi)/(qe*Bref/mi)
         kymin     = (n0*q_rhotor[bgnid:endid]*rs)/(Lref*iterdbdata['rhotor'][bgnid:endid])
 
         omegastar    = kymin*(TePrime[bgnid:endid]+nePrime[bgnid:endid])
+=======
+    
+   #for n0 in range(n0bgn,n0end+1):
+    for n0 in nrange:
+        rs        = npy.sqrt(qe*iterdbdata['Te'][bgnid:endid]/mi)/(qe*Bref/mi)
+        kymin     = (n0*q_rhotor[bgnid:endid]*rs)/(Lref*iterdbdata['rhotor'][bgnid:endid])
+
+       #omegastar    = kymin*npy.sqrt(iterdbdata['Te'][bgnid:endid]/iterdbdata['Te'][ped_mid_id])*TePrime[bgnid:endid]
+       #omegastar   += kymin*npy.sqrt(iterdbdata['ne'][bgnid:endid]/iterdbdata['ne'][ped_mid_id])*nePrime[bgnid:endid]
+        omegastar    = kymin*TePrime[bgnid:endid]
+        omegastar   += kymin*nePrime[bgnid:endid]
+>>>>>>> 7c0d900362339af9fc7ea7341e74170f46748f28
         omegagyro    = npy.sqrt(qe*iterdbdata['Te'][bgnid:endid]/mp/mref)/Lref
         omegaMTM     = omegastar*omegagyro/2.0/npy.pi
         omegaDoppler = iterdbdata['Vrot'][bgnid:endid]*n0/2.0/npy.pi
@@ -431,6 +523,34 @@ def get_mtm_frequency(iterdbfpath,eqdskfpath,imported={},setParam={}):
            mtm_frequency[n0]['select']['omega'] = omega
            mtm_frequency[n0]['select']['omegastar'] = omegastar
 
+          #Method 01:
+          #q_vals = mtm_frequency['qtor'][select_ind[0]:select_ind[-1]+1]
+          #m0vals = n0*q_vals
+          #q_rat_surf = []
+          #m0_rat_surf = []
+          #rho_rat_surf = []
+          #omega_rat_surf = []
+          #for iq in range(npy.size(m0vals)):
+          #    if round(m0vals[iq]) not in m0_rat_surf:
+          #       m0_rat_surf.append(round(m0vals[iq]))
+          #       ix = npy.argmin(abs(mtm_frequency['qtor']-q_vals[iq]))
+          #       q_rat_surf.append(mtm_frequency['qtor'][ix])
+          #       rho_rat_surf.append(rho[ix])
+          #       omega_rat_surf.append(omega[ix])
+
+          #Method 02:
+          #q_min  = npy.min(mtm_frequency['qtor'][select_ind[0]:select_ind[-1]+1])
+          #q_max  = npy.max(mtm_frequency['qtor'][select_ind[0]:select_ind[-1]+1])
+          #m_min  = npy.ceil(q_min*n0)
+          #m_max  = npy.floor(q_max*n0)
+          #if m_min>m_max:
+          #   q_rational_surfaces = npy.array([q_max])
+          #   m_nums = npy.array([int(q_rational_surfaces[0]*n0)])
+          #else:
+          #   m_nums = npy.arange(m_min,m_max+1)
+          #   q_rational_surfaces = m_nums/float(n0)
+
+          #Method 03:
            m0ceil = set([npy.ceil(jjj)  for jjj in n0*mtm_frequency['qtor'][select_ind[0]:select_ind[-1]+1]])
            m0flor = set([npy.floor(jjj) for jjj in n0*mtm_frequency['qtor'][select_ind[0]:select_ind[-1]+1]])
            m_nums = npy.array(list(m0flor.union(m0ceil)))

@@ -43,7 +43,10 @@ def str2bool(vin):
 
 def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={}):
    #Developed by Ehab Hassan on 2019-07-22
-    inrgf=nrgdata.keys()[0]
+    if type(nrgdata.keys()) in [list,tuple]:
+       inrgf=nrgdata.keys()[0]
+    else:
+       inrgf=list(nrgdata.keys())[0]
     if    inrgf[-3:] == 'dat': inrgfpath = inrgf[:-7]
     else:                      inrgfpath = inrgf[:-8]
 
@@ -77,7 +80,10 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
          siunits = False
 
     time      = nrgdata[inrgf]['time']
-    specstype = nrgdata[inrgf].keys()
+    if type(nrgdata[inrgf].keys()) in [list,tuple]:
+       specstype = nrgdata[inrgf].keys()
+    else:
+       specstype = list(nrgdata[inrgf].keys())
     specstype.remove('time')
 
     for inrgf in nrgdata:
@@ -103,6 +109,8 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                 geomfpath  = "%ss_alpha%s" %(isimfpath,inrgfext)
            elif parameters['geometry']['magn_geometry'] == 'chease':
                 geomfpath  = "%schease%s" %(isimfpath,inrgfext)
+           elif parameters['geometry']['magn_geometry'] == 'gene':
+                geomfpath  = "%sgene%s" %(isimfpath,inrgfext)
            area = genetools.calculate_surface_area(parameters=parameters,geometry=geomfpath)
 
         time = npy.array(nrgdata[inrgf]['time'])
@@ -117,36 +125,47 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
         end_t_ind = npy.argmin(abs(npy.array(time)-end_t))
         ntimes    = end_t_ind-bgn_t_ind+1
 
+        if mergeplots:
+           fig = plt.figure("plot_"+inrgfpath)
+
         for ispecs in specstype:
             dens     = nrgdata[inrgf][ispecs]['n']
-            nfig     = plt.figure('n-'+inrgfpath)
-            axhand01 = nfig.add_subplot(1,1,1)
+           #nfig     = plt.figure('n-'+inrgfpath)
+           #axhand01 = nfig.add_subplot(1,1,1)
+            axhand01 = fig.add_subplot(3,2,1)
             axhand01.plot(time[bgn_t_ind:end_t_ind+1],dens[bgn_t_ind:end_t_ind+1],label=ispecs)
-            axhand01.set_title('n%s' %(titletxt))
-            axhand01.set_xlabel('Time ($c_s/a)$')
             axhand01.set_ylabel('Density')
-            axhand01.legend()
+           #axhand01.set_title('n%s' %(titletxt))
+           #axhand01.set_xlabel('Time ($c_s/a)$')
+           #axhand01.legend()
+            axhand01.set_xticks([])
 
             upara    = nrgdata[inrgf][ispecs]['upara']
-            uparafig = plt.figure('upara-'+inrgfpath)
-            axhand02 = uparafig.add_subplot(1,1,1)
+           #uparafig = plt.figure('upara-'+inrgfpath)
+           #axhand02 = uparafig.add_subplot(1,1,1)
+            axhand02 = fig.add_subplot(3,2,2)
             axhand02.plot(time[bgn_t_ind:end_t_ind+1],upara[bgn_t_ind:end_t_ind+1],label=ispecs)
-            axhand02.set_title('$U_{||}%s$' %(titletxt))
-            axhand02.set_xlabel('Time ($c_s/a)$')
             axhand02.set_ylabel('Parallel Velocity')
-            axhand02.legend()
+           #axhand02.set_title('$U_{||}%s$' %(titletxt))
+           #axhand02.set_xlabel('Time ($c_s/a)$')
+           #axhand02.legend()
+            axhand02.set_xticks([])
+            axhand02.yaxis.tick_right()
+            axhand02.yaxis.set_label_position("right")
 
             if mergeplots:
                Tpara    = nrgdata[inrgf][ispecs]['Tpara']
                Tperp    = nrgdata[inrgf][ispecs]['Tperp']
-               Tfig     = plt.figure('T-'+inrgfpath)
-               axhand03 = Tfig.add_subplot(1,1,1)
+              #Tfig     = plt.figure('T-'+inrgfpath)
+              #axhand03 = Tfig.add_subplot(1,1,1)
+               axhand03 = fig.add_subplot(3,2,3)
                axhand03.plot(time[bgn_t_ind:end_t_ind+1],Tpara[bgn_t_ind:end_t_ind+1],linestyle='-', label='$T_{\\parallel,%s}$' % ispecs)
                axhand03.plot(time[bgn_t_ind:end_t_ind+1],Tperp[bgn_t_ind:end_t_ind+1],linestyle='--',label='$T_{\\perp,%s}$' % ispecs)
-               axhand03.set_title('$T_{\\parallel,\\perp}%s$' %(titletxt))
-               axhand03.set_xlabel('Time ($c_s/a)$')
                axhand03.set_ylabel('Temperature')
-               axhand03.legend()
+              #axhand03.set_title('$T_{\\parallel,\\perp}%s$' %(titletxt))
+              #axhand03.set_xlabel('Time ($c_s/a)$')
+              #axhand03.legend()
+               axhand03.set_xticks([])
             else:
                Tpara    = nrgdata[inrgf][ispecs]['Tpara']
                Tparafig = plt.figure('Tpara-'+inrgfpath)
@@ -169,8 +188,9 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                axhand03.legend()
 
             if mergeplots:
-               PFluxfig = plt.figure('PFlux-'+inrgfpath)
-               axhand04 = PFluxfig.add_subplot(1,1,1)
+              #PFluxfig = plt.figure('PFlux-'+inrgfpath)
+              #axhand04 = PFluxfig.add_subplot(1,1,1)
+               axhand04 = fig.add_subplot(3,2,4)
                if siunits:
                   PFluxes = nrgdata[inrgf][ispecs]['PFluxes']*area
                   PFluxem = nrgdata[inrgf][ispecs]['PFluxem']*area
@@ -185,9 +205,12 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                else:
                   axhand04.plot(time[bgn_t_ind:end_t_ind+1],PFluxes[bgn_t_ind:end_t_ind+1],linestyle='-',label='$\\Gamma_{es,%s}$=%7.5e' % (ispecs,PFluxes[-1]))
                   axhand04.plot(time[bgn_t_ind:end_t_ind+1],PFluxem[bgn_t_ind:end_t_ind+1],linestyle=':',label='$\\Gamma_{em,%s}$=%7.5e' % (ispecs,PFluxem[-1]))
-               axhand04.set_title('$\\Gamma_{es,em}%s$' %(titletxt))
-               axhand04.set_xlabel('Time ($c_s/a)$')
-               axhand04.legend()
+              #axhand04.set_title('$\\Gamma_{es,em}%s$' %(titletxt))
+              #axhand04.set_xlabel('Time ($c_s/a)$')
+              #axhand04.legend()
+               axhand04.set_xticks([])
+               axhand04.yaxis.tick_right()
+               axhand04.yaxis.set_label_position("right")
             else:
                PFluxesfig = plt.figure('PFluxes-'+inrgfpath)
                axhand04 = PFluxesfig.add_subplot(1,1,1)
@@ -224,8 +247,9 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                axhand04.legend()
 
             if mergeplots:
-               HFluxfig = plt.figure('HFlux-'+inrgfpath)
-               axhand05 = HFluxfig.add_subplot(1,1,1)
+              #HFluxfig = plt.figure('HFlux-'+inrgfpath)
+              #axhand05 = HFluxfig.add_subplot(1,1,1)
+               axhand05 = fig.add_subplot(3,2,5)
                if siunits:
                   HFluxes = nrgdata[inrgf][ispecs]['HFluxes']*area
                   HFluxes/= 1.0e6
@@ -242,9 +266,9 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                else:
                   axhand05.plot(time[bgn_t_ind:end_t_ind+1],HFluxes[bgn_t_ind:end_t_ind+1],linestyle='-',label='$Q_{es,%s}$=%7.5e' % (ispecs,HFluxes[-1]))
                   axhand05.plot(time[bgn_t_ind:end_t_ind+1],HFluxem[bgn_t_ind:end_t_ind+1],linestyle=':',label='$Q_{em,%s}$=%7.5e' % (ispecs,HFluxem[-1]))
-               axhand05.set_title('$Q_{es,em}%s$' %(titletxt))
-               axhand05.set_xlabel('Time ($c_s/a)$')
-               axhand05.legend()
+              #axhand05.set_title('$Q_{es,em}%s$' %(titletxt))
+              #axhand05.set_xlabel('Time ($c_s/a)$')
+              #axhand05.legend()
             else:
                HFluxesfig = plt.figure('HFluxes-'+inrgfpath)
                axhand05 = HFluxesfig.add_subplot(1,1,1)
@@ -283,8 +307,9 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                axhand05.legend()
 
             if mergeplots:
-               Viscosfig = plt.figure('Viscos-'+inrgfpath)
-               axhand06 = Viscosfig.add_subplot(1,1,1)
+              #Viscosfig = plt.figure('Viscos-'+inrgfpath)
+              #axhand06 = Viscosfig.add_subplot(1,1,1)
+               axhand06 = fig.add_subplot(3,2,6)
                if siunits:
                   Viscoses = nrgdata[inrgf][ispecs]['Viscoses']*area
                   Viscosem = nrgdata[inrgf][ispecs]['Viscosem']*area
@@ -299,9 +324,11 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
                else:
                   axhand06.plot(time[bgn_t_ind:end_t_ind+1],Viscoses[bgn_t_ind:end_t_ind+1],linestyle='-',label='$\\Pi_{es,%s}$=%7.5e' % (ispecs,Viscoses[-1]))
                   axhand06.plot(time[bgn_t_ind:end_t_ind+1],Viscosem[bgn_t_ind:end_t_ind+1],linestyle=':',label='$\\Pi_{em,%s}$=%7.5e' % (ispecs,Viscosem[-1]))
-               axhand06.set_title('$\\Pi_{es,em}%s$' %(titletxt))
-               axhand06.set_xlabel('Time ($c_s/a)$')
-               axhand06.legend()
+              #axhand06.set_title('$\\Pi_{es,em}%s$' %(titletxt))
+              #axhand06.set_xlabel('Time ($c_s/a)$')
+              #axhand06.legend()
+               axhand06.yaxis.tick_right()
+               axhand06.yaxis.set_label_position("right")
             else:
                Viscosesfig = plt.figure('Viscoses-'+inrgfpath)
                axhand06 = Viscosesfig.add_subplot(1,1,1)
@@ -346,6 +373,13 @@ def plot_nrg(nrgdata,reportpath='',bgn_t=None,end_t=None,fraction=0.9,setParam={
            axhand06.set_yscale('symlog')
 
         if display: plt.show()
+
+        if mergeplots:
+           fig.tight_layout()
+           fig.subplots_adjust(wspace=0,hspace=0)
+           fig.savefig(reportpath+'plot_%s.png' % (inrgfpath))
+           plt.close(fig)
+           return
 
         figlist = []
 
@@ -766,7 +800,10 @@ def plot_mom(mom,param={},reportpath=''):
 
 def plot_field(field,param={},reportpath='',setParam={}):
    #Developed by Ehab Hassan on 2019-03-14
-    ifieldf=field.keys()[0]
+    if type(field.keys()) in [list,tuple]:
+       ifieldf=field.keys()[0]
+    else:
+       ifieldf=list(field.keys())[0]
     if    ifieldf[-3:] == 'dat': ifieldfpath = ifieldf[:-9]
     else:                        ifieldfpath = ifieldf[:-10]
     if ifieldfpath[-1] != '/':   ifieldfpath+= "/"
@@ -822,14 +859,14 @@ def plot_field(field,param={},reportpath='',setParam={}):
                phase = -1.0
 
            shatsgn = int(npy.sign(param['geometry']['shat']))
-           for i in range(nx/2):
-               phi1d[(i+nx/2)*nz:(i+nx/2+1)*nz]=phi[:,0,i*shatsgn]*phase**i
+           for i in range(nx//2):
+               phi1d[(i+nx//2)*nz:(i+nx//2+1)*nz]=phi[:,0,i*shatsgn]*phase**i
                if i < nx/2:
-                   phi1d[(nx/2-i-1)*nz:(nx/2-i)*nz]=phi[:,0,-(i+1)*shatsgn]*phase**(-(i+1))
+                   phi1d[(nx//2-i-1)*nz:(nx//2-i)*nz]=phi[:,0,-(i+1)*shatsgn]*phase**(-(i+1))
                if int(nfields)>1:
-                  apar1d[(i+nx/2)*nz:(i+nx/2+1)*nz]=apar[:,0,i*shatsgn]*phase**i
+                  apar1d[(i+nx//2)*nz:(i+nx//2+1)*nz]=apar[:,0,i*shatsgn]*phase**i
                   if i < nx/2:
-                       apar1d[(nx/2-i-1)*nz:(nx/2-i)*nz]=apar[:,0,-(i+1)*shatsgn]*phase**(-(i+1))
+                       apar1d[(nx//2-i-1)*nz:(nx//2-i)*nz]=apar[:,0,-(i+1)*shatsgn]*phase**(-(i+1))
 
            if 'n0_global' in param['box']:
               nphi = param['box']['n0_global']
@@ -837,13 +874,17 @@ def plot_field(field,param={},reportpath='',setParam={}):
               nphi = 0
 
            if nfields>1:
-              phi1d  = phi1d/phi[nz/2,0,0]
-              apar1d = apar1d/apar[nz/2,0,0]
+            # phi1d  = phi1d/phi[nz//2,0,0]
+            # apar1d = apar1d/apar[nz//2,0,0]
+              phi1d  = phi1d
+              apar1d = apar1d
            else:
-              phi1d  = phi1d/phi[nz/2,0,0]
+            # phi1d  = phi1d/phi[nz//2,0,0]
+              phi1d  = phi1d
 
            phinds = (abs(phi1d)>=1.0e-4)
-           PHIfig = plt.figure('Phi_'+ifieldf[-4:])
+          #phinds = range(len(phi1d))
+           PHIfig = plt.figure('Phi_'+ifieldf[-4:],figsize=(8,6))
            axhand = PHIfig.add_subplot(1,1,1)
            axhand.plot(zgrid[phinds],npy.real(phi1d[phinds]),color='red',label=r'$Re[\phi]$')
            axhand.plot(zgrid[phinds],npy.imag(phi1d[phinds]),color='blue',label=r'$Im[\phi]$')
@@ -857,6 +898,7 @@ def plot_field(field,param={},reportpath='',setParam={}):
 
            if nfields>1:
               aparinds = (abs(apar1d)>=1.0e-4)
+             #aparinds = range(len(apar1d))
               APARfig = plt.figure('Apar_'+ifieldf[-4:])
               axhand = APARfig.add_subplot(1,1,1)
               axhand.plot(zgrid[aparinds],npy.real(apar1d[aparinds]),color='red',label=r'$Re[A_{||}]$')
@@ -875,8 +917,10 @@ def plot_field(field,param={},reportpath='',setParam={}):
                  omegafpath = ifieldf[:-10]+'omega'+ifieldf[-5:]
 
               if os.path.isfile(omegafpath):
-                  om = np.genfromtxt(omegafpath)
-              omega_complex = (om[2]*(0.0+1.0J) + om[1])
+                 om = np.genfromtxt(omegafpath)
+                 omega_complex = (om[2]*(0.0+1.0J) + om[1])
+              else:
+                 omega_complex = 0+0j
 
           #   #Note:  the complex frequency is (gamma + i*omega)
               if 'dat' in ifieldf:
@@ -1088,8 +1132,6 @@ def plot_field(field,param={},reportpath='',setParam={}):
               else:
                  prof_file = param['geometry']['geomdir'][:-5]+'PROFILES/'+param['geometry']['geomfile'][:-5]+'Profiles'
                  geom_file = param['geometry']['geomdir']+'/'+param['geometry']['geomfile']
-              print(geom_file)
-              print(prof_file)
               if os.path.isfile(prof_file) and os.path.isfile(geom_file):
                  profs,units = efittools.read_profiles_file(prof_file,setParam={'rhotor':param['box']['nx0'],'eqdskfpath':geom_file})
               else:

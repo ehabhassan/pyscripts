@@ -2048,7 +2048,7 @@ def fluct_info(genefpath,timeslot=None,setParam={}):
     return fluct_info
 
 
-def calc_tau(psi,profilepath='',iterdbpath=''):
+def calc_tau(psi=None,profilepath='',iterdbpath='',parampath=''):
    #Developed by Ehab Hassan on 2019-03-27
     if   profilepath:
          profiles,units = efittools.read_profiles_file(profilepath)
@@ -2067,6 +2067,60 @@ def calc_tau(psi,profilepath='',iterdbpath=''):
          return taupsi(psi),Zeffpsi(psi)
     elif iterdbpath:
          iterdbdata = read_iterdb.read_iterdb(iterdbpath)
+    elif parampath:
+         paramdata = read_parameters(parampath)
+         if 'species1' in paramdata and 'species2' in paramdata and 'species3' in paramdata:
+            if   'e' == paramdata['species1']['name']:
+                   Te = paramdata['species1']['temp']
+                   ne = paramdata['species1']['dens']
+                   me = paramdata['species1']['mass']
+                   qe = paramdata['species1']['charge']
+            elif 'i' == paramdata['species1']['name']:
+                   Ti = paramdata['species1']['temp']
+                   ni = paramdata['species1']['dens']
+                   mi = paramdata['species1']['mass']
+                   qi = paramdata['species1']['charge']
+            elif 'z' == paramdata['species1']['name']:
+                   Tz = paramdata['species1']['temp']
+                   nz = paramdata['species1']['dens']
+                   mz = paramdata['species1']['mass']
+                   qz = paramdata['species1']['charge']
+            if   'e' == paramdata['species2']['name']:
+                   Te = paramdata['species2']['temp']
+                   ne = paramdata['species2']['dens']
+                   me = paramdata['species2']['mass']
+                   qe = paramdata['species2']['charge']
+            elif 'i' == paramdata['species2']['name']:
+                   Ti = paramdata['species2']['temp']
+                   ni = paramdata['species2']['dens']
+                   mi = paramdata['species2']['mass']
+                   qi = paramdata['species2']['charge']
+            elif 'z' == paramdata['species2']['name']:
+                   Tz = paramdata['species2']['temp']
+                   nz = paramdata['species2']['dens']
+                   mz = paramdata['species2']['mass']
+                   qz = paramdata['species2']['charge']
+            if   'e' == paramdata['species3']['name']:
+                   Te = paramdata['species3']['temp']
+                   ne = paramdata['species3']['dens']
+                   me = paramdata['species3']['mass']
+                   qe = paramdata['species3']['charge']
+            elif 'i' == paramdata['species3']['name']:
+                   Ti = paramdata['species3']['temp']
+                   ni = paramdata['species3']['dens']
+                   mi = paramdata['species3']['mass']
+                   qi = paramdata['species3']['charge']
+            elif 'z' == paramdata['species3']['name']:
+                   Tz = paramdata['species3']['temp']
+                   nz = paramdata['species3']['dens']
+                   mz = paramdata['species3']['mass']
+                   qz = paramdata['species3']['charge']
+            Zeff = (qi**2*ni + qz**2*nz)/ne
+            tau  = Zeff*(Te/Ti)
+         else:
+             Zeff = 1.0
+             tau  = 1.0
+         return tau,Zeff
     else:
          print('No Valid Input')
          return 0

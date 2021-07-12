@@ -9,6 +9,11 @@ import h5py
 import traceback
 import subprocess
 
+
+import mathtools
+import fusionfiles
+import fusionprofit
+
 import numpy             as npy
 import statsmodels.api   as sm
 import matplotlib.pyplot as plt
@@ -77,7 +82,7 @@ def current_correction(chease,expeq={},setParam={}):
              # METHOD 03 #
              #############
              #eqdskpath   = 'shots/CASE2_20190509/CASE2_20190509_EQDSK'
-             #eqdskdata   = read_eqdsk(eqdskfpath=eqdskpath)
+             #eqdskdata   = fusionfiles.read_eqdsk(eqdskfpath=eqdskpath)
              #cheasefiles = sorted(glob('chease_iter???.h5'))
              #cheasedata  = read_chease(cheasefpath=cheasefiles[-1],eqdsk=eqdskpath)
              #qratio      = cheasedata['q']/eqdskdata['q']
@@ -158,397 +163,6 @@ def pressure_correction(chease,expeq={},setParam={}):
 
     return correction
 
-def fit_profile(rhotor,in_profile,method='stefanikova',setParam={},fitParam={},fitBounds={}):
-    global profile
-
-    if 'alpha'      in fitParam and fitParam['alpha'] != None:
-       global set_alpha;      set_alpha      = fitParam['alpha']
-    if 'ped_sol'    in fitParam and fitParam['ped_sol'] != None:
-       global set_ped_sol;    set_ped_sol    = fitParam['ped_sol']
-    if 'ped_mid'    in fitParam and fitParam['ped_mid'] != None:
-       global set_ped_mid;    set_ped_mid    = fitParam['ped_mid']
-    if 'ped_width'  in fitParam and fitParam['ped_width'] != None:
-       global set_ped_width;  set_ped_width  = fitParam['ped_width']
-    if 'ped_height' in fitParam and fitParam['ped_height'] != None:
-       global set_ped_height; set_ped_height = fitParam['ped_height']
-    if 'cor_exp'    in fitParam and fitParam['cor_exp'] != None:
-       global set_cor_exp;    set_cor_exp    = fitParam['cor_exp']
-    if 'cor_width'  in fitParam and fitParam['cor_width'] != None:
-       global set_cor_width;  set_cor_width  = fitParam['cor_width']
-    if 'cor_height' in fitParam and fitParam['cor_height'] != None:
-       global set_cor_height; set_cor_height = fitParam['cor_height']
-
-
-    if   method.lower()=='stefanikova':
-         lw_bound = [-npy.inf for i in range(8)]
-         up_bound = [ npy.inf for i in range(8)]
-    elif method.lower()=='groebner':
-         lw_bound = [-npy.inf for i in range(5)]
-         up_bound = [ npy.inf for i in range(5)]
-
-    if 'alpha'      in fitBounds and fitBounds['alpha'] != None:
-       if type(fitBounds['alpha']) in [list,tuple]:
-          lw_bound[0] = fitBounds['alpha'][0]
-          up_bound[0] = fitBounds['alpha'][1]
-       else:
-          lw_bound[0] = fitBounds['alpha']
-    if 'ped_sol'    in fitBounds and fitBounds['ped_sol'] != None:
-       if type(fitBounds['ped_sol']) in [list,tuple]:
-          lw_bound[1] = fitBounds['ped_sol'][0]
-          up_bound[1] = fitBounds['ped_sol'][1]
-       else:
-          lw_bound[1] = fitBounds['ped_sol']
-    if 'ped_mid'    in fitBounds and fitBounds['ped_mid'] != None:
-       if type(fitBounds['ped_mid']) in [list,tuple]:
-          lw_bound[2] = fitBounds['ped_mid'][0]
-          up_bound[2] = fitBounds['ped_mid'][1]
-       else:
-          lw_bound[2] = fitBounds['ped_mid']
-    if 'ped_width'  in fitBounds and fitBounds['ped_width'] != None:
-       if type(fitBounds['ped_width']) in [list,tuple]:
-          lw_bound[3] = fitBounds['ped_width'][0]
-          up_bound[3] = fitBounds['ped_width'][1]
-       else:
-          lw_bound[3] = fitBounds['ped_width']
-    if 'ped_height' in fitBounds and fitBounds['ped_height'] != None:
-       if type(fitBounds['ped_height']) in [list,tuple]:
-          lw_bound[4] = fitBounds['ped_height'][0]
-          up_bound[4] = fitBounds['ped_height'][1]
-       else:
-          lw_bound[4] = fitBounds['ped_height']
-    if 'cor_exp'    in fitBounds and fitBounds['cor_exp'] != None:
-       if type(fitBounds['cor_exp']) in [list,tuple]:
-          lw_bound[5] = fitBounds['cor_exp'][0]
-          up_bound[5] = fitBounds['cor_exp'][1]
-       else:
-          lw_bound[5] = fitBounds['cor_exp']
-    if 'cor_width'  in fitBounds and fitBounds['cor_width'] != None:
-       if type(fitBounds['cor_width']) in [list,tuple]:
-          lw_bound[6] = fitBounds['cor_width'][0]
-          up_bound[6] = fitBounds['cor_width'][1]
-       else:
-          lw_bound[6] = fitBounds['cor_width']
-    if 'cor_height' in fitBounds and fitBounds['cor_height'] != None:
-       if type(fitBounds['cor_height']) in [list,tuple]:
-          lw_bound[7] = fitBounds['cor_height'][0]
-          up_bound[7] = fitBounds['cor_height'][1]
-       else:
-          lw_bound[7] = fitBounds['cor_height']
-    fit_bounds=(lw_bound,up_bound)
-
-
-    if 'Normalize' in setParam:
-       Normalize = setParam['Normalize']
-    else:
-       Normalize = False
-
-    if 'fit_plot' in setParam:
-       fit_plot = setParam['fit_plot']
-    else:
-       fit_plot = True
-
-    if Normalize:
-       fmin    = npy.min(in_profile)
-       fmax    = npy.max(in_profile)
-    else:
-       fmin    = 0.0
-       fmax    = 1.0
-
-    profile = (in_profile-fmin)/(fmax-fmin)
-    if 'set_ped_sol'    in globals(): set_ped_sol    = (set_ped_sol-fmin)/(fmax-fmin)
-    if 'set_ped_height' in globals(): set_ped_height = (set_ped_height-fmin)/(fmax-fmin)
-    if 'set_cor_height' in globals(): set_cor_height = (set_cor_height-fmin)/(fmax-fmin)
-
-    if   method.lower()=='stefanikova':
-         try:
-            popt,pcov = curve_fit(stefanikova_fit,rhotor,profile,bounds=fit_bounds)
-         except RuntimeError:
-            result = [npy.nan for i in range(8)]
-            popt,pcov = (result,npy.nan)
-
-         fit_parameters               = {}
-         if 'set_alpha'      in globals(): fit_parameters['alpha']      = set_alpah
-         else:                             fit_parameters['alpha']      = popt[0]
-         if 'set_ped_height' in globals(): fit_parameters['ped_height'] = (fmax-fmin)*set_ped_height+fmin
-         else:                             fit_parameters['ped_height'] = (fmax-fmin)*popt[1]+fmin
-         if 'set_ped_sol'    in globals(): fit_parameters['ped_sol']    = (fmax-fmin)*set_ped_sol+fmin
-         else:                             fit_parameters['ped_sol']    = (fmax-fmin)*popt[2]+fmin
-         if 'set_ped_width'  in globals(): fit_parameters['ped_width']  = set_ped_width
-         else:                             fit_parameters['ped_width']  = popt[3]
-         if 'set_ped_mid'    in globals(): fit_parameters['ped_mid']    = set_ped_mid
-         else:                             fit_parameters['ped_mid']    = popt[4]
-         if 'set_cor_exp'    in globals(): fit_parameters['cor_exp']    = set_cor_exp
-         else:                             fit_parameters['cor_exp']    = popt[5]
-         if 'set_cor_width'  in globals(): fit_parameters['cor_width']  = set_cor_width
-         else:                             fit_parameters['cor_width']  = popt[6]
-         if 'set_cor_height' in globals(): fit_parameters['cor_height'] = (fmax-fmin)*set_cor_height+fmin
-         else:                            fit_parameters['cor_height'] = (fmax-fmin)*popt[7]+fmin
-
-         if fit_plot:
-            plt.plot(rhotor,stefanikova_fit(rhotor,*popt),'r',label='CRVFIT')
-            plt.plot(rhotor,profile,'b--',label='EXP')
-            plt.legend()
-            plt.show()
-            plt.close()
-
-    elif method.lower()=='groebner':
-         try:
-            popt,pcov = curve_fit(groebner_fit,rhotor,profile,bounds=fit_bounds)
-         except RuntimeError:
-            result = [npy.nan for i in range(5)]
-            popt,pcov = (result,npy.nan)
-
-         fit_parameters               = {}
-         if 'set_alpha'      in globals(): fit_parameters['alpha']      = set_alpah
-         else:                             fit_parameters['alpha']      = popt[0]
-         if 'set_ped_height' in globals(): fit_parameters['ped_height'] = (fmax-fmin)*set_ped_height+fmin
-         else:                             fit_parameters['ped_height'] = (fmax-fmin)*popt[1]+fmin
-         if 'set_ped_sol'    in globals(): fit_parameters['ped_sol']    = (fmax-fmin)*set_ped_sol+fmin
-         else:                             fit_parameters['ped_sol']    = (fmax-fmin)*popt[2]+fmin
-         if 'set_ped_width'  in globals(): fit_parameters['ped_width']  = set_ped_width
-         else:                             fit_parameters['ped_width']  = popt[3]
-         if 'set_ped_mid'    in globals(): fit_parameters['ped_mid']    = set_ped_mid
-         else:                             fit_parameters['ped_mid']    = popt[4]
-
-         if fit_plot:
-            plt.plot(rhotor,groebner_fit(rhotor,*popt),'r',label='CRVFIT')
-            plt.plot(rhotor,profile,'b--',label='EXP')
-            plt.legend()
-            plt.show()
-            plt.close()
-
-    if 'set_alpha'      in globals(): del set_alpha
-    if 'set_ped_sol'    in globals(): del set_ped_sol
-    if 'set_ped_mid'    in globals(): del set_ped_mid
-    if 'set_ped_width'  in globals(): del set_ped_width
-    if 'set_ped_height' in globals(): del set_ped_height
-    if 'set_cor_exp'    in globals(): del set_cor_exp
-    if 'set_cor_width'  in globals(): del set_cor_width
-    if 'set_cor_height' in globals(): del set_cor_height
-
-    return fit_parameters
-
-
-def stefanikova_fit(rho,alpha,ped_height,ped_sol,ped_width,ped_mid,cor_exp,cor_width,cor_height):
-    profileFlag=False
-    if  'profile' in locals() or 'profile' in globals():
-        f = profile[:]
-        profileFlag=True
-    else:
-        print("No profile in the locals() or globals()?")
-        sys.exit()
-
-    if 'set_alpha'      in globals(): alpha      = set_alpha
-    if 'set_ped_sol'    in globals(): ped_sol    = set_ped_sol
-    if 'set_ped_mid'    in globals(): ped_mid    = set_ped_mid
-    if 'set_ped_width'  in globals(): ped_width  = set_ped_width
-    if 'set_ped_height' in globals(): ped_height = set_ped_height
-    if 'set_cor_exp'    in globals(): cor_exp    = set_cor_exp
-    if 'set_cor_width'  in globals(): cor_width  = set_cor_width
-    if 'set_cor_height' in globals(): cor_height = set_cor_height
-
-    arg       = 2.0*(ped_mid-rho)/ped_width
-    mtanh     = ((1.0+alpha*arg)*npy.exp(arg)-npy.exp(-arg))/(npy.exp(arg)+npy.exp(-arg))
-    fprof_ped = ((ped_height-ped_sol)*(mtanh+1.0)/2.0)+ped_sol
-    fprof_cor = (cor_height-fprof_ped)*npy.exp(-npy.power(rho/cor_width,cor_exp))
-    fprof_ful = fprof_cor+fprof_ped
-
-    return fprof_ful
-
-def groebner_fit(rho,alpha,ped_height,ped_sol,ped_width,ped_mid):
-    profileFlag=False; refprofFlag=False
-    if  'profile' in locals() or 'profile' in globals():
-        f = profile[:]
-        profileFlag=True
-    else:
-        print("No profile in the locals() or globals()?")
-        sys.exit()
-
-    if 'set_alpha'      in globals(): alpha      = set_alpha
-    if 'set_ped_sol'    in globals(): ped_sol    = set_ped_sol
-    if 'set_ped_mid'    in globals(): ped_mid    = set_ped_mid
-    if 'set_ped_width'  in globals(): ped_width  = set_ped_width
-    if 'set_ped_height' in globals(): ped_height = set_ped_height
-
-    A = (ped_height-ped_sol)/2.0
-    B = (ped_height+ped_sol)/2.0
-
-    arg       = 2.0*(ped_mid-rho)/ped_width
-    mtanh     = ((1.0+alpha*arg)*npy.exp(arg)-npy.exp(-arg))/(npy.exp(arg)+npy.exp(-arg))
-    fprof_ped = A*mtanh+B
-
-    return fprof_ped
-
-
-def find_pedestal(profilefpath,profileftype,setParam={},**kwargs):
-    pedParam = {}
-
-    eqdskflag    = False
-    cheaseflag   = False
-    for key,value in kwargs.items():
-        if   key in ['chease','cheasedata','cheasefpath']:
-             cheaseflag = True
-             cheasepath = value.strip()
-        elif key in ['eqdsk','eqdskdata','eqdskfpath']:
-             eqdskflag = True
-             eqdskpath = value.strip()
-
-    if 'nrhomesh' not in setParam:
-       setParam = {'nrhomesh':1}
-
-    if os.path.isfile(profilefpath):
-       if   eqdskflag:
-            if   profileftype.lower()=='iterdb':
-                 profiledata = read_iterdb(iterdbfpath=profilefpath,setParam=setParam,eqdsk=eqdskpath)
-            elif profileftype.lower()=='chease':
-                 profiledata = read_chease(cheasefpath=profilefpath,setParam=setParam,eqdsk=eqdskpath)
-            elif profileftype.lower()=='profiles':
-                 profiledata = read_profiles(profilesfpath=profilefpath,setParam=setParam,eqdsk=eqdskpath)
-       elif cheaseflag:
-            if   profileftype.lower()=='iterdb':
-                 profiledata = read_iterdb(iterdbfpath=profilefpath,setParam=setParam,chease=cheasepath)
-            elif profileftype.lower()=='chease':
-                 profiledata = read_chease(cheasefpath=profilefpath)
-            elif profileftype.lower()=='profiles':
-                 profiledata = read_profiles(profilesfpath=profilefpath,setParam=setParam,chease=cheasepath)
-       else:
-            if   profileftype.lower()=='iterdb':
-                 profiledata = read_iterdb(iterdbfpath=profilefpath)
-            elif profileftype.lower()=='chease':
-                 profiledata = read_chease(cheasefpath=profilefpath)
-            elif profileftype.lower()=='profiles':
-                 profiledata = read_profiles(profilesfpath=profilefpath)
-
-    if setParam['nrhomesh'] == 1:
-       rho = profiledata['rhotor']
-    else:
-       rho = profiledata['rhopsi']
-
-    for prof in ('ne','Te','pressure'):
-        f        = profiledata[prof]
-        df       = npy.gradient(f,edge_order=2)
-        d2f      = npy.gradient(df,edge_order=2)
-
-        lowess = sm.nonparametric.lowess(d2f,rho,frac=0.005)
-        d2f = lowess[:,1]
-
-        ped_sol_ind = npy.argmin(abs(f-npy.min(f)))
-        ped_mid_ind = npy.argmin(abs(df-npy.min(df)))
-        ped_top_ind = npy.argmin(abs(d2f-npy.min(d2f)))
-        ped_fot_ind = npy.argmin(abs(d2f-npy.max(d2f)))
-
-        ped_top     = rho[ped_top_ind]
-        ped_mid     = rho[ped_mid_ind]
-        ped_fot     = rho[ped_fot_ind]
-
-        if (ped_mid-ped_top)>(ped_fot-ped_mid):
-           ped_hwd     = ped_mid-ped_top
-           ped_fot     = ped_mid+ped_hwd
-           ped_fot_ind = npy.argmin(abs(rho-ped_fot))
-        else:
-           ped_hwd     = ped_fot-ped_mid
-           ped_top     = ped_mid-ped_hwd
-           ped_top_ind = npy.argmin(abs(rho-ped_top))
-
-        pedParam[prof]               = {}
-        pedParam[prof]['ped_sol']    = f[ped_sol_ind]
-        pedParam[prof]['ped_mid']    = ped_mid
-        pedParam[prof]['ped_width']  = ped_fot-ped_top
-        pedParam[prof]['ped_slope']  = -1.0/f[ped_mid_ind]*df[ped_mid_ind]
-        pedParam[prof]['ped_height'] = f[ped_top_ind]
-
-    return pedParam,profiledata
-
-
-def interp(xin,fxin,xnew,ynew=[],yout=[]):
-    #splrep returns knots and coefficients for cubic spline
-    #Use these knots and coefficients with splev to get a new y
-
-    fknots = splrep(xin,fxin)
-    fxnew  = splev(xnew,fknots,der=0)
-
-    if len(ynew)>0 and len(yout)>0:
-       yknots = splrep(ynew,fxnew)
-       fxout  = splev(yout,yknots,der=0)
-
-       x_knots = splrep(ynew,xnew)
-       xout    = splev(yout,x_knots,der=0)
-    else:
-       fxout = fxnew[:]
-
-    return fxout
-
-def integrate(x,fx,axis=0,method='trapz'):
-    fxShape = npy.shape(fx)
-    nDim    = len(fxShape)
-    if   method in ['trapz','trapzoid']:
-         if   nDim == 1:
-              intf = trapz(y=fx,x=x,dx=npy.argmin(npy.diff(x)))
-         elif nDim == 2:
-              if   axis == 0:
-                   intf = trapz(y=fx,x=x,dx=npy.argmin(npy.diff(x)),axis=0)
-              elif axis == 1:
-                   intf = trapz(y=fx,x=x,dx=npy.argmin(npy.diff(x)),axis=1)
-    elif method in ['simps','simpson']:
-         if   nDim == 1:
-              intf = simps(y=fx,x=x,dx=npy.argmin(npy.diff(x)))
-         elif nDim == 2:
-              if   axis == 0:
-                   intf = simps(y=fx,x=x,dx=npy.argmin(npy.diff(x)),axis=0)
-              elif axis == 1:
-                   intf = simps(y=fx,x=x,dx=npy.argmin(npy.diff(x)),axis=1)
-    elif method=='CubicSpline':
-         m = fxShape[0]
-         n = fxShape[1]
-         if   nDim == 1:
-                   intf = CubicSpline(x,fx).integrate(x[0],x[-1])
-         elif nDim == 2:
-              if   axis == 0:
-                   try:
-                      CS   = CubicSpline(x,fx,axis=0,bc_type='periodic',extrapolate='periodic')
-                      intf = CS.integrate(x[0],x[-1],extrapolate='periodic')
-                   except ValueError:
-                      intf = npy.zeros(m)
-                      for j in range(m):
-                          func  = interp1d(x,fx[:,j],kind='linear')
-                          fyfnc = lambda z: func(z)
-                          intf[j] = quad(fyfnc,x[0],x[-1])
-              elif axis == 1:
-                   try:
-                      CS   = CubicSpline(x,fx,axis=1)
-                      intf = CS.integrate(x[0],x[-1])
-                   except ValueError:
-                      intf = npy.zeros(n)
-                      for j in range(n):
-                          func  = interp1d(x,fx[:,j],kind='linear')
-                          fyfnc = lambda z: func(z)
-                          intf[j] = quad(fyfnc,x[0],x[-1])
-    return intf
-
-def derivative(x,fx,axis=0,dorder=1,method='gradient'):
-    fxShape = npy.shape(fx)
-    nDim    = len(fxShape)
-    if   method=='gradient':
-         if   nDim == 1:
-              dfdx = npy.gradient(fx,x)
-    elif method=='CubicSpline':
-         if   nDim == 1:
-              CS = CubicSpline(x,fx)
-              dfdx = CS(x,dorder)
-         elif nDim == 2:
-              m = fxShape[0]
-              n = fxShape[1]
-              dfdx=npy.zeros((m,n))
-              if   axis == 0:
-                   for j in range(n):
-                      CS = CubicSpline(x,fx[:,j])
-                      dfdx[:,j] = CS(x,dorder)
-              elif axis == 1:
-                   for i in range(m):
-                      CS = CubicSpline(x,fx[i,:])
-                      dfdx[i,:] = CS(x,dorder)
-    return dfdx
-
 
 def findall(inlist,item):
    #Developed by Ehab Hassan on 2019-03-28
@@ -558,6 +172,7 @@ def findall(inlist,item):
     return inds
 
 
+<<<<<<< HEAD
 def getrecord(rec,datain):
     if type(datain) == dict:
        dataout = {}
@@ -624,6 +239,8 @@ def write_csv(csvfn,csvdict):
     return 1
 
 
+=======
+>>>>>>> 7c0d900362339af9fc7ea7341e74170f46748f28
 def create_namelist(setParam={}):
     wfh = open('chease_namelist','w')
     wfh.write('*** for EQDSK file copied onto EXPEQ file \n')
@@ -748,6 +365,7 @@ def create_namelist(setParam={}):
 
     return setParam
 
+<<<<<<< HEAD
 def read_chease(cheasefpath,setParam={},Normalized=False,**kwargs):
     if os.path.isfile(cheasefpath) == False:
        errorFunc = traceback.extract_stack(limit=2)[-2][3]
@@ -1952,12 +1570,14 @@ def write_expeq(setParam={},outfile=True,**kwargs):
 
     return expeq
 
+=======
+>>>>>>> 7c0d900362339af9fc7ea7341e74170f46748f28
 
 def find_boundary(eqdsk='',setParam={}):
     if eqdsk:
        eqdskflag  = True
        if   type(eqdsk)==str and os.path.isfile(eqdsk.strip()):
-                               eqdskdata = read_eqdsk(eqdskfpath=eqdsk.strip())
+                               eqdskdata = fusionfiles.read_eqdsk(eqdskfpath=eqdsk.strip())
        elif type(eqdsk)==dict: eqdskdata = eqdsk.copy()
        else:
             eqdskflag = False
@@ -1992,967 +1612,6 @@ def find_boundary(eqdsk='',setParam={}):
                zbound[-i] =-eqdskdata['zbound'][i]
 
     return rbound,zbound
-
-
-def read_imported(importeddata,setParam={},**kwargs):
-    rhopsiflag = False; rhotorflag = False
-    if 'nrhomesh' in setParam:
-        if   setParam['nrhomesh'] in [0,'rhopsi']: rhopsiflag = True
-        elif setParam['nrhomesh'] in [1,'rhotor']: rhotorflag = True
-    else:                                          rhopsiflag = True
-
-    eqdskflag    = False
-    cheaseflag   = False
-    interpflag   = False
-    for key,value in kwargs.items():
-        if   key in ['chease','cheasedata','cheasefpath']:
-             if    type(value)==str and os.path.isfile(value.strip()):
-                   cheasedata = read_chease(cheasefpath=value.strip())
-             else: raise IOError('%s file not found!' % value.strip())
-             if 'rhopsi' in cheasedata: rhopsi = cheasedata['rhopsi'][:]; interpflag = True
-             if 'rhotor' in cheasedata: rhotor = cheasedata['rhotor'][:]; interpflag = True
-             cheaseflag = True
-        elif key in ['eqdsk','eqdskdata','eqdskfpath']:
-             if    type(value)==str and os.path.isfile(value.strip()):
-                   eqdskdata = read_eqdsk(eqdskfpath=value.strip())
-             else: raise IOError('%s file not found!' % value.strip())
-             if 'rhopsi' in eqdskdata: rhopsi = eqdskdata['rhopsi'][:]; interpflag = True
-             if 'rhotor' in eqdskdata: rhotor = eqdskdata['rhotor'][:]; interpflag = True
-             eqdskflag = True
-
-    IMPORTEDdata = {}
-    if not importeddata: return IMPORTEDdata
-
-    if 'rhopsi' in importeddata:
-       IMPORTEDdata['rhopsi'] = importeddata['rhopsi'][:]
-       if   rhopsiflag: rhotype = 'rhopsi'
-       elif rhotorflag: rhotype = 'rhotor'
-
-    if 'rhotor' in importeddata:
-       IMPORTEDdata['rhotor'] = importeddata['rhotor'][:]
-       if   rhopsiflag: rhotype = 'rhopsi'
-       elif rhotorflag: rhotype = 'rhotor'
-
-
-    if 'rhotor' not in importeddata or 'rhopsi' not in importeddata:
-       raise IOError('rhopsi and/or rhotor NOT provided. EXIT!')
-
-    if interpflag and 'Te' in importeddata:
-       if   rhopsiflag and rhotype=='rhopsi':
-            IMPORTEDdata['Te'] = interp(IMPORTEDdata['rhopsi'],importeddata['Te'],rhopsi)
-       elif rhotorflag and rhotype=='rhotor':
-            IMPORTEDdata['Te'] = interp(IMPORTEDdata['rhotor'],importeddata['Te'],rhotor)
-       elif rhotorflag and rhotype=='rhopsi':
-            IMPORTEDdata['Te'] = interp(IMPORTEDdata['rhopsi'],importeddata['Te'],rhopsi,rhotor,rhotor)
-       elif rhopsiflag and rhotype=='rhotor':
-            IMPORTEDdata['Te'] = interp(IMPORTEDdata['rhotor'],importeddata['Te'],rhotor,rhopsi,rhopsi)
-    elif 'Te' in importeddata:
-         IMPORTEDdata['Te'] = importeddata['Te']
-
-    if interpflag and 'ne' in importeddata:
-       if   rhopsiflag and rhotype=='rhopsi':
-            IMPORTEDdata['ne'] = interp(IMPORTEDdata['rhopsi'],importeddata['ne'],rhopsi)
-       elif rhotorflag and rhotype=='rhotor':
-            IMPORTEDdata['ne'] = interp(IMPORTEDdata['rhotor'],importeddata['ne'],rhotor)
-       elif rhotorflag and rhotype=='rhopsi':
-            IMPORTEDdata['ne'] = interp(IMPORTEDdata['rhopsi'],importeddata['ne'],rhopsi,rhotor,rhotor)
-       elif rhopsiflag and rhotype=='rhotor':
-            IMPORTEDdata['ne'] = interp(IMPORTEDdata['rhotor'],importeddata['ne'],rhotor,rhopsi,rhopsi)
-    elif 'ne' in importeddata:
-         IMPORTEDdata['ne'] = importeddata['ne']
-
-    if interpflag and 'Ti' in importeddata:
-       if   rhopsiflag and rhotype=='rhopsi':
-            IMPORTEDdata['Ti'] = interp(IMPORTEDdata['rhopsi'],importeddata['Ti'],rhopsi)
-       elif rhotorflag and rhotype=='rhotor':
-            IMPORTEDdata['Ti'] = interp(IMPORTEDdata['rhotor'],importeddata['Ti'],rhotor)
-       elif rhotorflag and rhotype=='rhopsi':
-            IMPORTEDdata['Ti'] = interp(IMPORTEDdata['rhopsi'],importeddata['Ti'],rhopsi,rhotor,rhotor)
-       elif rhopsiflag and rhotype=='rhotor':
-            IMPORTEDdata['Ti'] = interp(IMPORTEDdata['rhotor'],importeddata['Ti'],rhotor,rhopsi,rhopsi)
-    elif 'Ti' in importeddata:
-         IMPORTEDdata['Ti'] = importeddata['Ti']
-
-    if interpflag and 'ni' in importeddata:
-       if   rhopsiflag and rhotype=='rhopsi':
-            IMPORTEDdata['ni'] = interp(IMPORTEDdata['rhopsi'],importeddata['ni'],rhopsi)
-       elif rhotorflag and rhotype=='rhotor':
-            IMPORTEDdata['ni'] = interp(IMPORTEDdata['rhotor'],importeddata['ni'],rhotor)
-       elif rhotorflag and rhotype=='rhopsi':
-            IMPORTEDdata['ni'] = interp(IMPORTEDdata['rhopsi'],importeddata['ni'],rhopsi,rhotor,rhotor)
-       elif rhopsiflag and rhotype=='rhotor':
-            IMPORTEDdata['ni'] = interp(IMPORTEDdata['rhotor'],importeddata['ni'],rhotor,rhopsi,rhopsi)
-    elif 'ni' in importeddata:
-         IMPORTEDdata['ni'] = importeddata['ni']
-
-    if interpflag and 'q' in importeddata:
-       if   rhopsiflag and rhotype=='rhopsi':
-            IMPORTEDdata['q'] = interp(IMPORTEDdata['rhopsi'],importeddata['q'],rhopsi)
-       elif rhotorflag and rhotype=='rhotor':
-            IMPORTEDdata['q'] = interp(IMPORTEDdata['rhotor'],importeddata['q'],rhotor)
-       elif rhotorflag and rhotype=='rhopsi':
-            IMPORTEDdata['q'] = interp(IMPORTEDdata['rhopsi'],importeddata['q'],rhopsi,rhotor,rhotor)
-       elif rhopsiflag and rhotype=='rhotor':
-            IMPORTEDdata['q'] = interp(IMPORTEDdata['rhotor'],importeddata['q'],rhotor,rhopsi,rhopsi)
-    elif 'q' in importeddata:
-         IMPORTEDdata['q'] = importeddata['q']
-
-    if interpflag and 'Zeff' in importeddata:
-       if   rhopsiflag and rhotype=='rhopsi':
-            IMPORTEDdata['Zeff'] = interp(IMPORTEDdata['rhopsi'],importeddata['Zeff'],rhopsi)
-       elif rhotorflag and rhotype=='rhotor':
-            IMPORTEDdata['Zeff'] = interp(IMPORTEDdata['rhotor'],importeddata['Zeff'],rhotor)
-       elif rhotorflag and rhotype=='rhopsi':
-            IMPORTEDdata['Zeff'] = interp(IMPORTEDdata['rhopsi'],importeddata['Zeff'],rhopsi,rhotor,rhotor)
-       elif rhopsiflag and rhotype=='rhotor':
-            IMPORTEDdata['Zeff'] = interp(IMPORTEDdata['rhotor'],importeddata['Zeff'],rhotor,rhopsi,rhopsi)
-    elif 'Zeff' in importeddata:
-         IMPORTEDdata['Zeff'] = importeddata['Zeff']
-
-    if interpflag and 'pressure' in importeddata:
-       if   rhopsiflag and rhotype=='rhopsi':
-            IMPORTEDdata['pressure'] = interp(IMPORTEDdata['rhopsi'],importeddata['pressure'],rhopsi)
-       elif rhotorflag and rhotype=='rhotor':
-            IMPORTEDdata['pressure'] = interp(IMPORTEDdata['rhotor'],importeddata['pressure'],rhotor)
-       elif rhotorflag and rhotype=='rhopsi':
-            IMPORTEDdata['pressure'] = interp(IMPORTEDdata['rhopsi'],importeddata['pressure'],rhopsi,rhotor,rhotor)
-       elif rhopsiflag and rhotype=='rhotor':
-            IMPORTEDdata['pressure'] = interp(IMPORTEDdata['rhotor'],importeddata['pressure'],rhotor,rhopsi,rhopsi)
-    elif 'pressure' in importeddata:
-         IMPORTEDdata['pressure'] = importeddata['pressure']
-
-    if interpflag and 'pprime' in importeddata:
-       if   rhopsiflag and rhotype=='rhopsi':
-            IMPORTEDdata['pprime'] = interp(IMPORTEDdata['rhopsi'],importeddata['pprime'],rhopsi)
-       elif rhotorflag and rhotype=='rhotor':
-            IMPORTEDdata['pprime'] = interp(IMPORTEDdata['rhotor'],importeddata['pprime'],rhotor)
-       elif rhotorflag and rhotype=='rhopsi':
-            IMPORTEDdata['pprime'] = interp(IMPORTEDdata['rhopsi'],importeddata['pprime'],rhopsi,rhotor,rhotor)
-       elif rhopsiflag and rhotype=='rhotor':
-            IMPORTEDdata['pprime'] = interp(IMPORTEDdata['rhotor'],importeddata['pprime'],rhotor,rhopsi,rhopsi)
-    elif 'pprime' in importeddata:
-         IMPORTEDdata['pprime'] = importeddata['pprime']
-
-    if interpflag and 'Istr' in importeddata:
-       if   rhopsiflag and rhotype=='rhopsi':
-            IMPORTEDdata['Istr'] = interp(IMPORTEDdata['rhopsi'],importeddata['Istr'],rhopsi)
-       elif rhotorflag and rhotype=='rhotor':
-            IMPORTEDdata['Istr'] = interp(IMPORTEDdata['rhotor'],importeddata['Istr'],rhotor)
-       elif rhotorflag and rhotype=='rhopsi':
-            IMPORTEDdata['Istr'] = interp(IMPORTEDdata['rhopsi'],importeddata['Istr'],rhopsi,rhotor,rhotor)
-       elif rhopsiflag and rhotype=='rhotor':
-            IMPORTEDdata['Istr'] = interp(IMPORTEDdata['rhotor'],importeddata['Istr'],rhotor,rhopsi,rhopsi)
-    elif 'Istr' in importeddata:
-         IMPORTEDdata['Istr'] = importeddata['Istr']
-
-    if interpflag and 'Iprl' in importeddata:
-       if   rhopsiflag and rhotype=='rhopsi':
-            IMPORTEDdata['Iprl'] = interp(IMPORTEDdata['rhopsi'],importeddata['Iprl'],rhopsi)
-       elif rhotorflag and rhotype=='rhotor':
-            IMPORTEDdata['Iprl'] = interp(IMPORTEDdata['rhotor'],importeddata['Iprl'],rhotor)
-       elif rhotorflag and rhotype=='rhopsi':
-            IMPORTEDdata['Iprl'] = interp(IMPORTEDdata['rhopsi'],importeddata['Iprl'],rhopsi,rhotor,rhotor)
-       elif rhopsiflag and rhotype=='rhotor':
-            IMPORTEDdata['Iprl'] = interp(IMPORTEDdata['rhotor'],importeddata['Iprl'],rhotor,rhopsi,rhopsi)
-    elif 'Iprl' in importeddata:
-         IMPORTEDdata['Iprl'] = importeddata['Iprl']
-
-    if interpflag and 'Jprl' in importeddata:
-       if   rhopsiflag and rhotype=='rhopsi':
-            IMPORTEDdata['Jprl'] = interp(IMPORTEDdata['rhopsi'],importeddata['Jprl'],rhopsi)
-       elif rhotorflag and rhotype=='rhotor':
-            IMPORTEDdata['Jprl'] = interp(IMPORTEDdata['rhotor'],importeddata['Jprl'],rhotor)
-       elif rhotorflag and rhotype=='rhopsi':
-            IMPORTEDdata['Jprl'] = interp(IMPORTEDdata['rhopsi'],importeddata['Jprl'],rhopsi,rhotor,rhotor)
-       elif rhopsiflag and rhotype=='rhotor':
-            IMPORTEDdata['Jprl'] = interp(IMPORTEDdata['rhotor'],importeddata['Jprl'],rhotor,rhopsi,rhopsi)
-    elif 'Jprl' in importeddata:
-         IMPORTEDdata['Jprl'] = importeddata['Jprl']
-
-    if interpflag and 'ffprime' in importeddata:
-       if   rhopsiflag and rhotype=='rhopsi':
-            IMPORTEDdata['ffprime'] = interp(IMPORTEDdata['rhopsi'],importeddata['ffprime'],rhopsi)
-       elif rhotorflag and rhotype=='rhotor':
-            IMPORTEDdata['ffprime'] = interp(IMPORTEDdata['rhotor'],importeddata['ffprime'],rhotor)
-       elif rhotorflag and rhotype=='rhopsi':
-            IMPORTEDdata['ffprime'] = interp(IMPORTEDdata['rhopsi'],importeddata['ffprime'],rhopsi,rhotor,rhotor)
-       elif rhopsiflag and rhotype=='rhotor':
-            IMPORTEDdata['ffprime'] = interp(IMPORTEDdata['rhotor'],importeddata['ffprime'],rhotor,rhopsi,rhopsi)
-    elif 'ffprime' in importeddata:
-         IMPORTEDdata['ffprime'] = importeddata['ffprime']
-
-    if interpflag:
-       IMPORTEDdata['rhopsi'] = rhopsi[:]
-       IMPORTEDdata['rhotor'] = rhotor[:]
-
-    return IMPORTEDdata
-
-
-def read_exptnz(exptnzfpath,setParam={},**kwargs):
-    if os.path.isfile(exptnzfpath) == False:
-       errorFunc = traceback.extract_stack(limit=2)[-2][3]
-       errorLine = traceback.extract_stack(limit=2)[-2][1]
-       errorFile = traceback.extract_stack(limit=2)[-2][2]
-       errMSG    = 'Call %s line %5d in file %s Failed.\n'
-       errMSG   += 'Fatal: file %s not found.'
-       raise IOError(errMSG %(errorFunc,errorLine,errorFile,exptnzfpath))
-
-    rhopsiflag = False; rhotorflag = False
-    if 'nrhomesh' in setParam:
-        if   setParam['nrhomesh'] in [0,'rhopsi']: rhopsiflag = True
-        elif setParam['nrhomesh'] in [1,'rhotor']: rhotorflag = True
-    else:                                          rhopsiflag = True
-
-    eqdskflag    = False
-    cheaseflag   = False
-    interpflag   = False
-    importedflag = False
-    for key,value in kwargs.items():
-        if   key in ['chease','cheasedata','cheasefpath']:
-             if    type(value)==str and os.path.isfile(value.strip()):
-                   cheasedata = read_chease(cheasefpath=value.strip())
-             else: raise IOError('%s file not found!' % value.strip())
-             if 'rhopsi' in cheasedata: rhopsi = cheasedata['rhopsi'][:]; interpflag = True
-             if 'rhotor' in cheasedata: rhotor = cheasedata['rhotor'][:]; interpflag = True
-             cheaseflag = True
-        elif key in ['eqdsk','eqdskdata','eqdskfpath']:
-             if    type(value)==str and os.path.isfile(value.strip()):
-                   eqdskdata = read_eqdsk(eqdskfpath=value.strip())
-             else: raise IOError('%s file not found!' % value.strip())
-             if 'rhopsi' in eqdskdata: rhopsi = eqdskdata['rhopsi'][:]; interpflag = True
-             if 'rhotor' in eqdskdata: rhotor = eqdskdata['rhotor'][:]; interpflag = True
-             eqdskflag = True
-        elif key in ['imported','external','other']:
-             imported = value.copy()
-             if 'rhopsi' in imported: rhopsi = imported['rhopsi'][:]; interpflag = True
-             if 'rhotor' in imported: rhotor = imported['rhotor'][:]; interpflag = True
-             importedflag = True
-
-    ofh = open(exptnzfpath,'r')
-    EXPTNZOUT = ofh.readlines()
-    ofh.close()
-
-    n_rho   = int(EXPTNZOUT[0].split()[0])
-    rhotype =     EXPTNZOUT[0].split()[1].strip()[0:6]
-
-    EXPTNZdata               = {}
-
-    EXPTNZdata['Zi'] = 1.0
-    EXPTNZdata['Zz'] = 6.0
-
-    if   rhotype=='rhopsi':
-         EXPTNZdata['rhopsi'] = npy.array(EXPTNZOUT[0*n_rho+1:1*n_rho+1],dtype=float)
-    elif rhotype=='rhotor':
-         EXPTNZdata['rhotor'] = npy.array(EXPTNZOUT[0*n_rho+1:1*n_rho+1],dtype=float)
-    EXPTNZdata['Te']          = npy.array(EXPTNZOUT[1*n_rho+1:2*n_rho+1],dtype=float)
-    EXPTNZdata['ne']          = npy.array(EXPTNZOUT[2*n_rho+1:3*n_rho+1],dtype=float)
-    EXPTNZdata['Zeff']        = npy.array(EXPTNZOUT[3*n_rho+1:4*n_rho+1],dtype=float)
-    EXPTNZdata['Ti']          = npy.array(EXPTNZOUT[4*n_rho+1:5*n_rho+1],dtype=float)
-    EXPTNZdata['ni']          = npy.array(EXPTNZOUT[5*n_rho+1:6*n_rho+1],dtype=float)
-
-    if interpflag:
-       if   rhopsiflag and rhotype=='rhopsi':
-            EXPTNZdata['Te']     = interp(EXPTNZdata['rhopsi'],EXPTNZdata['Te'],rhopsi)
-            EXPTNZdata['Ti']     = interp(EXPTNZdata['rhopsi'],EXPTNZdata['Ti'],rhopsi)
-            EXPTNZdata['ne']     = interp(EXPTNZdata['rhopsi'],EXPTNZdata['ne'],rhopsi) 
-            EXPTNZdata['ni']     = interp(EXPTNZdata['rhopsi'],EXPTNZdata['ni'],rhopsi)
-            EXPTNZdata['Zeff']   = interp(EXPTNZdata['rhopsi'],EXPTNZdata['Zeff'],rhopsi)
-            EXPTNZdata['rhopsi'] = rhopsi[:]
-            EXPTNZdata['rhotor'] = rhotor[:]
-       elif rhotorflag and rhotype=='rhotor':
-            EXPTNZdata['Te']     = interp(EXPTNZdata['rhotor'],EXPTNZdata['Te'],rhotor)
-            EXPTNZdata['Ti']     = interp(EXPTNZdata['rhotor'],EXPTNZdata['Ti'],rhotor)
-            EXPTNZdata['ne']     = interp(EXPTNZdata['rhotor'],EXPTNZdata['ne'],rhotor) 
-            EXPTNZdata['ni']     = interp(EXPTNZdata['rhotor'],EXPTNZdata['ni'],rhotor)
-            EXPTNZdata['Zeff']   = interp(EXPTNZdata['rhotor'],EXPTNZdata['Zeff'],rhotor)
-            EXPTNZdata['rhopsi'] = rhopsi[:]
-            EXPTNZdata['rhotor'] = rhotor[:]
-       elif rhotorflag and rhotype=='rhopsi':
-            EXPTNZdata['Te']     = interp(EXPTNZdata['rhopsi'],EXPTNZdata['Te'],rhopsi,rhotor,rhotor)
-            EXPTNZdata['Ti']     = interp(EXPTNZdata['rhopsi'],EXPTNZdata['Ti'],rhopsi,rhotor,rhotor)
-            EXPTNZdata['ne']     = interp(EXPTNZdata['rhopsi'],EXPTNZdata['ne'],rhopsi,rhotor,rhotor) 
-            EXPTNZdata['ni']     = interp(EXPTNZdata['rhopsi'],EXPTNZdata['ni'],rhopsi,rhotor,rhotor)
-            EXPTNZdata['Zeff']   = interp(EXPTNZdata['rhopsi'],EXPTNZdata['Zeff'],rhopsi,rhotor,rhotor)
-            EXPTNZdata['rhopsi'] = rhopsi[:]
-            EXPTNZdata['rhotor'] = rhotor[:]
-       elif rhopsiflag and rhotype=='rhotor':
-            EXPTNZdata['Te']     = interp(EXPTNZdata['rhotor'],EXPTNZdata['Te'],rhotor,rhopsi,rhopsi)
-            EXPTNZdata['Ti']     = interp(EXPTNZdata['rhotor'],EXPTNZdata['Ti'],rhotor,rhopsi,rhopsi)
-            EXPTNZdata['ne']     = interp(EXPTNZdata['rhotor'],EXPTNZdata['ne'],rhotor,rhopsi,rhopsi) 
-            EXPTNZdata['ni']     = interp(EXPTNZdata['rhotor'],EXPTNZdata['ni'],rhotor,rhopsi,rhopsi)
-            EXPTNZdata['Zeff']   = interp(EXPTNZdata['rhotor'],EXPTNZdata['Zeff'],rhotor,rhopsi,rhopsi)
-            EXPTNZdata['rhopsi'] = rhopsi[:]
-            EXPTNZdata['rhotor'] = rhotor[:]
-    elif rhopsiflag and rhotype=='rhotor':
-         print("WARNING: setParam['nrhomesh'] = 0 or rhopsi, but the path to a target rhopsi is not provided.")
-         print("         Converting the profiles to poloidal (psi) coordinates could not be done, and")
-         print("         all profiles are provided in the toroidal (phi) coordinates.")
-    elif rhotorflag and rhotype=='rhopsi':
-         print("WARNING: setParam['nrhomesh'] = 1 or rhotor, but the path to a target rhotor is not provided.")
-         print("         Converting the profiles to toroidal (phi) coordinates could not be done, and")
-         print("         all profiles are provided in the poloidal (psi) coordinates.")
-
-    EXPTNZdata['nz']         = EXPTNZdata['Zeff']*EXPTNZdata['ne']
-    EXPTNZdata['nz']        -= EXPTNZdata['ni']*EXPTNZdata['Zi']**2
-    EXPTNZdata['nz']        /= EXPTNZdata['Zz']**2
-
-    EXPTNZdata['pressure']   = EXPTNZdata['Te']*EXPTNZdata['ne']
-    EXPTNZdata['pressure']  += EXPTNZdata['Ti']*EXPTNZdata['ni']
-    EXPTNZdata['pressure']  += EXPTNZdata['Ti']*EXPTNZdata['nz']
-    EXPTNZdata['pressure']  *= 1.602e-19
-
-    if   rhopsiflag:
-         EXPTNZdata['pprime']= derivative(x=EXPTNZdata['rhopsi'],fx=EXPTNZdata['pressure'],method='CubicSpline')
-    elif rhotorflag:
-         EXPTNZdata['pprime']= derivative(x=EXPTNZdata['rhopsi'],fx=EXPTNZdata['pressure'],method='CubicSpline')
-    elif rhotype=='rhopsi':
-         EXPTNZdata['pprime']= derivative(x=EXPTNZdata['rhopsi'],fx=EXPTNZdata['pressure'],method='CubicSpline')
-    elif rhotype=='rhotor':
-         EXPTNZdata['pprime']= derivative(x=EXPTNZdata['rhotor'],fx=EXPTNZdata['pressure'],method='CubicSpline')
-
-    return EXPTNZdata
-
-def write_exptnz(setParam={},outfile=True,**kwargs):
-    '''
-    nrhomesh=[rho_type(0:rhopsi,1:rhotor),rho_src(0:chease,1:eqdsk)]
-    eprofile=[eprofile_src(0:chease,3:exptnz,4:profiles,5:iterdb)]
-    iprofile=[iprofile_src(0:chease,3:exptnz,4:profiles,5:iterdb)]
-    '''
-
-    eqdskflag    = False
-    interpflag   = False
-    cheaseflag   = False
-    iterdbflag   = False
-    exptnzflag   = False
-    importedflag = False
-    profilesflag = False
-    for key,value in kwargs.items():
-        if key in ['chease','cheasedata','cheasefpath']:
-           if os.path.isfile(value.strip()):
-              cheasepath = value.strip()
-              cheaseflag = True
-
-        if key in ['eqdsk','eqdskdata','eqdskfpath']:
-           if os.path.isfile(value.strip()):
-              eqdskpath = value.strip()
-              eqdskflag = True
-
-        if key in ['expeq','expeqdata','expeqfpath']:
-           if os.path.isfile(value.strip()):
-              expeqpath = value.strip()
-              expeqflag = True
-
-        if key in ['exptnz','exptnzdata','exptnzfpath']:
-           if os.path.isfile(value.strip()):
-              exptnzpath = value.strip()
-              exptnzflag = True
-
-        if key in ['profiles','profilesdata','profilesfpath']:
-           if os.path.isfile(value.strip()):
-              profilespath = value.strip()
-              profilesflag = True
-
-        if key in ['iterdb','iterdbdata','iterdbfpath']:
-           if os.path.isfile(value.strip()):
-              iterdbpath = value.strip()
-              iterdbflag = True
-
-        if key in ['imported','external','others']:
-              imported = value.copy()
-              importedflag = True
-
-    if not (cheaseflag or exptnzflag or profilesflag or iterdbflag or importedflag):
-       raise IOError('FATAL: NO VALID INPUT PROFILES AVAILABLE. EXIT!')
-
-    if 'nrhomesh' in setParam.keys():
-       if   type(setParam['nrhomesh'])==list: 
-            if   type(setParam['nrhomesh'][0])==float: setParam['nrhomesh'][0] = int(setParam['nrhomesh'][0])
-            elif type(setParam['nrhomesh'][0])==str:   setParam['nrhomesh'][0] = setParam['nrhomesh'][0].lower()
-            if   type(setParam['nrhomesh'][1])==float: setParam['nrhomesh'][1] = int(setParam['nrhomesh'][1])
-            elif type(setParam['nrhomesh'][1])==str:   setParam['nrhomesh'][1] = setParam['nrhomesh'][1].lower()
-            elif      setParam['nrhomesh'][1] ==None:  setParam['nrhomesh'][1] = None
-            nrhotype = setParam['nrhomesh'][:]
-       elif type(setParam['nrhomesh'])==int:
-            if   cheaseflag:   nrhotype=[setParam['nrhomesh'],0]
-            elif eqdskflag:    nrhotype=[setParam['nrhomesh'],1]
-            elif importedflag: nrhotype=[setParam['nrhomesh'],7]
-    else:
-            if   cheaseflag:   nrhotype=[0,0]
-            elif eqdskflag:    nrhotype=[0,1]
-            elif importedflag: nrhotype=[0,7]
-
-    if 'eprofile' in setParam.keys(): 
-            if   type(setParam['eprofile'])==float: setParam['eprofile'] = int(setParam['eprofile'])
-            elif type(setParam['eprofile'])==str:   setParam['eprofile'] = setParam['eprofile'].lower()
-            eprofile= setParam['eprofile']
-    else:
-            if   cheaseflag:   eprofile=0
-            elif exptnzflag:   eprofile=3
-            elif profilesflag: eprofile=4
-            elif iterdbflag:   eprofile=5
-            elif importedflag: eprofile=7
-
-    if 'iprofile' in setParam.keys():
-            if   type(setParam['iprofile'])==float: setParam['iprofile'] = int(setParam['iprofile'])
-            elif type(setParam['iprofile'])==str:   setParam['iprofile'] = setParam['iprofile'].lower()
-            iprofile= setParam['iprofile']
-    else:
-            if   cheaseflag:   iprofile=0
-            elif exptnzflag:   iprofile=3
-            elif profilesflag: iprofile=4
-            elif iterdbflag:   iprofile=5
-            elif importedflag: iprofile=7
-
-    if   nrhotype[1] in [0,'chease'] and not cheaseflag:
-         raise IOError("FATAL: nrhotype=chease and chease.h5 file is not available. EXIT!")
-    elif nrhotype[1] in [1,'eqdsk'] and not eqdskflag:
-         raise IOError("FATAL: nrhotype=eqdsk and eqdsk file is not available. EXIT!")
-    elif nrhotype[1] in [7,'imported'] and not importedflag:
-         raise IOError("FATAL: nrhotype=imported and imported data is not available. EXIT!")
-
-    if   eprofile in [0,'chease'] and not cheaseflag:
-         raise IOError("FATAL: eprofile=chease and chease.h5 is not available. EXIT!")
-    elif eprofile in [3,'exptnz'] and not exptnzflag:
-         raise IOError("FATAL: eprofile=exptnz and exptnz is not available. EXIT!")
-    elif eprofile in [4,'profiles'] and not profilesflag:
-         raise IOError("FATAL: eprofile=profiples and profiles is not available. EXIT!")
-    elif eprofile in [5,'iterdb'] and not iterdbflag:
-         raise IOError("FATAL: eprofile=iterdb and iterdb is not available. EXIT!")
-    elif eprofile in [7,'imported'] and not importedflag:
-         raise IOError("FATAL: eprofile=imported and no profiles are imported. EXIT!")
-
-    if   iprofile in [0,'chease'] and not cheaseflag:
-         raise IOError("FATAL: iprofile=chease and chease.h5 is not available. EXIT!")
-    elif iprofile in [3,'exptnz'] and not exptnzflag:
-         raise IOError("FATAL: iprofile=exptnz and exptnz is not available. EXIT!")
-    elif iprofile in [4,'profiles'] and not profilesflag:
-         raise IOError("FATAL: iprofile=profiples and profiles is not available. EXIT!")
-    elif iprofile in [5,'iterdb'] and not iterdbflag:
-         raise IOError("FATAL: iprofile=iterdb and iterdb is not available. EXIT!")
-    elif iprofile in [5,'iterdb'] and not iterdbflag:
-         raise IOError("FATAL: iprofile=iterdb and iterdb is not available. EXIT!")
-    elif eprofile in [7,'imported'] and not importedflag:
-         raise IOError("FATAL: iprofile=imported and no profiles are imported. EXIT!")
-
-    if   nrhotype[0] in [0,'rhopsi']:
-         rhopsiflag = True
-         rhotorflag = False
-    elif nrhotype[0] in [1,'rhotor']:
-         rhopsiflag = False
-         rhotorflag = True
-
-    SetParam={'nrhomesh':nrhotype[0]}
-
-    if   nrhotype[1] in [0,'chease']:
-         if cheaseflag:
-            cheasedata = read_chease(cheasefpath=cheasepath,setParam=SetParam)
-         if exptnzflag:
-            exptnzdata = read_exptnz(exptnzfpath=exptnzpath,setParam=SetParam,chease=cheasepath)
-         if iterdbflag:
-            iterdbdata = read_iterdb(iterdbfpath=iterdbpath,setParam=SetParam,chease=cheasepath)
-         if profilesflag:
-            profilesdata = read_profiles(profilesfpath=profilespath,setParam=SetParam,chease=cheasepath)
-         if importedflag:
-            importeddata = read_imported(importeddata=imported,setParam=SetParam,chease=cheasepath)
-    elif nrhotype[1] in [1,'eqdsk']:
-         if cheaseflag:
-            cheasedata = read_chease(cheasefpath=cheasepath,setParam=SetParam,eqdsk=eqdskpath)
-         if exptnzflag:
-            exptnzdata = read_exptnz(exptnzfpath=exptnzpath,setParam=SetParam,eqdsk=eqdskpath)
-         if iterdbflag:
-            iterdbdata = read_iterdb(iterdbfpath=iterdbpath,setParam=SetParam,eqdsk=eqdskpath)
-         if profilesflag:
-            profilesdata = read_profiles(profilesfpath=profilespath,setParam=SetParam,eqdsk=eqdskpath)
-         if importedflag:
-            importeddata = read_imported(importeddata=imported,setParam=SetParam,eqdsk=eqdskpath)
-    elif nrhotype[1] in [7,'imported']:
-         if cheaseflag:
-            cheasedata = read_chease(cheasefpath=cheasepath,setParam=SetParam,imported=imported)
-         if exptnzflag:
-            exptnzdata = read_exptnz(exptnzfpath=exptnzpath,setParam=SetParam,imported=imported)
-         if iterdbflag:
-            iterdbdata = read_iterdb(iterdbfpath=iterdbpath,setParam=SetParam,imported=imported)
-         if profilesflag:
-            profilesdata = read_profiles(profilesfpath=profilespath,setParam=SetParam,imported=imported)
-         if importedflag:
-            importeddata = read_imported(importeddata=imported,setParam=SetParam)
-    elif nrhotype[1] in [None]:
-         if cheaseflag:
-            cheasedata = read_chease(cheasefpath=cheasepath,setParam=SetParam)
-         if exptnzflag:
-            exptnzdata = read_exptnz(exptnzfpath=exptnzpath,setParam=SetParam)
-         if iterdbflag:
-            iterdbdata = read_iterdb(iterdbfpath=iterdbpath,setParam=SetParam)
-         if profilesflag:
-            profilesdata = read_profiles(profilesfpath=profilespath,setParam=SetParam)
-         if importedflag:
-            importeddata = read_imported(importeddata=imported,setParam=SetParam)
-
-    exptnz = {}
-
-    if   eprofile in [0,'chease'] and cheaseflag:
-         if   rhopsiflag: exptnz['rhopsi'] = cheasedata['rhopsi']
-         elif rhotorflag: exptnz['rhotor'] = cheasedata['rhotor']
-         if importedflag and 'Te' in importeddata:
-            exptnz['Te'] = importeddata['Te']
-         else:
-            exptnz['Te'] = cheasedata['Te']
-         if importedflag and 'ne' in importeddata:
-            exptnz['ne'] = importeddata['ne']
-         else:
-            exptnz['ne'] = cheasedata['ne']
-    elif eprofile in [3,'exptnz'] and exptnzflag:
-         if   rhopsiflag: exptnz['rhopsi'] = exptnzdata['rhopsi']
-         elif rhotorflag: exptnz['rhotor'] = exptnzdata['rhotor']
-         if importedflag and 'Te' in importeddata:
-            exptnz['Te'] = importeddata['Te']
-         else:
-            exptnz['Te'] = exptnzdata['Te']
-         if importedflag and 'ne' in importeddata:
-            exptnz['ne'] = importeddata['ne']
-         else:
-            exptnz['ne'] = exptnzdata['ne']
-    elif eprofile in [4,'profiles'] and profilesflag:
-         if   rhopsiflag: exptnz['rhopsi'] = profilesdata['rhopsi']
-         elif rhotorflag: exptnz['rhotor'] = profilesdata['rhotor']
-         if importedflag and 'Te' in importeddata:
-            exptnz['Te'] = importeddata['Te']
-         else:
-            exptnz['Te'] = profilesdata['Te']
-         if importedflag and 'ne' in importeddata:
-            exptnz['ne'] = importeddata['ne']
-         else:
-            exptnz['ne'] = profilesdata['ne']
-    elif eprofile in [5,'iterdb'] and iterdbflag:
-         if   rhopsiflag: exptnz['rhopsi'] = iterdbdata['rhopsi']
-         elif rhotorflag: exptnz['rhotor'] = iterdbdata['rhotor']
-         if importedflag and 'Te' in importeddata:
-            exptnz['Te'] = importeddata['Te']
-         else:
-            exptnz['Te'] = iterdbdata['Te']
-         if importedflag and 'ne' in importeddata:
-            exptnz['ne'] = importeddata['ne']
-         else:
-            exptnz['ne'] = iterdbdata['ne']
-    elif eprofile in [7,'imported'] and importedflag:
-         if   rhopsiflag: exptnz['rhopsi'] = importeddata['rhopsi']
-         elif rhotorflag: exptnz['rhotor'] = importeddata['rhotor']
-         exptnz['Te'] = importeddata['Te']
-         exptnz['ne'] = importeddata['ne']
-
-    if   iprofile in [0,'chease'] and cheaseflag:
-         if importedflag and 'Ti' in importeddata:
-            exptnz['Ti']   = importeddata['Ti']
-         else:
-            exptnz['Ti']   = cheasedata['Ti']
-         if importedflag and 'ni' in importeddata:
-            exptnz['ni']   = importeddata['ni']
-         else:
-            exptnz['ni']   = cheasedata['ni']
-         if importedflag and 'nz' in importeddata:
-            exptnz['nz']   = importeddata['nz']
-         else:
-            exptnz['nz']   = cheasedata['nz']
-         if importedflag and 'Zeff' in importeddata:
-            exptnz['Zeff'] = importeddata['Zeff']
-         else:
-            exptnz['Zeff'] = cheasedata['Zeff']
-    elif iprofile in [3,'exptnz'] and exptnzflag:
-         if importedflag and 'Ti' in importeddata:
-            exptnz['Ti']   = importeddata['Ti']
-         else:
-            exptnz['Ti']   = exptnzdata['Ti']
-         if importedflag and 'ni' in importeddata:
-            exptnz['ni']   = importeddata['ni']
-         else:
-            exptnz['ni']   = exptnzdata['ni']
-         if importedflag and 'nz' in importeddata:
-            exptnz['nz']   = importeddata['nz']
-         else:
-            exptnz['nz']   = exptnzdata['nz']
-         if importedflag and 'Zeff' in importeddata:
-            exptnz['Zeff'] = importeddata['Zeff']
-         else:
-            exptnz['Zeff'] = exptnzdata['Zeff']
-    elif iprofile in [4,'profiles'] and profilesflag:
-         if importedflag and 'Ti' in importeddata:
-            exptnz['Ti']   = importeddata['Ti']
-         else:
-            exptnz['Ti']   = profilesdata['Ti']
-         if importedflag and 'ni' in importeddata:
-            exptnz['ni']   = importeddata['ni']
-         else:
-            exptnz['ni']   = profilesdata['ni']
-         if importedflag and 'nz' in importeddata:
-            exptnz['nz']   = importeddata['nz']
-         else:
-            exptnz['nz']   = profilesdata['nz']
-         if importedflag and 'Zeff' in importeddata:
-            exptnz['Zeff'] = importeddata['Zeff']
-         else:
-            exptnz['Zeff'] = profilesdata['Zeff']
-    elif iprofile in [5,'iterdb'] and iterdbflag:
-         if importedflag and 'Ti' in importeddata:
-            exptnz['Ti']   = importeddata['Ti']
-         else:
-            exptnz['Ti']   = iterdbdata['Ti']
-         if importedflag and 'ni' in importeddata:
-            exptnz['ni']   = importeddata['ni']
-         else:
-            exptnz['ni']   = iterdbdata['ni']
-         if importedflag and 'nz' in importeddata:
-            exptnz['nz']   = importeddata['nz']
-         else:
-            exptnz['nz']   = iterdbdata['nz']
-         if importedflag and 'Zeff' in importeddata:
-            exptnz['Zeff'] = importeddata['Zeff']
-         else:
-            exptnz['Zeff'] = iterdbdata['Zeff']
-    elif iprofile in [7,'imported'] and importedflag:
-         exptnz['Ti']   = importeddata['Ti']
-         exptnz['ni']   = importeddata['ni']
-         if 'Zeff' in importeddata:
-            if type(importeddata['Zeff']) == list:
-               exptnz['Zeff'] = importeddata['Zeff']
-            else:
-               exptnz['Zeff'] = npy.ones(npy.size(importeddata['Ti']))
-               exptnz['Zeff']*= importeddata['Zeff']
-         else:
-               exptnz['Zeff'] = npy.ones(npy.size(importeddata['Ti']))
-         if 'nz' in importeddata:
-            exptnz['nz']= importeddata['nz']
-         else:
-            exptnz['nz']= npy.zeros(npy.size(importeddata['Ti']))
-
-    if 'Zi' not in exptnz: exptnz['Zi'] = 1.0
-    if 'Zz' not in exptnz: exptnz['Zz'] = 6.0
-
-    if 'nz' not in exptnz:
-       exptnz['nz'] = exptnz['Zeff']*exptnz['ne']
-       exptnz['nz']-= exptnz['ni']*exptnz['Zi']**2
-       exptnz['nz']/= exptnz['Zz']**2
-
-    if   rhopsiflag: rhosize = npy.size(exptnz['rhopsi'])
-    elif rhotorflag: rhosize = npy.size(exptnz['rhotor'])
-
-    if outfile:
-       ofh = open("EXPTNZ",'w')
-       if   nrhotype[0] in [0,'rhopsi']:
-            rhosize = npy.size(exptnz['rhopsi'])
-            ofh.write('%5d rhopsi,  Te,   ne,   Zeff,   Ti,   ni  profiles\n' % rhosize)
-            for i in range(rhosize): ofh.write('%16.6E\n' % exptnz['rhopsi'][i])
-       elif nrhotype[0] in [1,'rhotor']:
-            rhosize = npy.size(exptnz['rhotor'])
-            ofh.write('%5d rhotor,  Te,   ne,   Zeff,   Ti,   ni  profiles\n' % rhosize)
-            for i in range(rhosize): ofh.write('%16.6E\n' % exptnz['rhotor'][i])
-       for i in range(rhosize): ofh.write('%16.6E\n' % exptnz['Te'][i])
-       for i in range(rhosize): ofh.write('%16.6E\n' % exptnz['ne'][i])
-       for i in range(rhosize): ofh.write('%16.6E\n' % exptnz['Zeff'][i])
-       for i in range(rhosize): ofh.write('%16.6E\n' % exptnz['Ti'][i])
-       for i in range(rhosize): ofh.write('%16.6E\n' % exptnz['ni'][i])
-       ofh.close()
-
-    return exptnz
-
-def read_profiles(profilesfpath,setParam={},Zeffprofile=True,**kwargs):
-    if os.path.isfile(profilesfpath) == False:
-       errorFunc = traceback.extract_stack(limit=2)[-2][3]
-       errorLine = traceback.extract_stack(limit=2)[-2][1]
-       errorFile = traceback.extract_stack(limit=2)[-2][2]
-       errMSG    = 'Call %s line %5d in file %s Failed.\n'
-       errMSG   += 'Fatal: file %s not found.'
-       raise IOError(errMSG %(errorFunc,errorLine,errorFile,profilesfpath))
-
-    rhopsiflag = False; rhotorflag = False
-    if 'nrhomesh' in setParam:
-        if   setParam['nrhomesh'] in [0,'rhopsi']: rhopsiflag = True
-        elif setParam['nrhomesh'] in [1,'rhotor']: rhotorflag = True
-    else:                                          rhopsiflag = True
-
-    eqdskflag    = False
-    interpflag   = False
-    cheaseflag   = False
-    importedflag = False
-    for key,value in kwargs.items():
-        if   key in ['chease','cheasedata','cheasefpath']:
-             if    type(value)==str and os.path.isfile(value.strip()):
-                   cheasedata = read_chease(cheasefpath=value.strip())
-             else: raise IOError('%s file not found!' % value.strip())
-             if 'rhopsi' in cheasedata: rhopsi = cheasedata['rhopsi'][:]
-             if 'rhotor' in cheasedata: rhotor = cheasedata['rhotor'][:]
-             if 'PSIN'   in cheasedata: psi    = cheasedata['PSIN'][:];   interpflag = True
-             if 'PHIN'   in cheasedata: phi    = cheasedata['PHIN'][:];   interpflag = True
-             cheaseflag = True
-        elif key in ['eqdsk','eqdskdata','eqdskfpath']:
-             if    type(value)==str and os.path.isfile(value.strip()):
-                   eqdskdata = read_eqdsk(eqdskfpath=value.strip())
-             else: raise IOError('%s file not found!' % value.strip())
-             if 'rhopsi' in eqdskdata: rhopsi = eqdskdata['rhopsi'][:]
-             if 'rhotor' in eqdskdata: rhotor = eqdskdata['rhotor'][:]
-             if 'PSIN'   in eqdskdata: psi    = eqdskdata['PSIN'][:];  interpflag = True
-             if 'PHIN'   in eqdskdata: phi    = eqdskdata['PHIN'][:];  interpflag = True
-             eqdskflag = True
-        elif key in ['imported','external','other']:
-             imported = value.copy()
-             if 'rhopsi' in imported: rhopsi = imported['rhopsi'][:]
-             if 'rhotor' in imported: rhotor = imported['rhotor'][:]
-             psi    = importeddata['rhopsi']**2;  interpflag = True
-             phi    = importeddata['rhotor']**2;  interpflag = True
-             importedflag = True
-
-    profiles,units = read_profiles_file(profilesfpath.strip())
-
-    PROFILESdata            = {}
-    PROFILESdata['rhopsi']  = npy.sqrt(profiles['psinorm'])
-    PROFILESdata['PSIN']    = profiles['psinorm'][:]
-    PROFILESdata['Te']      = profiles['te'][:]
-    PROFILESdata['Ti']      = profiles['ti'][:]
-    if 'tb' in profiles:
-       PROFILESdata['Tb']      = profiles['tb'][:]
-    PROFILESdata['ne']      = profiles['ne'][:]
-    PROFILESdata['ni']      = profiles['ni'][:]
-    PROFILESdata['nb']      = profiles['nb'][:]
-    PROFILESdata['nz']      = profiles['nz1'][:]
-
-    PROFILESdata['Pb']      = profiles['pb'][:]
-    PROFILESdata['Vpol']    = profiles['vpol1'][:]
-    PROFILESdata['Vtor']    = profiles['vtor1'][:]
-
-    PROFILESdata['pressure']= profiles['ptot'][:]
-
-    nrhopsi                 = npy.size(PROFILESdata['rhopsi'])
-
-    PROFILESdata['Zi']      = profiles['z'][1]
-    PROFILESdata['Zz']      = profiles['z'][0]
-
-    PROFILESdata['Zeff']    = PROFILESdata['ni']*PROFILESdata['Zi']**2
-    PROFILESdata['Zeff']   += PROFILESdata['nz']*PROFILESdata['Zz']**2
-    PROFILESdata['Zeff']   /= PROFILESdata['ne']
-
-    if not Zeffprofile:
-       Zeff_array = npy.array([1.0,1.5,2.0,2.5,3.0,3.5,4.0,5.0])
-       Zeff_mean  = npy.mean(PROFILESdata['Zeff'])
-       Zeff_diff  = abs(Zeff_array-Zeff_mean)
-       Zeff_value = Zeff_array[Zeff_diff==min(Zeff_diff)][0]
-       PROFILESdata['Zeff']    = npy.ones(nrhopsi)*Zeff_value
-
-    PROFILESdata['pprime']  = derivative(x=PROFILESdata['PSIN'],fx=PROFILESdata['pressure'],method='CubicSpline')
-
-    if   interpflag:
-         if   rhopsiflag:
-              PROFILESdata['Te']       = interp(PROFILESdata['PSIN'],PROFILESdata['Te'],psi)
-              PROFILESdata['Ti']       = interp(PROFILESdata['PSIN'],PROFILESdata['Ti'],psi)
-              if 'tb' in profiles:
-                 PROFILESdata['Tb']       = interp(PROFILESdata['PSIN'],PROFILESdata['Tb'],psi)
-              PROFILESdata['ne']       = interp(PROFILESdata['PSIN'],PROFILESdata['ne'],psi)
-              PROFILESdata['ni']       = interp(PROFILESdata['PSIN'],PROFILESdata['ni'],psi)
-              PROFILESdata['nb']       = interp(PROFILESdata['PSIN'],PROFILESdata['nb'],psi)
-              PROFILESdata['nz']       = interp(PROFILESdata['PSIN'],PROFILESdata['nz'],psi)
-              PROFILESdata['Pb']       = interp(PROFILESdata['PSIN'],PROFILESdata['Pb'],psi)
-              PROFILESdata['Vtor']     = interp(PROFILESdata['PSIN'],PROFILESdata['Vtor'],psi)
-              PROFILESdata['Vpol']     = interp(PROFILESdata['PSIN'],PROFILESdata['Vpol'],psi) 
-              PROFILESdata['Zeff']     = interp(PROFILESdata['PSIN'],PROFILESdata['Zeff'],psi)
-              PROFILESdata['pprime']   = interp(PROFILESdata['PSIN'],PROFILESdata['pprime'],psi)
-              PROFILESdata['pressure'] = interp(PROFILESdata['PSIN'],PROFILESdata['pressure'],psi)
-              PROFILESdata['PSIN']     = psi[:]
-              PROFILESdata['PHIN']     = phi[:]
-              PROFILESdata['rhopsi']   = rhopsi[:]
-              PROFILESdata['rhotor']   = rhotor[:]
-         elif rhotorflag:
-              PROFILESdata['Te']       = interp(PROFILESdata['PSIN'],PROFILESdata['Te'],psi,phi,phi)
-              PROFILESdata['Ti']       = interp(PROFILESdata['PSIN'],PROFILESdata['Ti'],psi,phi,phi)
-              if 'tb' in profiles:
-                 PROFILESdata['Tb']       = interp(PROFILESdata['PSIN'],PROFILESdata['Tb'],psi,phi,phi)
-              PROFILESdata['ne']       = interp(PROFILESdata['PSIN'],PROFILESdata['ne'],psi,phi,phi)
-              PROFILESdata['ni']       = interp(PROFILESdata['PSIN'],PROFILESdata['ni'],psi,phi,phi)
-              PROFILESdata['nb']       = interp(PROFILESdata['PSIN'],PROFILESdata['nb'],psi,phi,phi)
-              PROFILESdata['nz']       = interp(PROFILESdata['PSIN'],PROFILESdata['nz'],psi,phi,phi)
-              PROFILESdata['Pb']       = interp(PROFILESdata['PSIN'],PROFILESdata['Pb'],psi,phi,phi)
-              PROFILESdata['Vtor']     = interp(PROFILESdata['PSIN'],PROFILESdata['Vtor'],psi,phi,phi)
-              PROFILESdata['Vpol']     = interp(PROFILESdata['PSIN'],PROFILESdata['Vpol'],psi,phi,phi)
-              PROFILESdata['Zeff']     = interp(PROFILESdata['PSIN'],PROFILESdata['Zeff'],psi,phi,phi)
-              PROFILESdata['pprime']   = interp(PROFILESdata['PSIN'],PROFILESdata['pprime'],psi,phi,phi)
-              PROFILESdata['pressure'] = interp(PROFILESdata['PSIN'],PROFILESdata['pressure'],psi,phi,phi)
-              PROFILESdata['PSIN']     = psi[:]
-              PROFILESdata['PHIN']     = phi[:]
-              PROFILESdata['rhopsi']   = rhopsi[:]
-              PROFILESdata['rhotor']   = rhotor[:]
-    elif rhotorflag and not interpflag:
-         print("WARNING: setParam['nrhomesh'] = 1 or rhotor, but the path to a target rhotor is not provided.")
-         print("         Converting the profiles to toroidal (phi) coordinates could not be done, and")
-         print("         all profiles are provided in the poloidal (psi) coordinates.")
-
-    return PROFILESdata
-
-
-def read_iterdb(iterdbfpath,setParam={},**kwargs):
-    if os.path.isfile(iterdbfpath) == False:
-       errorFunc = traceback.extract_stack(limit=2)[-2][3]
-       errorLine = traceback.extract_stack(limit=2)[-2][1]
-       errorFile = traceback.extract_stack(limit=2)[-2][2]
-       errMSG    = 'Call %s line %5d in file %s Failed.\n'
-       errMSG   += 'Fatal: file %s not found.'
-       raise IOError(errMSG %(errorFunc,errorLine,errorFile,iterdbfpath))
-
-    rhopsiflag = False; rhotorflag = False
-    if   'nrhomesh' in setParam:
-         if   setParam['nrhomesh'] in [0,'rhopsi']: rhopsiflag = True
-         elif setParam['nrhomesh'] in [1,'rhotor']: rhotorflag = True
-    elif kwargs.items():
-         rhopsiflag = True
-    else:
-         rhotorflag = True
-
-    rhotors,profiles,units = read_iterdb_file(iterdbfpath)
-
-    '''
-    Normalizing the rhotor vectors before using them to interpolate the physical quantities
-    '''
-    if int(rhotors['NE'][-1]) == 1:
-       rhotorNE    = rhotors['NE'][:]
-       rhotorTE    = rhotors['TE'][:]
-       rhotorNM1   = rhotors['NM1'][:]
-       rhotorTI    = rhotors['TI'][:]
-       if 'NM2' in profiles:
-          rhotorNM2  = rhotors['NM2'][:]
-       if 'VROT' in profiles:
-          rhotorVROT = rhotors['VROT'][:]
-    else:
-       rhotorNE    = (rhotors['NE']-rhotors['NE'][0])/(rhotors['NE'][-1]-rhotors['NE'][0])
-       rhotorTE    = (rhotors['TE']-rhotors['TE'][0])/(rhotors['TE'][-1]-rhotors['TE'][0])
-       rhotorNM1   = (rhotors['NM1']-rhotors['NM1'][0])/(rhotors['NM1'][-1]-rhotors['NM1'][0])
-       rhotorTI    = (rhotors['TI']-rhotors['TI'][0])/(rhotors['TI'][-1]-rhotors['TI'][0])
-       if 'NM2' in profiles:
-        rhotorNM2  = (rhotors['NM2']-rhotors['NM2'][0])/(rhotors['NM2'][-1]-rhotors['NM2'][0])
-       if 'VROT' in profiles:
-        rhotorVROT = (rhotors['VROT']-rhotors['VROT'][0])/(rhotors['VROT'][-1]-rhotors['VROT'][0])
-
-    eqdskflag    = False
-    cheaseflag   = False
-    interpflag   = False
-    importedflag = False
-    for key,value in kwargs.items():
-        if   key in ['chease','cheasedata','cheasefpath']:
-             if    type(value)==str and os.path.isfile(value.strip()):
-                   cheasedata = read_chease(cheasefpath=value.strip())
-             else: raise IOError('%s file not found!' % value.strip())
-             if 'rhopsi' in cheasedata: rhopsi = cheasedata['rhopsi'][:]; interpflag = True
-             if 'rhotor' in cheasedata: rhotor = cheasedata['rhotor'][:]; interpflag = True
-             cheaseflag = True
-        elif key in ['eqdsk','eqdskdata','eqdskfpath']:
-             if    type(value)==str and os.path.isfile(value.strip()):
-                   eqdskdata = read_eqdsk(eqdskfpath=value.strip())
-             else: raise IOError('%s file not found!' % value.strip())
-             if 'rhopsi' in eqdskdata: rhopsi = eqdskdata['rhopsi'][:]; interpflag = True
-             if 'rhotor' in eqdskdata: rhotor = eqdskdata['rhotor'][:]; interpflag = True
-             eqdskflag = True
-        elif key in ['imported','external','other']:
-             imported = value.copy()
-             if 'rhopsi' in imported: rhopsi = imported['rhopsi'][:]; interpflag = True
-             if 'rhotor' in imported: rhotor = imported['rhotor'][:]; interpflag = True
-             importedflag = True
-        else:
-             rhotor  = rhotorNE[:]
-
-    ITERDBdata       = {}
-    ITERDBdata['Zi'] = 1.0
-    ITERDBdata['Zz'] = 6.0
-
-    if   rhopsiflag and interpflag:
-         ITERDBdata['rhopsi'] = rhopsi
-         ITERDBdata['rhotor'] = rhotor
-    elif rhotorflag and interpflag:
-         ITERDBdata['rhopsi'] = rhopsi
-         ITERDBdata['rhotor'] = rhotor
-    elif rhopsiflag and not interpflag:
-         print("WARNING: setParam['nrhomesh'] = 0 or rhopsi, but the path to a target rhopsi is not provided.")
-         print("         Converting the profiles to poloidal (psi) coordinates could not be done, and")
-         print("         all profiles are provided in the toroidal (phi) coordinates.")
-    else:
-         ITERDBdata['rhotor'] = rhotorNE
-
-    nrhosize = npy.size(ITERDBdata['rhotor'])
-
-    if   rhopsiflag and interpflag:
-         ITERDBdata['Te']      = interp(rhotors['TE'],profiles['TE'],rhotor,rhopsi,rhopsi)
-         ITERDBdata['Ti']      = interp(rhotors['TI'],profiles['TI'],rhotor,rhopsi,rhopsi)
-         ITERDBdata['ne']      = interp(rhotors['NE'],profiles['NE'],rhotor,rhopsi,rhopsi)
-         ITERDBdata['ni']      = interp(rhotors['NM1'],profiles['NM1'],rhotor,rhopsi,rhopsi)
-         if 'NM2' in profiles: 
-            ITERDBdata['nz']   = interp(rhotors['NM2'],profiles['NM2'],rhotor,rhopsi,rhopsi)
-         else:
-            ITERDBdata['nz']   = npy.zeros(nrhosize)
-         if 'VROT' in profiles :
-            ITERDBdata['Vrot']   = interp(rhotors['VROT'],profiles['VROT'],rhotor,rhopsi,rhopsi)
-         else:
-            ITERDBdata['Vrot'] = npy.zeros(nrhosize)
-    elif rhotorflag and interpflag:
-         ITERDBdata['ne']      = interp(rhotors['NE'],profiles['NE'],rhotor)
-         ITERDBdata['Te']      = interp(rhotors['TE'],profiles['TE'],rhotor)
-         ITERDBdata['ni']      = interp(rhotors['NM1'],profiles['NM1'],rhotor)
-         ITERDBdata['Ti']      = interp(rhotors['TI'],profiles['TI'],rhotor)
-         if 'NM2' in profiles: 
-            ITERDBdata['nz']   = interp(rhotors['NM2'],profiles['NM2'],rhotor)
-         else:
-            ITERDBdata['nz']   = npy.zeros(nrhosize)
-         if 'VROT' in profiles :
-            ITERDBdata['Vrot'] = interp(rhotors['VROT'],profiles['VROT'],rhotor)
-         else:
-            ITERDBdata['Vrot'] = npy.zeros(nrhosize)
-    else:
-         ITERDBdata['ne']      = interp(rhotors['NE'],profiles['NE'],rhotorNE)
-         ITERDBdata['Te']      = interp(rhotors['TE'],profiles['TE'],rhotorNE)
-         ITERDBdata['ni']      = interp(rhotors['NM1'],profiles['NM1'],rhotorNE)
-         ITERDBdata['Ti']      = interp(rhotors['TI'],profiles['TI'],rhotorNE)
-         if 'NM2' in profiles: 
-            ITERDBdata['nz']   = interp(rhotors['NM2'],profiles['NM2'],rhotorNE)
-         else:
-            ITERDBdata['nz']   = npy.zeros(nrhosize)
-         if 'VROT' in profiles :
-            ITERDBdata['Vrot'] = interp(rhotors['VROT'],profiles['VROT'],rhotorNE)
-         else:
-            ITERDBdata['Vrot'] = npy.zeros(nrhosize)
-
-    ITERDBdata['Zeff']    = ITERDBdata['ni']*ITERDBdata['Zi']**2
-    ITERDBdata['Zeff']   += ITERDBdata['nz']*ITERDBdata['Zz']**2
-    ITERDBdata['Zeff']   /= ITERDBdata['ne']
-
-    ITERDBdata['pressure']   = ITERDBdata['Te']*ITERDBdata['ne']
-    ITERDBdata['pressure']  += ITERDBdata['Ti']*ITERDBdata['ni']
-    ITERDBdata['pressure']  += ITERDBdata['Ti']*ITERDBdata['nz']
-    ITERDBdata['pressure']  *= 1.602e-19
-
-    if   rhopsiflag and interpflag:
-         ITERDBdata['pprime']= derivative(x=ITERDBdata['rhopsi'],fx=ITERDBdata['pressure'],method='CubicSpline')
-    else:
-         ITERDBdata['pprime']= derivative(x=ITERDBdata['rhotor'],fx=ITERDBdata['pressure'],method='CubicSpline')
-
-    return ITERDBdata
-
-def write_iterdb(iterdbfpath,setParam={},**kwargs):
-
-    if 'file_base' in setParam:
-       file_base = setParam['file_base']
-    else:
-       slashinds = findall(iterfpath,'/')
-       if slashinds: file_base = iterdbfpath[slashinds[-1]:-7]
-       else:         file_base = iterdbfpath[:-7]
-
-    if 'shot_num' in setParam:
-       shot_num = setParam['shot_num']
-    else:
-       shot_num = '0000'
-
-    if 'time_string' in setParam:
-       time_string = setParam['time_string']
-    else:
-       time_string = '9999'
-
-    output_iterdb(rhot,rhop,ne,te,ni,ti,file_base,shot_num,time_string,vrot,nimp)
-
-
-    return ITERDBdata
-
 
 
 def plot_chease(OSPATH,reportpath='',skipfigs=1):
@@ -2996,11 +1655,11 @@ def plot_chease(OSPATH,reportpath='',skipfigs=1):
            CHEASEdata = read_chease(cheasefpath=h5fid)
            CHEASEdataKeys = CHEASEdata.keys()
 
-           EXPTNZdata   = read_exptnz(exptnzlist[h5list.index(h5fid)],eqdsk=eqdsklist[0])
-           EXPEQdata    = read_expeq(expeqlist[h5list.index(h5fid)])
-           EQDSKdata    = read_eqdsk(eqdsklist[0])
+           EXPTNZdata   = fusionfiles.read_exptnz(exptnzlist[h5list.index(h5fid)],eqdsk=eqdsklist[0])
+           EXPEQdata    = fusionfiles.read_expeq(expeqlist[h5list.index(h5fid)])
+           EQDSKdata    = fusionfiles.read_eqdsk(eqdsklist[0])
            if proflist:
-              PROFILESdata = read_profiles(proflist[0])
+              PROFILESdata = fusionfiles.read_profiles(proflist[0])
 
            EDENfig = plt.figure("Electron Density")
            plt.plot(CHEASEdata['rhopsi'],CHEASEdata['ne'],linestyle='-',label='CHESAE-'+caselabel[-6:-3])
@@ -3687,157 +2346,157 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
 
           if   rhomesh_src in [0,'chease']:
                if   eprofiles_src in [0,'chease']   and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
                elif eprofiles_src in [0,'chease']   and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [0,'chease']   and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [0,'chease']   and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [0,'chease']   and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
           elif rhomesh_src in [1,'eqdsk']:
                if   eprofiles_src in [0,'chease']   and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                elif eprofiles_src in [0,'chease']   and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [0,'chease']   and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [0,'chease']   and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [0,'chease']   and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,imported=importedVals)
           elif rhomesh_src in [7,'imported',None]:
                if   eprofiles_src in [0,'chease']   and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
                elif eprofiles_src in [0,'chease']   and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [0,'chease']   and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [0,'chease']   and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [0,'chease']   and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,profiles=profilesfpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,profiles=profilesfpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,profiles=profilesfpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,profiles=profilesfpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [4,'profiles'] and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [0,'chease']:
-                    write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [3,'exptnz']:
-                    write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [4,'profiles']:
-                    write_exptnz(setParam=exptnzParam,profiles=profilesfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,profiles=profilesfpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [5,'iterdb']:
-                    write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,imported=importedVals)
                elif eprofiles_src in [7,'imported'] and iprofiles_src in [7,'imported']:
-                    write_exptnz(setParam=exptnzParam,imported=importedVals)
+                    fusionfiles.write_exptnz(setParam=exptnzParam,imported=importedVals)
 
 
        os.system('ls')
@@ -3855,7 +2514,7 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
 
        if runchease not in ['yes','y',1,True]: sys.exit()
 
-       eqdskdata = read_eqdsk(eqdskfpath=eqdskfpath)
+       eqdskdata = fusionfiles.read_eqdsk(eqdskfpath=eqdskfpath)
        if 'R0EXP' in namelistVals:
            R0EXP = namelistVals['R0EXP']
        else:
@@ -3887,177 +2546,177 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
             if not os.path.isfile('EXPEQ'):
                if   rhomesh_src in [0,'chease']:
                     if   pressure_src in [0,'chease']   and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
                     elif pressure_src in [0,'chease']   and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,imported=importedVals)
                     elif pressure_src in [0,'chease']   and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [0,'chease']   and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
                     elif pressure_src in [1,'eqdsk']    and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,imported=importedVals)
                     elif pressure_src in [1,'eqdsk']    and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,imported=importedVals)
                     elif pressure_src in [1,'eqdsk']    and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [1,'eqdsk']    and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,imported=importedVals)
                     elif pressure_src in [2,'expeq']    and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [2,'expeq']    and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [2,'expeq']    and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [2,'expeq']    and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [3,'exptnz']   and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                     elif pressure_src in [3,'exptnz']   and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath,eqdsk=eqdskfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath,eqdsk=eqdskfpath,imported=importedVals)
                     elif pressure_src in [3,'exptnz']   and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [3,'exptnz']   and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                     elif pressure_src in [4,'profiles'] and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                     elif pressure_src in [4,'profiles'] and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath,eqdsk=eqdskfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath,eqdsk=eqdskfpath,imported=importedVals)
                     elif pressure_src in [4,'profiles'] and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [4,'profiles'] and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                     elif pressure_src in [5,'iterdb']   and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                     elif pressure_src in [5,'iterdb']   and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,eqdsk=eqdskfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,eqdsk=eqdskfpath,imported=importedVals)
                     elif pressure_src in [5,'iterdb']   and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [5,'iterdb']   and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                     elif pressure_src in [7,'imported'] and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
                     elif pressure_src in [7,'imported'] and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,imported=importedVals)
                     elif pressure_src in [7,'imported'] and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [7,'imported'] and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
 
                elif rhomesh_src in [1,'eqdsk']:
                     if   pressure_src in [0,'chease']   and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                     elif pressure_src in [0,'chease']   and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                     elif pressure_src in [0,'chease']   and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [0,'chease']   and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                     elif pressure_src in [1,'eqdsk']    and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                     elif pressure_src in [1,'eqdsk']    and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
                     elif pressure_src in [1,'eqdsk']    and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [1,'eqdsk']    and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
                     elif pressure_src in [2,'expeq']    and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [2,'expeq']    and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [2,'expeq']    and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [2,'expeq']    and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [3,'exptnz']   and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                     elif pressure_src in [3,'exptnz']   and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
                     elif pressure_src in [3,'exptnz']   and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [3,'exptnz']   and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
                     elif pressure_src in [4,'profiles'] and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                     elif pressure_src in [4,'profiles'] and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
                     elif pressure_src in [4,'profiles'] and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,profiles=profilesfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,profiles=profilesfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [4,'profiles'] and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
                     elif pressure_src in [5,'iterdb']   and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                     elif pressure_src in [5,'iterdb']   and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
                     elif pressure_src in [5,'iterdb']   and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [5,'iterdb']   and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
                     elif pressure_src in [7,'imported'] and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                     elif pressure_src in [7,'imported'] and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
                     elif pressure_src in [7,'imported'] and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [7,'imported'] and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals) 
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals) 
 
                elif rhomesh_src in [7,'imported',None]:
                     if   pressure_src in [0,'chease']   and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
                     elif pressure_src in [0,'chease']   and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                     elif pressure_src in [0,'chease']   and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [0,'chease']   and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
                     elif pressure_src in [1,'eqdsk']    and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                     elif pressure_src in [1,'eqdsk']    and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
                     elif pressure_src in [1,'eqdsk']    and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [1,'eqdsk']    and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
                     elif pressure_src in [2,'expeq']    and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [2,'expeq']    and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [2,'expeq']    and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [2,'expeq']    and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [3,'exptnz']   and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                     elif pressure_src in [3,'exptnz']   and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
                     elif pressure_src in [3,'exptnz']   and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,exptnz=exptnzfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,exptnz=exptnzfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [3,'exptnz']   and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,exptnz=exptnzfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,exptnz=exptnzfpath,imported=importedVals)
                     elif pressure_src in [4,'profiles'] and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                     elif pressure_src in [4,'profiles'] and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
                     elif pressure_src in [4,'profiles'] and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,profiles=profilesfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,profiles=profilesfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [4,'profiles'] and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,profiles=profilesfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,profiles=profilesfpath,imported=importedVals)
                     elif pressure_src in [5,'iterdb']   and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                     elif pressure_src in [5,'iterdb']   and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
                     elif pressure_src in [5,'iterdb']   and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,iterdb=iterdbfpath,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,iterdb=iterdbfpath,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [5,'iterdb']   and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,iterdb=iterdbfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,iterdb=iterdbfpath,imported=importedVals)
                     elif pressure_src in [7,'imported'] and current_src in [0,'chease']:
-                         expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
                     elif pressure_src in [7,'imported'] and current_src in [1,'eqdsk']:
-                         expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
                     elif pressure_src in [7,'imported'] and current_src in [2,'expeq']:
-                         expeqdata = write_expeq(setParam=expeqParam,expeq=expeqfpath,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,expeq=expeqfpath,imported=importedVals)
                     elif pressure_src in [7,'imported'] and current_src in [7,'imported']:
-                         expeqdata = write_expeq(setParam=expeqParam,imported=importedVals)
+                         expeqdata = fusionfiles.write_expeq(setParam=expeqParam,imported=importedVals)
 
        namelistParam['R0EXP'] = R0EXP
        namelistParam['B0EXP'] = B0EXP
@@ -4078,9 +2737,9 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
                namelistParam['CSSPEC'] = 0.0
        elif current_src in [1,'eqdsk']:
             if   rhomesh_src in [0,'chease']:
-                 eqdskdata = read_eqdsk(eqdskfpath=eqdskfpath,chease=cheasefpath)
+                 eqdskdata = fusionfiles.read_eqdsk(eqdskfpath=eqdskfpath,chease=cheasefpath)
             elif rhomesh_src in [1,'eqdsk',None]:
-                 eqdskdata = read_eqdsk(eqdskfpath=eqdskfpath)
+                 eqdskdata = fusionfiles.read_eqdsk(eqdskfpath=eqdskfpath)
             if 'QSPEC' in namelistVals and 'CSSPEC' in namelistVals:
                namelistParam['QSPEC']  = namelistVals['QSPEC']
                namelistParam['CSSPEC'] = namelistVals['CSSPEC']
@@ -4092,11 +2751,11 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
                namelistParam['CSSPEC'] = 0.0
        elif current_src in [2,'expeq']:
             if   rhomesh_src in [0,'chease']:
-                 expeqdata = read_expeq(expeqfpath=expeqfpath,chease=cheasefpath)
+                 expeqdata = fusionfiles.read_expeq(expeqfpath=expeqfpath,chease=cheasefpath)
             elif rhomesh_src in [1,'eqdsk']:
-                 expeqdata = read_expeq(expeqfpath=expeqfpath,eqdsk=eqdskfpath)
+                 expeqdata = fusionfiles.read_expeq(expeqfpath=expeqfpath,eqdsk=eqdskfpath)
             elif rhomesh_src in [None]:
-                 expeqdata = read_expeq(expeqfpath=expeqfpath)
+                 expeqdata = fusionfiles.read_expeq(expeqfpath=expeqfpath)
             if 'QSPEC' in namelistVals and 'CSSPEC' in namelistVals:
                namelistParam['QSPEC']  = namelistVals['QSPEC']
                namelistParam['CSSPEC'] = namelistVals['CSSPEC']
@@ -4234,326 +2893,326 @@ def cheasepy(srcVals={},namelistVals={},pltVals={},cheaseVals={},importedVals={}
 
            if   rhomesh_src in [0,'chease']:
                 if   pressure_src in [0,'chease']   and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath)
                 elif pressure_src in [0,'chease']   and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath)
                 elif pressure_src in [0,'chease']   and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath)
                 elif pressure_src in [0,'chease']   and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
                 elif pressure_src in [1,'eqdsk']    and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath)
                 elif pressure_src in [1,'eqdsk']    and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath)
                 elif pressure_src in [1,'eqdsk']    and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,eqdsk=eqdskfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,eqdsk=eqdskfpath)
                 elif pressure_src in [1,'eqdsk']    and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,imported=importedVals)
                 elif pressure_src in [2,'expeq']    and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath)
                 elif pressure_src in [2,'expeq']    and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,eqdsk=eqdskfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,eqdsk=eqdskfpath)
                 elif pressure_src in [2,'expeq']    and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath)
                 elif pressure_src in [2,'expeq']    and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
                 elif pressure_src in [3,'exptnz']   and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath)
                 elif pressure_src in [3,'exptnz']   and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,exptnz=exptnzfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,exptnz=exptnzfpath)
                 elif pressure_src in [3,'exptnz']   and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,exptnz=exptnzfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,exptnz=exptnzfpath)
                 elif pressure_src in [3,'exptnz']   and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                 elif pressure_src in [4,'profiles'] and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath)
                 elif pressure_src in [4,'profiles'] and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,profiles=profilesfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,profiles=profilesfpath)
                 elif pressure_src in [4,'profiles'] and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,profiles=profilesfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,profiles=profilesfpath)
                 elif pressure_src in [4,'profiles'] and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                 elif pressure_src in [5,'iterdb']   and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath)
                 elif pressure_src in [5,'iterdb']   and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,iterdb=iterdbfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,iterdb=iterdbfpath)
                 elif pressure_src in [5,'iterdb']   and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,iterdb=iterdbfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,iterdb=iterdbfpath)
                 elif pressure_src in [5,'iterdb']   and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                 elif pressure_src in [7,'imported'] and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
                 elif pressure_src in [7,'imported'] and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,eqdsk=eqdskfpath,imported=importedVals)
                 elif pressure_src in [7,'imported'] and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,expeq=expeqfpath,imported=importedVals)
                 elif pressure_src in [7,'imported'] and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
 
            elif rhomesh_src in [1,'eqdsk']:
                 if   pressure_src in [0,'chease']   and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath)
                 elif pressure_src in [0,'chease']   and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath)
                 elif pressure_src in [0,'chease']   and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,chease=cheasefpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,chease=cheasefpath)
                 elif pressure_src in [0,'chease']   and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                 elif pressure_src in [1,'eqdsk']    and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath)
                 elif pressure_src in [1,'eqdsk']    and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath)
                 elif pressure_src in [1,'eqdsk']    and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath)
                 elif pressure_src in [1,'eqdsk']    and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
                 elif pressure_src in [2,'expeq']    and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,chease=cheasefpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,chease=cheasefpath)
                 elif pressure_src in [2,'expeq']    and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath)
                 elif pressure_src in [2,'expeq']    and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath)
                 elif pressure_src in [2,'expeq']    and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
                 elif pressure_src in [3,'exptnz']   and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,exptnz=exptnzfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,exptnz=exptnzfpath)
                 elif pressure_src in [3,'exptnz']   and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,exptnz=exptnzfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,exptnz=exptnzfpath)
                 elif pressure_src in [3,'exptnz']   and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,exptnz=exptnzfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,exptnz=exptnzfpath)
                 elif pressure_src in [3,'exptnz']   and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
                 elif pressure_src in [4,'profiles'] and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,profiles=profilesfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,profiles=profilesfpath)
                 elif pressure_src in [4,'profiles'] and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,profiles=profilesfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,profiles=profilesfpath)
                 elif pressure_src in [4,'profiles'] and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,profiles=profilesfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,profiles=profilesfpath)
                 elif pressure_src in [4,'profiles'] and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
                 elif pressure_src in [5,'iterdb']   and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,iterdb=iterdbfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,iterdb=iterdbfpath)
                 elif pressure_src in [5,'iterdb']   and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath)
                 elif pressure_src in [5,'iterdb']   and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,iterdb=iterdbfpath)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,iterdb=iterdbfpath)
                 elif pressure_src in [5,'iterdb']   and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
                 elif pressure_src in [7,'imported'] and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                 elif pressure_src in [7,'imported'] and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
                 elif pressure_src in [7,'imported'] and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
                 elif pressure_src in [7,'imported'] and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
 
            elif rhomesh_src in [7,'imported',None]:
                 if   pressure_src in [0,'chease']   and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
                 elif pressure_src in [0,'chease']   and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                 elif pressure_src in [0,'chease']   and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,expeq=expeqfpath,chease=cheasefpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,expeq=expeqfpath,chease=cheasefpath,imported=importedVals)
                 elif pressure_src in [0,'chease']   and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,imported=importedVals)
                 elif pressure_src in [1,'eqdsk']    and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                 elif pressure_src in [1,'eqdsk']    and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
                 elif pressure_src in [1,'eqdsk']    and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
                 elif pressure_src in [1,'eqdsk']    and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,imported=importedVals)
                 elif pressure_src in [2,'expeq']    and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,expeq=expeqfpath,chease=cheasefpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,expeq=expeqfpath,chease=cheasefpath,imported=importedVals)
                 elif pressure_src in [2,'expeq']    and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
                 elif pressure_src in [2,'expeq']    and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,expeq=expeqfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,expeq=expeqfpath,imported=importedVals)
                 elif pressure_src in [2,'expeq']    and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,imported=importedVals)
                 elif pressure_src in [3,'exptnz']   and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                 elif pressure_src in [3,'exptnz']   and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
                 elif pressure_src in [3,'exptnz']   and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,expeq=expeqfpath,exptnz=exptnzfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,expeq=expeqfpath,exptnz=exptnzfpath,imported=importedVals)
                 elif pressure_src in [3,'exptnz']   and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,exptnz=exptnzfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,exptnz=exptnzfpath,imported=importedVals)
                 elif pressure_src in [4,'profiles'] and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                 elif pressure_src in [4,'profiles'] and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
                 elif pressure_src in [4,'profiles'] and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,expeq=expeqfpath,profiles=profilesfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,expeq=expeqfpath,profiles=profilesfpath,imported=importedVals)
                 elif pressure_src in [4,'profiles'] and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,profiles=profilesfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,profiles=profilesfpath,imported=importedVals)
                 elif pressure_src in [5,'iterdb']   and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                 elif pressure_src in [5,'iterdb']   and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
                 elif pressure_src in [5,'iterdb']   and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,iterdb=iterdbfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,expeq=expeqfpath,iterdb=iterdbfpath,imported=importedVals)
                 elif pressure_src in [5,'iterdb']   and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
                 elif pressure_src in [7,'imported']   and current_src in [0,'chease']:
-                     expeqdata = write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                 elif pressure_src in [7,'imported']   and current_src in [1,'eqdsk']:
-                     expeqdata = write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
                 elif pressure_src in [7,'imported']   and current_src in [2,'expeq']:
-                     expeqdata = write_expeq(setParam=expeqParam,expeq=expeqfpath,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,expeq=expeqfpath,imported=importedVals)
                 elif pressure_src in [7,'imported']   and current_src in [7,'imported']:
-                     expeqdata = write_expeq(setParam=expeqParam,imported=importedVals)
+                     expeqdata = fusionfiles.write_expeq(setParam=expeqParam,imported=importedVals)
 
 
            if   rhomesh_src in [0,'chease']: 
                 if   eprofiles_src in [0,'chease']   and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath)
                 elif eprofiles_src in [0,'chease']   and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath)
                 elif eprofiles_src in [0,'chease']   and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath)
                 elif eprofiles_src in [0,'chease']   and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath)
                 elif eprofiles_src in [0,'chease']   and iprofiles_src in [7,'imported']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
                 elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath)
                 elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath)
                 elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,profiles=profilesfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,profiles=profilesfpath)
                 elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,iterdb=iterdbfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,iterdb=iterdbfpath)
                 elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [7,'imported']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                 elif eprofiles_src in [4,'profiles'] and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath)
                 elif eprofiles_src in [4,'profiles'] and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,exptnz=exptnzfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,exptnz=exptnzfpath)
                 elif eprofiles_src in [4,'profiles'] and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath)
                 elif eprofiles_src in [4,'profiles'] and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,iterdb=iterdbfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,iterdb=iterdbfpath)
                 elif eprofiles_src in [4,'profiles'] and iprofiles_src in [7,'imported']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                 elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath)
                 elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,exptnz=exptnzfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,exptnz=exptnzfpath)
                 elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,profiles=profilesfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,profiles=profilesfpath)
                 elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath)
                 elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [7,'imported']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [7,'imported']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
 
            elif rhomesh_src in [1,'eqdsk']: 
                 if   eprofiles_src in [0,'chease']   and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath)
                 elif eprofiles_src in [0,'chease']   and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,exptnz=exptnzfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,exptnz=exptnzfpath)
                 elif eprofiles_src in [0,'chease']   and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,profiles=profilesfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,profiles=profilesfpath)
                 elif eprofiles_src in [0,'chease']   and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,iterdb=iterdbfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,iterdb=iterdbfpath)
                 elif eprofiles_src in [0,'chease']   and iprofiles_src in [7,'imported']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                 elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,exptnz=exptnzfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,exptnz=exptnzfpath)
                 elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath)
                 elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,profiles=profilesfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,profiles=profilesfpath)
                 elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,iterdb=iterdbfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,iterdb=iterdbfpath)
                 elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [7,'imported']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
                 elif eprofiles_src in [4,'profiles'] and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,profiles=profilesfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,profiles=profilesfpath)
                 elif eprofiles_src in [4,'profiles'] and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,exptnz=exptnzfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,exptnz=exptnzfpath)
                 elif eprofiles_src in [4,'profiles'] and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath)
                 elif eprofiles_src in [4,'profiles'] and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,iterdb=iterdbfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,iterdb=iterdbfpath)
                 elif eprofiles_src in [4,'profiles'] and iprofiles_src in [7,'imported']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
                 elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,iterdb=iterdbfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,iterdb=iterdbfpath)
                 elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,exptnz=exptnzfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,exptnz=exptnzfpath)
                 elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,profiles=profilesfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,profiles=profilesfpath)
                 elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath)
                 elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [7,'imported']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,chease=cheasefpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,exptnz=exptnzfpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,profiles=profilesfpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,iterdb=iterdbfpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [7,'imported']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,eqdsk=eqdskfpath,imported=importedVals)
 
            elif rhomesh_src in [7,'imported',None]:
                 if   eprofiles_src in [0,'chease']   and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
                 elif eprofiles_src in [0,'chease']   and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                 elif eprofiles_src in [0,'chease']   and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                 elif eprofiles_src in [0,'chease']   and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                 elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,exptnz=exptnzfpath,imported=importedVals)
                 elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,imported=importedVals)
                 elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,profiles=profilesfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,profiles=profilesfpath,imported=importedVals)
                 elif eprofiles_src in [3,'exptnz']   and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,iterdb=iterdbfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,iterdb=iterdbfpath,imported=importedVals)
                 elif eprofiles_src in [4,'profiles'] and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,profiles=profilesfpath,imported=importedVals)
                 elif eprofiles_src in [4,'profiles'] and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,profiles=profilesfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,profiles=profilesfpath,imported=importedVals)
                 elif eprofiles_src in [4,'profiles'] and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,profiles=profilesfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,profiles=profilesfpath,imported=importedVals)
                 elif eprofiles_src in [4,'profiles'] and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,profiles=profilesfpath,iterdb=iterdbfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,profiles=profilesfpath,iterdb=iterdbfpath,imported=importedVals)
                 elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,iterdb=iterdbfpath,imported=importedVals)
                 elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,iterdb=iterdbfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,iterdb=iterdbfpath,imported=importedVals)
                 elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,profiles=profilesfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,profiles=profilesfpath,imported=importedVals)
                 elif eprofiles_src in [5,'iterdb']   and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [0,'chease']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,chease=cheasefpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [3,'exptnz']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,exptnz=exptnzfpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [4,'profiles']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,profiles=profilesfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,profiles=profilesfpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [5,'iterdb']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,iterdb=iterdbfpath,imported=importedVals)
                 elif eprofiles_src in [7,'imported'] and iprofiles_src in [7,'imported']:
-                     exptnzdata = write_exptnz(setParam=exptnzParam,imported=importedVals)
+                     exptnzdata = fusionfiles.write_exptnz(setParam=exptnzParam,imported=importedVals)
 
 
            namelistParam['QSPEC'] = cheasedata['q'][0]

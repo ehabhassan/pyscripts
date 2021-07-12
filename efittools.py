@@ -633,7 +633,7 @@ def psi2phi(q,psi):
     phinorm  = (phinorm-phinorm[0])/(phinorm[-1]-phinorm[0])
     phipsifn = interp1d(psinorm,phinorm)
     phi      = phipsifn(psi)
-    return phi
+    return psi,phi
 
 def phi2psi(q,phi):
     qphifn  = interp1d(phi,q)
@@ -647,7 +647,7 @@ def phi2psi(q,phi):
     psinorm  = (psinorm-psinorm[0])/(psinorm[-1]-psinorm[0])
     psiphifn = interp1d(phinorm,psinorm)
     psi      = psiphifn(phi)
-    return psi
+    return phi,psi
 
 
 def findmonotonic(A,kind="increasing"):

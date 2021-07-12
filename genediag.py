@@ -6,6 +6,7 @@ import os
 import sys
 import numpy as npy
 
+import efittools
 import genetools
 import geneplots
 
@@ -19,22 +20,22 @@ elif sys.version_info[0] < 3:
      PYTHON2 = True; PYTHON3 = False
 
 parser = argparse.ArgumentParser(description='GENE Diagnostic Tools.')
-parser.add_argument('--save',         '-save',        action='store_const',const=1,help='Save to disk without asking')
-parser.add_argument('--quick',        '-quick',       action='store_const',const=1,help='Trace the Fastest Growing Mode')
-parser.add_argument('--findtau',      '-findtau',     action='store_const',const=1,help='Find tau = Zeff*Te/Ti')
-parser.add_argument('--siunits',      '-siunits',     action='store_const',const=1,help='Covert to the SI Units')
-parser.add_argument('--plotnrg',      '-plotnrg',     action='store_const',const=1,help='Plot the profiles in nrg_xxxx file')
-parser.add_argument('--display',      '-display',     action='store_const',const=1,help='Display the plots')
-parser.add_argument('--modeinfo',     '-modeinfo',    action='store_const',const=1,help='Retrieve information about modes')
-parser.add_argument('--fluxinfo',     '-fluxinfo',    action='store_const',const=1,help='Retrieve information about fluxes')
-parser.add_argument('--findarea',     '-findarea',    action='store_const',const=1,help='Find the surface area of magnetic surface')
-parser.add_argument('--logscale',     '-logscale',    action='store_const',const=1,help='Plot in log scale')
-parser.add_argument('--omega2hz',     '-omega2hz',    action='store_const',const=1,help='Convert omega to Hz')
-parser.add_argument('--plotgeom',     '-plotgeom',    action='store_const',const=1,help='Plot the Geometry')
-parser.add_argument('--fluctinfo',    '-fluctinfo',   action='store_const',const=1,help='Retrieve information about fluctuations')
-parser.add_argument('--plotmodes',    '-plotmodes',   action='store_const',const=1,help='Plot the mode structures')
-parser.add_argument('--findomega',    '-findomega',   action='store_const',const=1,help='Find omega and growth-rate of a mode')
-parser.add_argument('--plotneoclass', '-plotneoclass',action='store_const',const=1,help='Plot the profiles in neoclass_xxxx file')
+parser.add_argument('--save',         '-save',         action='store_const',const=1,help='Save to disk without asking')
+parser.add_argument('--quick',        '-quick',        action='store_const',const=1,help='Trace the Fastest Growing Mode')
+parser.add_argument('--findtau',      '-findtau',      action='store_const',const=1,help='Find tau = Zeff*Te/Ti')
+parser.add_argument('--siunits',      '-siunits',      action='store_const',const=1,help='Covert to the SI Units')
+parser.add_argument('--plotnrg',      '-plotnrg',      action='store_const',const=1,help='Plot the profiles in nrg_xxxx file')
+parser.add_argument('--display',      '-display',      action='store_const',const=1,help='Display the plots')
+parser.add_argument('--modeinfo',     '-modeinfo',     action='store_const',const=1,help='Retrieve information about modes')
+parser.add_argument('--fluxinfo',     '-fluxinfo',     action='store_const',const=1,help='Retrieve information about fluxes')
+parser.add_argument('--findarea',     '-findarea',     action='store_const',const=1,help='Find the surface area of magnetic surface')
+parser.add_argument('--logscale',     '-logscale',     action='store_const',const=1,help='Plot in log scale')
+parser.add_argument('--omega2hz',     '-omega2hz',     action='store_const',const=1,help='Convert omega to Hz')
+parser.add_argument('--plotgeom',     '-plotgeom',     action='store_const',const=1,help='Plot the Geometry')
+parser.add_argument('--fluctinfo',    '-fluctinfo',    action='store_const',const=1,help='Retrieve information about fluctuations')
+parser.add_argument('--plotmodes',    '-plotmodes',    action='store_const',const=1,help='Plot the mode structures')
+parser.add_argument('--findomega',    '-findomega',    action='store_const',const=1,help='Find omega and growth-rate of a mode')
+parser.add_argument('--plotneoclass', '-plotneoclass', action='store_const',const=1,help='Plot the profiles in neoclass_xxxx file')
 parser.add_argument('--calc_mode_num','-calc_mode_num',action='store_const',const=1,help='Calculate Toroidal Mode Number')
 parser.add_argument('inputs',nargs='*')
 
@@ -68,12 +69,6 @@ if display or logscale:
 
 modeorder = []
 
-if   findtau:
-     psiloc = inputs[0]
-     profilefpath = inputs[1]
-     tau,Zeff = genetools.calc_tau(psiloc,profilepath=profilefpath)
-     print('tau = Zeff*Te/Ti = %7.5f and Zeff = %7.5f' % (tau,Zeff))
-
 orderlist = [str('%04d') % (i+1) for i in range(9999)]
 orderlist.append('dat')
 orderlist.append('.dat')
@@ -88,6 +83,38 @@ for item in inputs:
 
 if 'tbgn' not in locals(): tbgn = None
 if 'tend' not in locals(): tend = None
+
+if   findtau:
+     if modeorder:
+        if 'dat' in modeorder[0]:
+           paramfpath = 'parameters.dat'
+        else:
+           paramfpath = 'parameters_%04d' % int(modeorder[0])
+        tau,Zeff = genetools.calc_tau(parampath=paramfpath)
+     else:
+        if '=' in inputs[0]:
+            gridtype,gridloc = inputs[0].split('=')
+            if 'psi' in gridtype:
+                psiloc = float(gridloc)
+            else:
+                if 'gfile' in inputs[2] or 'efit' in inputs[2]:
+                    gfiletype,gfilefpath = inputs[2].split('=')
+                else:
+                    gfilefpath = inputs[2]
+                efitdata = efittools.read_efit_file(eqdskfpath=gfilefpath)
+                psi,phi = efittools.psi2phi(efitdata['qpsi'],efitdata['PSIN'])
+                psiloc = psi[npy.argmin(abs(phi-float(gridloc)))]
+                minind = npy.argmin(abs(phi-float(gridloc)))
+                print('phi = ', phi[minind], ' and psi = ', psi[minind])
+        else:
+            psiloc = float(inputs[0])
+
+        if 'profiles' in inputs[1]:
+            profiletype,profilefpath = inputs[1].split('=')
+        else:
+            profilefpath = inputs[1]
+        tau,Zeff = genetools.calc_tau(psiloc,profilepath=profilefpath)
+     print('tau = Zeff*Te/Ti = %7.5f and Zeff = %7.5f' % (tau,Zeff))
 
 if siunits:
    if modeorder:
@@ -115,6 +142,7 @@ if siunits:
    print('Ggb = ',units['Ggb'])
    print('Qgb = ',units['Qgb'])
    print('Pgb = ',units['Pgb'])
+   print('omegaref = ', units['cref']/units['Lref'])
 
 if not modeorder: sys.exit()
 
@@ -160,12 +188,18 @@ for mode in modeorder:
           genepath = './omega_%04d' % int(mode)
        paramdata = genetools.read_parameters(paramfpath)
        x0 = paramdata['box']['x0']
-       ky,freq = genetools.omega_to_hz(genefpath=genepath)
+       ky,freq,gamma = genetools.omega_to_hz(genefpath=genepath)
        if 'n0_global' in paramdata['box']:
           n0 = paramdata['box']['n0_global']
-          print('omega(x0=%5.3f,ky=%5.3f,n0=%d) = %7.5f Hz' % (x0,ky[0],n0,freq[0]))
+          if type(ky) in [list,tuple]:
+             print('omega(x0=%5.3f,ky=%5.3f,n0=%d) = %7.5f Hz' % (x0,ky[0],n0,freq[0]))
+          else:
+             print('omega(x0=%5.3f,ky=%5.3f,n0=%d) = %7.5f Hz' % (x0,ky,n0,freq))
        else:
-          print('omega(x0=%5.3f,ky=%5.3f,n0=%d) = %7.5f Hz' % (x0,ky[0],n0,freq[0]))
+          if type(ky) in [list,tuple]:
+             print('omega(x0=%5.3f,ky=%5.3f,n0=%d) = %7.5f Hz' % (x0,ky[0],freq[0]))
+          else:
+             print('omega(x0=%5.3f,ky=%5.3f,n0=%d) = %7.5f Hz' % (x0,ky,freq))
 
     if findomega:
        if   mode.isdigit():
@@ -224,7 +258,7 @@ for mode in modeorder:
                 if aparFlag:
                    while True:
                          if   sys.version_info[0] >=3:
-                              omegatype = input('Source?\n(1)Electric Potential,\n(2)Magnetic Potential.\nSelection:  ')
+                              omegatype = int(input('Source?\n(1)Electric Potential,\n(2)Magnetic Potential.\nSelection:  '))
                          elif sys.version_info[0] < 3:
                               omegatype = input('Source?\n(1)Electric Potential,\n(2)Magnetic Potential.\nSelection:  ')
                          if omegatype not in [1,2]: continue
@@ -241,9 +275,9 @@ for mode in modeorder:
              omegafpath = fieldfpath[:-10]+'omega'+fieldfpath[-5:]
           ofhand = open(omegafpath,'w')
           if omegatype == 1:
-             ofhand.write('%7.3f %9.3f %9.3f\n' % (ky,gamma_phi,omega_phi))
+             ofhand.write('%7.3f %9.4f %9.4f\n' % (ky,gamma_phi,omega_phi))
           else:
-             ofhand.write('%7.3f %9.3f %9.3f\n' % (ky,gamma_apr,omega_apr))
+             ofhand.write('%7.3f %9.4f %9.4f\n' % (ky,gamma_apr,omega_apr))
           ofhand.close()
 
     if plotmodes:
@@ -387,7 +421,10 @@ for mode in modeorder:
        parampath = os.path.abspath(paramfname)
 
        fluxinfo = genetools.flux_info(genefpath=parampath)
-       kyflux = fluxinfo.keys()[0]
+       try:
+          kyflux = fluxinfo.keys()[0]
+       except TypeError:
+          kyflux = list(fluxinfo.keys())[0]
        print('Mode Flux Info:')
        print("ky = %5.3f" % (kyflux))
        print("Xi/Xe = %5.3f" % (fluxinfo[kyflux]['i']['Chi']/fluxinfo[kyflux]['e']['Chi']))
@@ -441,7 +478,10 @@ for mode in modeorder:
        parampath = os.path.abspath(paramfname)
 
        modeinfo = genetools.mode_info(genefpath=parampath)
-       kymode = modeinfo.keys()[0]
+       try:
+          kymode = modeinfo.keys()[0]
+       except TypeError:
+          kymode = list(modeinfo.keys())[0]
        print('Mode General Info:')
        print("ky = %5.3f" % (kymode))
        print("Qem/Qes = %5.3f" % (modeinfo[kymode]['Qem/Qes']))
