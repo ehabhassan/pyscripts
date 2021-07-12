@@ -30,6 +30,7 @@ from scipy.interpolate import CubicSpline,RectBivariateSpline
 from matplotlib.backends.backend_pdf import PdfPages
 
 mu0 = 4.0e-7*npy.pi
+KBZ = 1.3806503e-23
 
 def current_correction(chease,expeq={},setParam={}):
     if   'nsttp' in setParam:
@@ -582,10 +583,13 @@ def read_csv(csvfn):
                  if recordid < len(headers):
                     csvdict[iheader] = []
                     recordid += 1
-                 try:
-                    csvdict[iheader].append(int(record[iheader]))
-                 except ValueError:
-                    csvdict[iheader].append(npy.float64(record[iheader]))
+                 if len(record[iheader]) == 0:
+                    csvdict[iheader].append(None)
+                 else:
+                    try:
+                       csvdict[iheader].append(int(record[iheader]))
+                    except ValueError:
+                       csvdict[iheader].append(npy.float64(record[iheader]))
          for iheader in csvdict:
              csvdict[iheader] = npy.array(csvdict[iheader])
     return csvdict
@@ -593,7 +597,13 @@ def read_csv(csvfn):
 def write_csv(csvfn,csvdict):
     headers   = sorted(csvdict.keys())
     nheaders  = npy.size(headers)
-    nrows     = npy.size(csvdict[headers[0]])
+    for iheader in headers:
+        if npy.size(csvdict[iheader])==0:
+           del csvdict[iheader]
+           headers.remove(iheader)
+           nheaders = npy.size(headers)
+        else:
+           nrows = npy.size(csvdict[iheader])
 
     with open(csvfn, mode='w') as csvfid:
          writer = csv.DictWriter(csvfid, fieldnames=headers)
@@ -601,6 +611,7 @@ def write_csv(csvfn,csvdict):
          for irow in range(nrows):
              record = {}
              for iheader in headers:
+                 if   npy.size(csvdict[iheader]) < nrows: continue
                  if   type(csvdict[iheader][irow]) == int:
                       record.update({iheader:"%d" % csvdict[iheader][irow]})
                  elif type(csvdict[iheader][irow]) == float:
@@ -883,9 +894,11 @@ def read_chease(cheasefpath,setParam={},Normalized=False,**kwargs):
     CHEASEdata['Jtor']     = npy.trapz(y=CHEASEdata['Jphi']*CHEASEdata['J']/CHEASEdata['R'],x=CHEASEdata['CHI'],axis=0)
     CHEASEdata['Itor']     = npy.trapz(y=CHEASEdata['Jtor'],x=CHEASEdata['PSI'],axis=0)
 
-    CHEASEdata['<B>']      = npy.trapz(y=CHEASEdata['J']*CHEASEdata['B'],x=CHEASEdata['CHI'],axis=0)/CHEASEdata['C1']
-    CHEASEdata['beta']     = 2.0*mu0*npy.mean(CHEASEdata['pressure'])/npy.mean(CHEASEdata['<B>']**2)
-    CHEASEdata['beta_N']   = 100.0*CHEASEdata['beta']*((CHEASEdata['Itor']/1.0e6)/npy.max(CHEASEdata['ageom'])/CHEASEdata['B0EXP'])
+
+    B2AVG = npy.trapz(y=CHEASEdata['<B2>'],x=CHEASEdata['PSI'],axis=0)/CHEASEdata['Volume'][-1]
+    PTAVG = npy.trapz(y=CHEASEdata['pressure'],x=CHEASEdata['PSI'],axis=0)/CHEASEdata['Volume'][-1]
+    CHEASEdata['beta_T']   = PTAVG/(B2AVG/2.0/mu0)
+    CHEASEdata['beta_N']   = 100.0*CHEASEdata['beta_T']/((CHEASEdata['Itor']/1.0e6)/npy.max(CHEASEdata['ageom'])/CHEASEdata['B0EXP'])
 
     CHEASEdata['Ibs']      = CHEASEdata['R0EXP']*CHEASEdata['Jbs']/CHEASEdata['<T/R2>']
     CHEASEdata['Iohmic']   = CHEASEdata['Iprl']-CHEASEdata['Ibs']
