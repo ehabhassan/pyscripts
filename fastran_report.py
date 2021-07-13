@@ -69,26 +69,94 @@ def fastran_report(fastranfpath="./",reportparam={}):
 
         print(CYELLOW + "Reading INPUT Files for %s Case" % SHOT_ID)
         if inputpath + "/inhcd" in inputfile:
-            hcd[SHOT_ID]      = Namelist(inputpath+"/inhcd")
+            hcd[SHOT_ID]    = Namelist(inputpath+"/inhcd")
             print(CGREEN + 'Reading inhcd ......... PASSED' + CEND)
-       #if inputpath + "/intglf" in inputfile:
-       #    tglf[SHOT_ID]     = Namelist(inputpath+"/intglf")
-       #    print(CGREEN + 'Reading intglf ... PASSED' + CEND)
+            hcd['status']   = True
+        else:
+            hcd['status']   = False
+        if inputpath + "/intglf" in inputfile:
+            tglf[SHOT_ID]     = Namelist(inputpath+"/intglf")
+            print(CGREEN + 'Reading intglf ... PASSED' + CEND)
+            tglf['status']   = True
+        else:
+            tglf['status']   = False
         if inputpath + "/innubeam" in inputfile:
             nubeam[SHOT_ID]   = Namelist(inputpath+"/innubeam")
             print(CGREEN + 'Reading innubeam ...... PASSED' + CEND)
+            nubeam['status']   = True
+        else:
+            nubeam['status']   = False
         if inputpath + "/innfreya" in inputfile:
             nfreya[SHOT_ID]   = Namelist(inputpath+"/innfreya")
             print(CGREEN + 'Reading innfreya ...... PASSED' + CEND)
+            nfreya['status']   = True
+        else:
+            nfreya['status']   = False
         if inputpath + "/infastran" in inputfile:
             fastran[SHOT_ID]  = Namelist(inputpath+"/infastran",case='lower')
             print(CGREEN + 'Reading infastran ..... PASSED' + CEND)
+            fastran['status']   = True
+        else:
+            fastran['status']   = False
         if inputpath + "/ingenray_LH" in inputfile:
             genraylh[SHOT_ID] = Namelist(inputpath+"/ingenray_LH")
             print(CGREEN + 'Reading ingenray_LH ... PASSED' + CEND)
+            genraylh['status']   = True
+        else:
+            genraylh['status']   = False
         if inputpath + "/ingenray_HC" in inputfile:
             genrayhc[SHOT_ID] = Namelist(inputpath+"/ingenray_HC")
             print(CGREEN + 'Reading ingenray_HC ... PASSED' + CEND)
+            genrayhc['status']   = True
+        else:
+            genrayhc['status']   = False
+
+    hcddiff      = []
+    tglfdiff     = []
+    nubeamdiff   = []
+    nfreyadiff   = []
+    fastrandiff  = []
+    genraylhdiff = []
+    genrayhcdiff = []
+
+    for ishot in range(len(lshots)-1):
+        if hcd['status']:
+            for ikey in hcd[lshots[ishot]]['inhcd'].keys():
+                if   ikey in hcddiff: continue
+                elif hcd[lshots[ishot]]['inhcd'][ikey] != hcd[lshots[ishot+1]]['inhcd'][ikey]:
+                     hcddiff.append(ikey)
+
+        if tglf['status']:
+            for ikey in tglf[lshots[ishot]]['intglf'].keys():
+                if   ikey in tglfdiff: continue
+                elif tglf[lshots[ishot]]['intglf'][ikey] != tglf[lshots[ishot+1]]['intglf'][ikey]:
+                     tglfdiff.append(ikey)
+
+        if fastran['status']:
+            for ikey in fastran[lshots[ishot]]['infastran'].keys():
+                if   ikey in fastrandiff: continue
+                elif fastran[lshots[ishot]]['infastran'][ikey] != fastran[lshots[ishot+1]]['infastran'][ikey]:
+                     fastrandiff.append(ikey)
+
+        if nfreya['status']:
+            for ikey in nfreya[lshots[ishot]]['innfreya'].keys():
+                if   ikey in nfreyadiff: continue
+                elif nfreya[lshots[ishot]]['innfreya'][ikey] != nfreya[lshots[ishot+1]]['innfreya'][ikey]:
+                     nfreyadiff.append(ikey)
+
+        if nubeam['status']:
+            for ikey in nubeam[lshots[ishot]]['NBI_CONFIG'].keys():
+                if   ikey in nubeamdiff: continue
+                elif nubeam[lshots[ishot]]['NBI_CONFIG'][ikey] != nubeam[lshots[ishot+1]]['NBI_CONFIG'][ikey]:
+                     nubeamdiff.append(ikey)
+            for ikey in nubeam[lshots[ishot]]['NBI_MODEL'].keys():
+                if   ikey in nubeamdiff: continue
+                elif nubeam[lshots[ishot]]['NBI_MODEL'][ikey] != nubeam[lshots[ishot+1]]['NBI_MODEL'][ikey]:
+                     nubeamdiff.append(ikey)
+            for ikey in nubeam[lshots[ishot]]['NBI_INIT'].keys():
+                if   ikey in nubeamdiff: continue
+                elif nubeam[lshots[ishot]]['NBI_INIT'][ikey] != nubeam[lshots[ishot+1]]['NBI_INIT'][ikey]:
+                     nubeamdiff.append(ikey)
 
     report_title = "FASTRAN Report"
     reportpath = "./fastran_report/"
