@@ -1054,25 +1054,31 @@ def fastran_report(fastranfpath="./",reportparam={}):
 
     print(CYELLOW + 'Processing TEX to PDF ...' + CEND)
    #latex2pdf_cmd = "pdflatex -interaction=batchmode -output-directory=" + reportpath + " " + reportpath + texfname)
-    latex2pdf_cmd = "pdflatex -output-directory=" + reportpath + " " + reportpath+texfname + " > /dev/null"
-   #latex2pdf_cmd = "pdflatex -output-directory=" + reportpath + " " + reportpath + texfname
+    if 'debugtex' in reportparam and reportparam['debugtex']:
+        latex2pdf_cmd = "pdflatex -output-directory=" + reportpath + " " + reportpath + texfname
+    else:
+        latex2pdf_cmd = "pdflatex -output-directory=" + reportpath + " " + reportpath+texfname + " > /dev/null"
     os.system(latex2pdf_cmd)
     print(CGREEN + 'FASTRAN Report Created SUCCESSFULLY' + CEND)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--noplot','-noplot',action='store_const',const=1,help='Do not Plot FASTRAN results before creating the report.')
+    parser.add_argument('--noplot',  '-noplot',  action='store_const',const=1,help='Do not Plot FASTRAN results before creating the report.')
+    parser.add_argument('--debugtex','-debugtex',action='store_const',const=1,help='Show details while compiling TEX file to PDF.')
     parser.add_argument('inputs',nargs='*')
 
     if parser.parse_args():
         args = parser.parse_args()
-        inputs = args.inputs
-        noplot = args.noplot
+        inputs   = args.inputs
+        noplot   = args.noplot
+        debugtex = args.debugtex
 
     reportparam = {}
     if noplot:
         reportparam['noplot'] = True
+    if debugtex:
+        reportparam['debugtex'] = True
 
     fastran_report(fastranfpath=inputs[:],reportparam=reportparam)
 
