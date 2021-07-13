@@ -399,12 +399,13 @@ def fastran_report(fastranfpath="./",reportparam={}):
     texfhand = open(reportpath+texfname,'w')
     texfhand.write("\\documentclass[]{book} \n")
     texfhand.write("\\usepackage{float} \n")    
+    texfhand.write("\\usepackage{amsmath} \n")    
     texfhand.write("\\usepackage{placeins} \n")    
     texfhand.write("\\usepackage{graphicx} \n")    
-    texfhand.write("\\usepackage{amsmath} \n")    
+    texfhand.write("\\usepackage{colortbl} \n")    
+    texfhand.write("\\usepackage{makecell} \n")    
     texfhand.write("\\usepackage{geometry} \n")    
     texfhand.write("\\geometry{legalpaper, landscape, margin=0.7in} \n")    
-    texfhand.write("\\usepackage{makecell} \n")    
     texfhand.write("\\usepackage{multirow,tabularx} \n")    
     texfhand.write("\\setcellgapes{4pt} \n")    
 
@@ -430,32 +431,83 @@ def fastran_report(fastranfpath="./",reportparam={}):
     texfhand.write("\\section{LIST OF FASTRAN INPUTS} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{18}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
-        rectxt = ""
-        if "dt"              in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & dt";                 rectxt += " & " + str(fastran[SHOT_ID]['infastran']['dt'][0])
-        else:                                                         hdrtxt += " & dt";                 rectxt += " & - "
-        if "dt_relax_j"      in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & dt\_relax\_j";       rectxt += " & " + str(fastran[SHOT_ID]['infastran']['dt_relax_j'][0])
-        if "dt_step_relax_j" in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & dt\_step\_relax\_j"; rectxt += " & " + str(fastran[SHOT_ID]['infastran']['dt_step_relax_j'][0])
-        if "iexb"            in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & iexb";               rectxt += " & " + str(fastran[SHOT_ID]['infastran']['iexb'][0])
-        if "irelax"          in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & irelax";             rectxt += " & " + str(fastran[SHOT_ID]['infastran']['irelax'][0])
-        if "isolver"         in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & isolver";            rectxt += " & " + str(fastran[SHOT_ID]['infastran']['isolver'][0])
-        if "relax_j"         in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & relax\_j";           rectxt += " & " + str(fastran[SHOT_ID]['infastran']['relax_j'][0])
-        if "error"           in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & error";              rectxt += " & " + str(fastran[SHOT_ID]['infastran']['error'][0])
-        if "error_e"         in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & error\_e";           rectxt += " & " + str(fastran[SHOT_ID]['infastran']['error_e'][0])
-        if "error_i"         in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & error\_i";           rectxt += " & " + str(fastran[SHOT_ID]['infastran']['error_i'][0])
-        if "error_v"         in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & error\_v";           rectxt += " & " + str(fastran[SHOT_ID]['infastran']['error_v'][0])
-        if "error_n"         in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & error\_n";           rectxt += " & " + str(fastran[SHOT_ID]['infastran']['error_n'][0])
-        if "nrho"            in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & nrho";               rectxt += " & " + str(fastran[SHOT_ID]['infastran']['nrho'][0])
-        if "rho_bdry"        in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & rho\_bdry";          rectxt += " & " + str(fastran[SHOT_ID]['infastran']['rho_bdry'][0])
-        if "include_nhe"     in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & include\_nhe";       rectxt += " & " + str(fastran[SHOT_ID]['infastran']['include_nhe'][0])
-        if "maxiter_relax"   in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & maxiter\_relax";     rectxt += " & " + str(fastran[SHOT_ID]['infastran']['maxiter_relax'][0])
-        if "nrho_transport"  in fastran[SHOT_ID]['infastran'].keys(): hdrtxt += " & nrho\_transport";    rectxt += " & " + str(fastran[SHOT_ID]['infastran']['nrho_transport'][0])
         if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "dt"              in fastrandiff: hdrtxt += " & dt";                  tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & dt";                  tblcol += "| c "
+           if "dt_relax_j"      in fastrandiff: hdrtxt += " & dt\_relax\_j";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & dt\_relax\_j";        tblcol += "| c "
+           if "dt_step_relax_j" in fastrandiff: hdrtxt += " & dt\_step\_relax\_j";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & dt\_step\_relax\_j";  tblcol += "| c "
+           if "iexb"            in fastrandiff: hdrtxt += " & iexb";                tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & iexb";                tblcol += "| c "
+           if "irelax"          in fastrandiff: hdrtxt += " & irelax";              tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & irelax";              tblcol += "| c "
+           if "isolver"         in fastrandiff: hdrtxt += " & isolver";             tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & isolver";             tblcol += "| c "
+           if "relax_j"         in fastrandiff: hdrtxt += " & relax\_j";            tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & relax\_j";            tblcol += "| c "
+           if "error"           in fastrandiff: hdrtxt += " & error";               tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & error";               tblcol += "| c "
+           if "error_e"         in fastrandiff: hdrtxt += " & error\_e";            tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & error\_e";            tblcol += "| c "
+           if "error_i"         in fastrandiff: hdrtxt += " & error\_i";            tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & error\_i";            tblcol += "| c "
+           if "error_v"         in fastrandiff: hdrtxt += " & error\_v";            tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & error\_v";            tblcol += "| c "
+           if "error_n"         in fastrandiff: hdrtxt += " & error\_n";            tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & error\_n";            tblcol += "| c "
+           if "nrho"            in fastrandiff: hdrtxt += " & nrho";                tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & nrho";                tblcol += "| c "
+           if "rho_bdry"        in fastrandiff: hdrtxt += " & rho\_bdry";           tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & rho\_bdry";           tblcol += "| c "
+           if "include_nhe"     in fastrandiff: hdrtxt += " & include\_nhe";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & include\_nhe";        tblcol += "| c "
+           if "maxiter_relax"   in fastrandiff: hdrtxt += " & maxiter\_relax";      tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & maxiter\_relax";      tblcol += "| c "
+           if "nrho_transport"  in fastrandiff: hdrtxt += " & nrho\_transport";     tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & nrho\_transport";     tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
            texfhand.write("FASTRAN" + hdrtxt + "  \\\\ \n")
            texfhand.write("\\hline \n")
+        rectxt = ""
+        if "dt"              in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['dt'][0])
+        else:                                                         rectxt += " & - "
+        if "dt_relax_j"      in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['dt_relax_j'][0])
+        else:                                                         rectxt += " & - "
+        if "dt_step_relax_j" in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['dt_step_relax_j'][0])
+        else:                                                         rectxt += " & - "
+        if "iexb"            in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['iexb'][0])
+        else:                                                         rectxt += " & - "
+        if "irelax"          in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['irelax'][0])
+        else:                                                         rectxt += " & - "
+        if "isolver"         in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['isolver'][0])
+        else:                                                         rectxt += " & - "
+        if "relax_j"         in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['relax_j'][0])
+        else:                                                         rectxt += " & - "
+        if "error"           in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['error'][0])
+        else:                                                         rectxt += " & - "
+        if "error_e"         in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['error_e'][0])
+        else:                                                         rectxt += " & - "
+        if "error_i"         in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['error_i'][0])
+        else:                                                         rectxt += " & - "
+        if "error_v"         in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['error_v'][0])
+        else:                                                         rectxt += " & - "
+        if "error_n"         in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['error_n'][0])
+        else:                                                         rectxt += " & - "
+        if "nrho"            in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['nrho'][0])
+        else:                                                         rectxt += " & - "
+        if "rho_bdry"        in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['rho_bdry'][0])
+        else:                                                         rectxt += " & - "
+        if "include_nhe"     in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['include_nhe'][0])
+        else:                                                         rectxt += " & - "
+        if "maxiter_relax"   in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['maxiter_relax'][0])
+        else:                                                         rectxt += " & - "
+        if "nrho_transport"  in fastran[SHOT_ID]['infastran'].keys(): rectxt += " & " + str(fastran[SHOT_ID]['infastran']['nrho_transport'][0])
+        else:                                                         rectxt += " & - "
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
     texfhand.write("\\hline \n")
     texfhand.write("\\end{tabular}\n")
