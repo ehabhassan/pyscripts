@@ -11,7 +11,7 @@ import numpy as npy
 
 from glob import glob
 from Namelist import Namelist
-from fastran_plot import fastran_plot
+from fastran_tools import fastran_plot
 
 CEND    = '\033[0m'
 CRED    = '\33[31m'

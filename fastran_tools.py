@@ -19,9 +19,11 @@ CGREEN  = '\33[32m'
 CYELLOW = '\33[33m'
 
 
-def read_fastran_outputs(WORK_DIR,CURRENT_FASTRAN):
-    PATH_TO_FILE = os.path.join(WORK_DIR,CURRENT_FASTRAN)
-    cdffh = Dataset(PATH_TO_FILE, mode='r')
+#def read_fastran_outputs(WORK_DIR,CURRENT_FASTRAN):
+#    PATH_TO_FILE = os.path.join(WORK_DIR,CURRENT_FASTRAN)
+#    cdffh = Dataset(PATH_TO_FILE, mode='r')
+def read_fastran_outputs(fastranfpath):
+    cdffh = Dataset(fastranfpath, mode='r')
 
     fastran = {}
     for name, variable in cdffh.variables.items():
@@ -78,10 +80,11 @@ def read_fastran_outputs(WORK_DIR,CURRENT_FASTRAN):
     return fastran
 
 
-def read_state_outputs(WORK_DIR,CURRENT_EQSTATE):
-    PATH_TO_FILE = os.path.join(WORK_DIR,CURRENT_STATE)
-    print('READING CURRENT_STATE from %s' % PATH_TO_FILE)
-    cdffh = Dataset(PATH_TO_FILE, mode='r')
+#def read_state_outputs(WORK_DIR,CURRENT_EQSTATE):
+#    PATH_TO_FILE = os.path.join(WORK_DIR,CURRENT_STATE)
+#    cdffh = Dataset(PATH_TO_FILE, mode='r')
+def read_state_outputs(statefpath):
+    cdffh = Dataset(statefpath, mode='r')
 
     state = {}
     for name, variable in cdffh.variables.items():
@@ -684,10 +687,10 @@ def fastran_plot(WORK_DIR,plotparam={}):
            shot = SHOT_NUMBER + '.' + TIME_ID + '.%02d' % CASE_ID
 
         if fCURRENT_STATE[WORK_DIR.index(iWORK_DIR)] and cmpfigs:
-           statedata[shot] = read_state_outputs(iWORK_DIR,CURRENT_STATE)
+           statedata[shot] = read_state_outputs(os.path.join(iWORK_DIR,CURRENT_STATE))
 
         if fCURRENT_FASTRAN[WORK_DIR.index(iWORK_DIR)]:
-           fastrandata[shot] = read_fastran_outputs(iWORK_DIR,CURRENT_FASTRAN)
+           fastrandata[shot] = read_fastran_outputs(os.path.join(iWORK_DIR,CURRENT_FASTRAN))
            print(CGREEN + 'READING CURRENT_FASTRAN from %s ... PASSED' % iWORK_DIR + CEND)
         else:
            print(CRED + 'READING CURRENT_FASTRAN from %s ... FAILED' % iWORK_DIR + CEND)
