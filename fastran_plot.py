@@ -148,6 +148,8 @@ def plot_fastran_outputs(fastrandata,plotparam={}):
             for isubfig in range(len(jsonfdata["figures"][ifig]["subplots"])):
                 figgrd = int("%d%d%d" % (jsonfdata["figures"][ifig]['grid'][0],jsonfdata["figures"][ifig]['grid'][1],isubfig+1))
                 axs[isubfig] = fig.add_subplot(figgrd)
+                if type(jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"]) not in [list,tuple]:
+                    jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"] = [jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"]]
                 for ifield in jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"]:
                     lstyle = styles[jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"].index(ifield)]
                     for shot in shots:
