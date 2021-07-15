@@ -119,11 +119,13 @@ def fastran_report(fastranfpath="./",reportparam={}):
     genraylhdiff = []
     genrayhcdiff = []
 
-    for ishot in range(len(lshots)-1):
+    for ishot in range(1,len(lshots)-1):
         if hcd['status']:
             for ikey in hcd[lshots[ishot]]['inhcd'].keys():
                 if   ikey in hcddiff: continue
                 elif hcd[lshots[ishot]]['inhcd'][ikey] != hcd[lshots[ishot+1]]['inhcd'][ikey]:
+                     hcddiff.append(ikey)
+                elif hcd[lshots[ishot]]['inhcd'][ikey] != hcd[lshots[ishot-1]]['inhcd'][ikey]:
                      hcddiff.append(ikey)
 
         if tglf['status']:
@@ -131,11 +133,15 @@ def fastran_report(fastranfpath="./",reportparam={}):
                 if   ikey in tglfdiff: continue
                 elif tglf[lshots[ishot]]['intglf'][ikey] != tglf[lshots[ishot+1]]['intglf'][ikey]:
                      tglfdiff.append(ikey)
+                elif tglf[lshots[ishot]]['intglf'][ikey] != tglf[lshots[ishot-1]]['intglf'][ikey]:
+                     tglfdiff.append(ikey)
 
         if fastran['status']:
             for ikey in fastran[lshots[ishot]]['infastran'].keys():
                 if   ikey in fastrandiff: continue
                 elif fastran[lshots[ishot]]['infastran'][ikey] != fastran[lshots[ishot+1]]['infastran'][ikey]:
+                     fastrandiff.append(ikey)
+                elif fastran[lshots[ishot]]['infastran'][ikey] != fastran[lshots[ishot-1]]['infastran'][ikey]:
                      fastrandiff.append(ikey)
 
         if nfreya['status']:
@@ -143,19 +149,27 @@ def fastran_report(fastranfpath="./",reportparam={}):
                 if   ikey in nfreyadiff: continue
                 elif nfreya[lshots[ishot]]['innfreya'][ikey] != nfreya[lshots[ishot+1]]['innfreya'][ikey]:
                      nfreyadiff.append(ikey)
+                elif nfreya[lshots[ishot]]['innfreya'][ikey] != nfreya[lshots[ishot-1]]['innfreya'][ikey]:
+                     nfreyadiff.append(ikey)
 
         if nubeam['status']:
             for ikey in nubeam[lshots[ishot]]['NBI_CONFIG'].keys():
                 if   ikey in nubeamdiff: continue
                 elif nubeam[lshots[ishot]]['NBI_CONFIG'][ikey] != nubeam[lshots[ishot+1]]['NBI_CONFIG'][ikey]:
                      nubeamdiff.append(ikey)
+                elif nubeam[lshots[ishot]]['NBI_CONFIG'][ikey] != nubeam[lshots[ishot-1]]['NBI_CONFIG'][ikey]:
+                     nubeamdiff.append(ikey)
             for ikey in nubeam[lshots[ishot]]['NBI_MODEL'].keys():
                 if   ikey in nubeamdiff: continue
                 elif nubeam[lshots[ishot]]['NBI_MODEL'][ikey] != nubeam[lshots[ishot+1]]['NBI_MODEL'][ikey]:
                      nubeamdiff.append(ikey)
+                elif nubeam[lshots[ishot]]['NBI_MODEL'][ikey] != nubeam[lshots[ishot-1]]['NBI_MODEL'][ikey]:
+                     nubeamdiff.append(ikey)
             for ikey in nubeam[lshots[ishot]]['NBI_INIT'].keys():
                 if   ikey in nubeamdiff: continue
                 elif nubeam[lshots[ishot]]['NBI_INIT'][ikey] != nubeam[lshots[ishot+1]]['NBI_INIT'][ikey]:
+                     nubeamdiff.append(ikey)
+                elif nubeam[lshots[ishot]]['NBI_INIT'][ikey] != nubeam[lshots[ishot-1]]['NBI_INIT'][ikey]:
                      nubeamdiff.append(ikey)
 
         if genraylh['status']:
@@ -163,109 +177,163 @@ def fastran_report(fastranfpath="./",reportparam={}):
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['GENR'][ikey] != genraylh[lshots[ishot+1]]['GENR'][ikey]:
                      genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['GENR'][ikey] != genraylh[lshots[ishot-1]]['GENR'][ikey]:
+                     genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['TOKAMAK'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['TOKAMAK'][ikey] != genraylh[lshots[ishot+1]]['TOKAMAK'][ikey]:
+                     genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['TOKAMAK'][ikey] != genraylh[lshots[ishot-1]]['TOKAMAK'][ikey]:
                      genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['WAVE'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['WAVE'][ikey] != genraylh[lshots[ishot+1]]['WAVE'][ikey]:
                      genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['WAVE'][ikey] != genraylh[lshots[ishot-1]]['WAVE'][ikey]:
+                     genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['SCATNPER'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['SCATNPER'][ikey] != genraylh[lshots[ishot+1]]['SCATNPER'][ikey]:
+                     genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['SCATNPER'][ikey] != genraylh[lshots[ishot-1]]['SCATNPER'][ikey]:
                      genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['DISPERS'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['DISPERS'][ikey] != genraylh[lshots[ishot+1]]['DISPERS'][ikey]:
                      genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['DISPERS'][ikey] != genraylh[lshots[ishot-1]]['DISPERS'][ikey]:
+                     genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['NUMERCL'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['NUMERCL'][ikey] != genraylh[lshots[ishot+1]]['NUMERCL'][ikey]:
+                     genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['NUMERCL'][ikey] != genraylh[lshots[ishot-1]]['NUMERCL'][ikey]:
                      genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['OUTPUT'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['OUTPUT'][ikey] != genraylh[lshots[ishot+1]]['OUTPUT'][ikey]:
                      genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['OUTPUT'][ikey] != genraylh[lshots[ishot-1]]['OUTPUT'][ikey]:
+                     genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['PLASMA'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['PLASMA'][ikey] != genraylh[lshots[ishot+1]]['PLASMA'][ikey]:
+                     genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['PLASMA'][ikey] != genraylh[lshots[ishot-1]]['PLASMA'][ikey]:
                      genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['EDGE_PROF_NML'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['EDGE_PROF_NML'][ikey] != genraylh[lshots[ishot+1]]['EDGE_PROF_NML'][ikey]:
                      genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['EDGE_PROF_NML'][ikey] != genraylh[lshots[ishot-1]]['EDGE_PROF_NML'][ikey]:
+                     genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['ADJ_NML'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['ADJ_NML'][ikey] != genraylh[lshots[ishot+1]]['ADJ_NML'][ikey]:
+                     genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['ADJ_NML'][ikey] != genraylh[lshots[ishot-1]]['ADJ_NML'][ikey]:
                      genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['OX'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['OX'][ikey] != genraylh[lshots[ishot+1]]['OX'][ikey]:
                      genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['OX'][ikey] != genraylh[lshots[ishot-1]]['OX'][ikey]:
+                     genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['EMISSION'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['EMISSION'][ikey] != genraylh[lshots[ishot+1]]['EMISSION'][ikey]:
+                     genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['EMISSION'][ikey] != genraylh[lshots[ishot-1]]['EMISSION'][ikey]:
                      genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['READ_DISKF'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['READ_DISKF'][ikey] != genraylh[lshots[ishot+1]]['READ_DISKF'][ikey]:
                      genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['READ_DISKF'][ikey] != genraylh[lshots[ishot-1]]['READ_DISKF'][ikey]:
+                     genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['ZEFTAB_NONUNIFORM_LINE'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['ZEFTAB_NONUNIFORM_LINE'][ikey] != genraylh[lshots[ishot+1]]['ZEFTAB_NONUNIFORM_LINE'][ikey]:
+                     genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['ZEFTAB_NONUNIFORM_LINE'][ikey] != genraylh[lshots[ishot-1]]['ZEFTAB_NONUNIFORM_LINE'][ikey]:
                      genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['VFLOWTAB_NONUNIFORM_LINE'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['VFLOWTAB_NONUNIFORM_LINE'][ikey] != genraylh[lshots[ishot+1]]['VFLOWTAB_NONUNIFORM_LINE'][ikey]:
                      genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['VFLOWTAB_NONUNIFORM_LINE'][ikey] != genraylh[lshots[ishot-1]]['VFLOWTAB_NONUNIFORM_LINE'][ikey]:
+                     genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['TPOP_NONUNIFORM_LINE'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['TPOP_NONUNIFORM_LINE'][ikey] != genraylh[lshots[ishot+1]]['TPOP_NONUNIFORM_LINE'][ikey]:
+                     genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['TPOP_NONUNIFORM_LINE'][ikey] != genraylh[lshots[ishot-1]]['TPOP_NONUNIFORM_LINE'][ikey]:
                      genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['TEMTAB_NONUNIFORM_LINE'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['TEMTAB_NONUNIFORM_LINE'][ikey] != genraylh[lshots[ishot+1]]['TEMTAB_NONUNIFORM_LINE'][ikey]:
                      genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['TEMTAB_NONUNIFORM_LINE'][ikey] != genraylh[lshots[ishot-1]]['TEMTAB_NONUNIFORM_LINE'][ikey]:
+                     genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['DENTAB_NONUNIFORM_LINE'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['DENTAB_NONUNIFORM_LINE'][ikey] != genraylh[lshots[ishot+1]]['DENTAB_NONUNIFORM_LINE'][ikey]:
+                     genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['DENTAB_NONUNIFORM_LINE'][ikey] != genraylh[lshots[ishot-1]]['DENTAB_NONUNIFORM_LINE'][ikey]:
                      genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['ECCONE'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['ECCONE'][ikey] != genraylh[lshots[ishot+1]]['ECCONE'][ikey]:
                      genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['ECCONE'][ikey] != genraylh[lshots[ishot-1]]['ECCONE'][ikey]:
+                     genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['GRILL'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['GRILL'][ikey] != genraylh[lshots[ishot+1]]['GRILL'][ikey]:
+                     genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['GRILL'][ikey] != genraylh[lshots[ishot-1]]['GRILL'][ikey]:
                      genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['SPECIES'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['SPECIES'][ikey] != genraylh[lshots[ishot+1]]['SPECIES'][ikey]:
                      genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['SPECIES'][ikey] != genraylh[lshots[ishot-1]]['SPECIES'][ikey]:
+                     genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['VARDEN'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['VARDEN'][ikey] != genraylh[lshots[ishot+1]]['VARDEN'][ikey]:
+                     genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['VARDEN'][ikey] != genraylh[lshots[ishot-1]]['VARDEN'][ikey]:
                      genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['DENPROF'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['DENPROF'][ikey] != genraylh[lshots[ishot+1]]['DENPROF'][ikey]:
                      genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['DENPROF'][ikey] != genraylh[lshots[ishot-1]]['DENPROF'][ikey]:
+                     genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['TPOPPROF'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['TPOPPROF'][ikey] != genraylh[lshots[ishot+1]]['TPOPPROF'][ikey]:
+                     genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['TPOPPROF'][ikey] != genraylh[lshots[ishot-1]]['TPOPPROF'][ikey]:
                      genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['VFLPROF'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['VFLPROF'][ikey] != genraylh[lshots[ishot+1]]['VFLPROF'][ikey]:
                      genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['VFLPROF'][ikey] != genraylh[lshots[ishot-1]]['VFLPROF'][ikey]:
+                     genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['ZPROF'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['ZPROF'][ikey] != genraylh[lshots[ishot+1]]['ZPROF'][ikey]:
                      genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['ZPROF'][ikey] != genraylh[lshots[ishot-1]]['ZPROF'][ikey]:
+                     genraylhdiff.append(ikey)
             for ikey in genraylh[lshots[ishot]]['TPROF'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genraylh[lshots[ishot]]['TPROF'][ikey] != genraylh[lshots[ishot+1]]['TPROF'][ikey]:
+                     genraylhdiff.append(ikey)
+                elif genraylh[lshots[ishot]]['TPROF'][ikey] != genraylh[lshots[ishot-1]]['TPROF'][ikey]:
                      genraylhdiff.append(ikey)
 
         if genrayhc['status']:
@@ -273,109 +341,163 @@ def fastran_report(fastranfpath="./",reportparam={}):
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['GENR'][ikey] != genrayhc[lshots[ishot+1]]['GENR'][ikey]:
                      genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['GENR'][ikey] != genrayhc[lshots[ishot-1]]['GENR'][ikey]:
+                     genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['TOKAMAK'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['TOKAMAK'][ikey] != genrayhc[lshots[ishot+1]]['TOKAMAK'][ikey]:
+                     genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['TOKAMAK'][ikey] != genrayhc[lshots[ishot-1]]['TOKAMAK'][ikey]:
                      genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['WAVE'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['WAVE'][ikey] != genrayhc[lshots[ishot+1]]['WAVE'][ikey]:
                      genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['WAVE'][ikey] != genrayhc[lshots[ishot-1]]['WAVE'][ikey]:
+                     genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['SCATNPER'].keys():
                 if   ikey in genraylhdiff: continue
                 elif genrayhc[lshots[ishot]]['SCATNPER'][ikey] != genrayhc[lshots[ishot+1]]['SCATNPER'][ikey]:
+                     genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['SCATNPER'][ikey] != genrayhc[lshots[ishot-1]]['SCATNPER'][ikey]:
                      genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['DISPERS'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['DISPERS'][ikey] != genrayhc[lshots[ishot+1]]['DISPERS'][ikey]:
                      genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['DISPERS'][ikey] != genrayhc[lshots[ishot-1]]['DISPERS'][ikey]:
+                     genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['NUMERCL'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['NUMERCL'][ikey] != genrayhc[lshots[ishot+1]]['NUMERCL'][ikey]:
+                     genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['NUMERCL'][ikey] != genrayhc[lshots[ishot-1]]['NUMERCL'][ikey]:
                      genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['OUTPUT'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['OUTPUT'][ikey] != genrayhc[lshots[ishot+1]]['OUTPUT'][ikey]:
                      genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['OUTPUT'][ikey] != genrayhc[lshots[ishot-1]]['OUTPUT'][ikey]:
+                     genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['PLASMA'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['PLASMA'][ikey] != genrayhc[lshots[ishot+1]]['PLASMA'][ikey]:
+                     genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['PLASMA'][ikey] != genrayhc[lshots[ishot-1]]['PLASMA'][ikey]:
                      genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['EDGE_PROF_NML'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['EDGE_PROF_NML'][ikey] != genrayhc[lshots[ishot+1]]['EDGE_PROF_NML'][ikey]:
                      genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['EDGE_PROF_NML'][ikey] != genrayhc[lshots[ishot-1]]['EDGE_PROF_NML'][ikey]:
+                     genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['ADJ_NML'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['ADJ_NML'][ikey] != genrayhc[lshots[ishot+1]]['ADJ_NML'][ikey]:
+                     genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['ADJ_NML'][ikey] != genrayhc[lshots[ishot-1]]['ADJ_NML'][ikey]:
                      genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['OX'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['OX'][ikey] != genrayhc[lshots[ishot+1]]['OX'][ikey]:
                      genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['OX'][ikey] != genrayhc[lshots[ishot-1]]['OX'][ikey]:
+                     genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['EMISSION'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['EMISSION'][ikey] != genrayhc[lshots[ishot+1]]['EMISSION'][ikey]:
+                     genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['EMISSION'][ikey] != genrayhc[lshots[ishot-1]]['EMISSION'][ikey]:
                      genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['READ_DISKF'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['READ_DISKF'][ikey] != genrayhc[lshots[ishot+1]]['READ_DISKF'][ikey]:
                      genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['READ_DISKF'][ikey] != genrayhc[lshots[ishot-1]]['READ_DISKF'][ikey]:
+                     genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['ZEFTAB_NONUNIFORM_LINE'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['ZEFTAB_NONUNIFORM_LINE'][ikey] != genrayhc[lshots[ishot+1]]['ZEFTAB_NONUNIFORM_LINE'][ikey]:
+                     genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['ZEFTAB_NONUNIFORM_LINE'][ikey] != genrayhc[lshots[ishot-1]]['ZEFTAB_NONUNIFORM_LINE'][ikey]:
                      genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['VFLOWTAB_NONUNIFORM_LINE'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['VFLOWTAB_NONUNIFORM_LINE'][ikey] != genrayhc[lshots[ishot+1]]['VFLOWTAB_NONUNIFORM_LINE'][ikey]:
                      genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['VFLOWTAB_NONUNIFORM_LINE'][ikey] != genrayhc[lshots[ishot-1]]['VFLOWTAB_NONUNIFORM_LINE'][ikey]:
+                     genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['TPOP_NONUNIFORM_LINE'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['TPOP_NONUNIFORM_LINE'][ikey] != genrayhc[lshots[ishot+1]]['TPOP_NONUNIFORM_LINE'][ikey]:
+                     genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['TPOP_NONUNIFORM_LINE'][ikey] != genrayhc[lshots[ishot-1]]['TPOP_NONUNIFORM_LINE'][ikey]:
                      genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['TEMTAB_NONUNIFORM_LINE'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['TEMTAB_NONUNIFORM_LINE'][ikey] != genrayhc[lshots[ishot+1]]['TEMTAB_NONUNIFORM_LINE'][ikey]:
                      genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['TEMTAB_NONUNIFORM_LINE'][ikey] != genrayhc[lshots[ishot-1]]['TEMTAB_NONUNIFORM_LINE'][ikey]:
+                     genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['DENTAB_NONUNIFORM_LINE'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['DENTAB_NONUNIFORM_LINE'][ikey] != genrayhc[lshots[ishot+1]]['DENTAB_NONUNIFORM_LINE'][ikey]:
+                     genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['DENTAB_NONUNIFORM_LINE'][ikey] != genrayhc[lshots[ishot-1]]['DENTAB_NONUNIFORM_LINE'][ikey]:
                      genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['ECCONE'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['ECCONE'][ikey] != genrayhc[lshots[ishot+1]]['ECCONE'][ikey]:
                      genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['ECCONE'][ikey] != genrayhc[lshots[ishot-1]]['ECCONE'][ikey]:
+                     genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['GRILL'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['GRILL'][ikey] != genrayhc[lshots[ishot+1]]['GRILL'][ikey]:
+                     genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['GRILL'][ikey] != genrayhc[lshots[ishot-1]]['GRILL'][ikey]:
                      genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['SPECIES'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['SPECIES'][ikey] != genrayhc[lshots[ishot+1]]['SPECIES'][ikey]:
                      genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['SPECIES'][ikey] != genrayhc[lshots[ishot-1]]['SPECIES'][ikey]:
+                     genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['VARDEN'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['VARDEN'][ikey] != genrayhc[lshots[ishot+1]]['VARDEN'][ikey]:
+                     genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['VARDEN'][ikey] != genrayhc[lshots[ishot-1]]['VARDEN'][ikey]:
                      genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['DENPROF'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['DENPROF'][ikey] != genrayhc[lshots[ishot+1]]['DENPROF'][ikey]:
                      genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['DENPROF'][ikey] != genrayhc[lshots[ishot-1]]['DENPROF'][ikey]:
+                     genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['TPOPPROF'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['TPOPPROF'][ikey] != genrayhc[lshots[ishot+1]]['TPOPPROF'][ikey]:
+                     genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['TPOPPROF'][ikey] != genrayhc[lshots[ishot-1]]['TPOPPROF'][ikey]:
                      genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['VFLPROF'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['VFLPROF'][ikey] != genrayhc[lshots[ishot+1]]['VFLPROF'][ikey]:
                      genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['VFLPROF'][ikey] != genrayhc[lshots[ishot-1]]['VFLPROF'][ikey]:
+                     genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['ZPROF'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['ZPROF'][ikey] != genrayhc[lshots[ishot+1]]['ZPROF'][ikey]:
                      genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['ZPROF'][ikey] != genrayhc[lshots[ishot-1]]['ZPROF'][ikey]:
+                     genrayhcdiff.append(ikey)
             for ikey in genrayhc[lshots[ishot]]['TPROF'].keys():
                 if   ikey in genrayhcdiff: continue
                 elif genrayhc[lshots[ishot]]['TPROF'][ikey] != genrayhc[lshots[ishot+1]]['TPROF'][ikey]:
+                     genrayhcdiff.append(ikey)
+                elif genrayhc[lshots[ishot]]['TPROF'][ikey] != genrayhc[lshots[ishot-1]]['TPROF'][ikey]:
                      genrayhcdiff.append(ikey)
 
 
