@@ -104,6 +104,9 @@ def plot_fastran_outputs(fastrandata,plotparam={}):
     shots = list(fastrandata.keys())
     nshot = len(shots)
 
+    if 'newplot' in plotparam:  newplot = plotparam['newplot']
+    else:                       newplot = False
+
     if 'savepng' in plotparam:  savepng = plotparam['savepng']
     else:                       savepng = False
 
@@ -113,9 +116,6 @@ def plot_fastran_outputs(fastrandata,plotparam={}):
     if 'figspec' in plotparam:  figspec = plotparam['figspec']
     else:                       figspec = False
 
-    if 'singles' in plotparam:  singles = plotparam['singles']
-    else:                       singles = False
-
     reportpath = os.path.abspath(".")+"/fastran_report/"
     if not os.path.isdir(reportpath):
        os.system('mkdir '+reportpath)
@@ -123,6 +123,9 @@ def plot_fastran_outputs(fastrandata,plotparam={}):
     figurepath = os.path.abspath(".")+"/fastran_report/Figures/"
     if not os.path.isdir(figurepath):
        os.system('mkdir '+figurepath)
+
+    if newplot:
+        os.system("rm %s*.png" % figurepath)
 
     fastranfigs = PdfPages(figurepath+'fastran_plots.pdf')
     colornames = clr.cnames.items()
@@ -695,7 +698,7 @@ def fastran_plot(WORK_DIR,plotparam={}):
         
 if __name__ == "__main__":
    parser = argparse.ArgumentParser()
-   parser.add_argument('--singles','-singles', action='store_const',const=1,help='Add a SINGLE subplot in each figure.')
+   parser.add_argument('--newplot', '-newplot', action='store_const',const=1,help='Remove the old figures and plot new ones.')
    parser.add_argument('--savepng','-savepng', action='store_const',const=1,help='Save output figures in PNG files in addition to PDF file.')
    parser.add_argument('--figspec','-figspec', action='store_const',const=1,help='Create Figures Based on Specifications provided by the user.')
    parser.add_argument('--cmpfigs','-cmpfigs', action='store_const',const=1,help='Create Comparison Figures for Data from Different Source Files.')
@@ -704,14 +707,14 @@ if __name__ == "__main__":
    if parser.parse_args():
        args = parser.parse_args()
        inputs  = args.inputs
-       singles = args.singles
+       newplot = args.newplot
        savepng = args.savepng
        figspec = args.figspec
        cmpfigs = args.cmpfigs
 
    plotparam = {}
-   if singles:
-       plotparam['singles'] = True
+   if newplot:
+       plotparam['newplot'] = True
    if savepng:
        plotparam['savepng'] = True
    if figspec:

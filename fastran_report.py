@@ -379,8 +379,6 @@ def fastran_report(fastranfpath="./",reportparam={}):
                      genrayhcdiff.append(ikey)
 
 
-
-
     report_title = "FASTRAN Report"
     reportpath = "./fastran_report/"
     if not os.path.isdir(reportpath):
@@ -390,10 +388,22 @@ def fastran_report(fastranfpath="./",reportparam={}):
     if not os.path.isdir(figurepath):
        os.system('mkdir '+figurepath)
 
+    plotparam = {}
+    if "figspec" in reportparam:
+        plotparam['figspec'] = reportparam['figspec']
+
+    if "savepng" in reportparam:
+        plotparam['savepng'] = reportparam['savepng']
+
+    if "newplot" in reportparam:
+        plotparam['newplot'] = reportparam['newplot']
+
     if 'noplot' in reportparam and reportparam['noplot']:
         print(CYELLOW + "WARNING: NO PLOTS CREATED" + CEND)
     else:
-        fastrandata,fastranplot = fastran_plot(WORK_DIR=fastranfpath)
+        fastrandata,fastranplot = fastran_plot(WORK_DIR=fastranfpath,plotparam=plotparam)
+
+    pngflist = glob(figurepath+"/*.png")
 
     texfname = 'fastran_report.tex'
     texfhand = open(reportpath+texfname,'w')
@@ -1277,8 +1287,8 @@ def fastran_report(fastranfpath="./",reportparam={}):
            else:                                hdrtxt += " & TIMBPLT";           tblcol += "| c "
            if "NBEAMTCX"        in fastrandiff: hdrtxt += " & NBEAMTCX";          tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & NBEAMTCX";          tblcol += "| c "
-           if "ITERATE_BEAM"    in fastrandiff: hdrtxt += " & ITERATE_BEAM";      tblcol += "| >{\columncolor{yellow}}c "
-           else:                                hdrtxt += " & ITERATE_BEAM";      tblcol += "| c "
+           if "ITERATE_BEAM"    in fastrandiff: hdrtxt += " & ITERATE\_BEAM";     tblcol += "| >{\columncolor{yellow}}c "
+           else:                                hdrtxt += " & ITERATE\_BEAM";     tblcol += "| c "
            if "FAST_ION_TARGET" in fastrandiff: hdrtxt += " & FAST\_ION\_TARGET"; tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & FAST\_ION\_TARGET"; tblcol += "| c "
            texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
@@ -1610,69 +1620,71 @@ def fastran_report(fastranfpath="./",reportparam={}):
 
 
     texfhand.write("\\clearpage \n")
-    texfhand.write("\\section{FASTRAN PLOTS} \n")
+    texfhand.write("\\chapter{FASTRAN PLOTS} \n")
 
-    texfhand.write("\\begin{figure}[!h] \n")
-    texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{c} \n")
-    texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"profiles.png} \n")
-    texfhand.write("\\end{tabular} \n")
-    texfhand.write("\\end{center} \n")
-    texfhand.write("\\end{figure} \n")
+    for ifig in pngflist:
+        texfhand.write("\\begin{figure}[!h] \n")
+        texfhand.write("\\begin{center} \n")
+        texfhand.write("\\begin{tabular}{c} \n")
+        texfhand.write("\\includegraphics[scale=0.80]{"+ifig+"} \n")
+        texfhand.write("\\end{tabular} \n")
+        texfhand.write("\\end{center} \n")
+        texfhand.write("\\end{figure} \n")
+        texfhand.write("\\clearpage \n")
 
-    texfhand.write("\\clearpage \n")
-    texfhand.write("\\begin{figure}[!h] \n")
-    texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{c} \n")
-    texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"currents.png} \n")
-    texfhand.write("\\end{tabular} \n")
-    texfhand.write("\\end{center} \n")
-    texfhand.write("\\end{figure} \n")
+   #texfhand.write("\\clearpage \n")
+   #texfhand.write("\\begin{figure}[!h] \n")
+   #texfhand.write("\\begin{center} \n")
+   #texfhand.write("\\begin{tabular}{c} \n")
+   #texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"currents.png} \n")
+   #texfhand.write("\\end{tabular} \n")
+   #texfhand.write("\\end{center} \n")
+   #texfhand.write("\\end{figure} \n")
 
-    texfhand.write("\\clearpage \n")
-    texfhand.write("\\begin{figure}[!h] \n")
-    texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{c} \n")
-    texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"geometry.png} \n")
-    texfhand.write("\\end{tabular} \n")
-    texfhand.write("\\end{center} \n")
-    texfhand.write("\\end{figure} \n")
+   #texfhand.write("\\clearpage \n")
+   #texfhand.write("\\begin{figure}[!h] \n")
+   #texfhand.write("\\begin{center} \n")
+   #texfhand.write("\\begin{tabular}{c} \n")
+   #texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"geometry.png} \n")
+   #texfhand.write("\\end{tabular} \n")
+   #texfhand.write("\\end{center} \n")
+   #texfhand.write("\\end{figure} \n")
 
-    texfhand.write("\\clearpage \n")
-    texfhand.write("\\begin{figure}[!h] \n")
-    texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{c} \n")
-    texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"mainheating.png} \n")
-    texfhand.write("\\end{tabular} \n")
-    texfhand.write("\\end{center} \n")
-    texfhand.write("\\end{figure} \n")
+   #texfhand.write("\\clearpage \n")
+   #texfhand.write("\\begin{figure}[!h] \n")
+   #texfhand.write("\\begin{center} \n")
+   #texfhand.write("\\begin{tabular}{c} \n")
+   #texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"mainheating.png} \n")
+   #texfhand.write("\\end{tabular} \n")
+   #texfhand.write("\\end{center} \n")
+   #texfhand.write("\\end{figure} \n")
 
-    texfhand.write("\\clearpage \n")
-    texfhand.write("\\begin{figure}[!h] \n")
-    texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{c} \n")
-    texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"otherheating.png} \n")
-    texfhand.write("\\end{tabular} \n")
-    texfhand.write("\\end{center} \n")
-    texfhand.write("\\end{figure} \n")
+   #texfhand.write("\\clearpage \n")
+   #texfhand.write("\\begin{figure}[!h] \n")
+   #texfhand.write("\\begin{center} \n")
+   #texfhand.write("\\begin{tabular}{c} \n")
+   #texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"otherheating.png} \n")
+   #texfhand.write("\\end{tabular} \n")
+   #texfhand.write("\\end{center} \n")
+   #texfhand.write("\\end{figure} \n")
 
-    texfhand.write("\\clearpage \n")
-    texfhand.write("\\begin{figure}[!h] \n")
-    texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{c} \n")
-    texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"heattransport.png} \n")
-    texfhand.write("\\end{tabular} \n")
-    texfhand.write("\\end{center} \n")
-    texfhand.write("\\end{figure} \n")
+   #texfhand.write("\\clearpage \n")
+   #texfhand.write("\\begin{figure}[!h] \n")
+   #texfhand.write("\\begin{center} \n")
+   #texfhand.write("\\begin{tabular}{c} \n")
+   #texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"heattransport.png} \n")
+   #texfhand.write("\\end{tabular} \n")
+   #texfhand.write("\\end{center} \n")
+   #texfhand.write("\\end{figure} \n")
 
-    texfhand.write("\\clearpage \n")
-    texfhand.write("\\begin{figure}[!h] \n")
-    texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{c} \n")
-    texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"heatflux.png} \n")
-    texfhand.write("\\end{tabular} \n")
-    texfhand.write("\\end{center} \n")
-    texfhand.write("\\end{figure} \n")
+   #texfhand.write("\\clearpage \n")
+   #texfhand.write("\\begin{figure}[!h] \n")
+   #texfhand.write("\\begin{center} \n")
+   #texfhand.write("\\begin{tabular}{c} \n")
+   #texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"heatflux.png} \n")
+   #texfhand.write("\\end{tabular} \n")
+   #texfhand.write("\\end{center} \n")
+   #texfhand.write("\\end{figure} \n")
 
     texfhand.write("\n")    
     texfhand.write("\\end{document} \n")
@@ -1691,6 +1703,9 @@ def fastran_report(fastranfpath="./",reportparam={}):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--noplot',  '-noplot',  action='store_const',const=1,help='Do not Plot FASTRAN results before creating the report.')
+    parser.add_argument('--newplot', '-newplot', action='store_const',const=1,help='Remove the old figures and plot new ones.')
+    parser.add_argument('--figspec', '-figspec', action='store_const',const=1,help='Use Figure Specifications in JSON file to plot Figures.')
+    parser.add_argument('--savepng', '-savepng', action='store_const',const=1,help='Save Figures in PNG files format beside PDF fileformat.')
     parser.add_argument('--debugtex','-debugtex',action='store_const',const=1,help='Show details while compiling TEX file to PDF.')
     parser.add_argument('inputs',nargs='*')
 
@@ -1698,11 +1713,20 @@ if __name__ == "__main__":
         args = parser.parse_args()
         inputs   = args.inputs
         noplot   = args.noplot
+        newplot  = args.newplot
+        figspec  = args.figspec
+        savepng  = args.savepng
         debugtex = args.debugtex
 
     reportparam = {}
     if noplot:
         reportparam['noplot'] = True
+    if figspec:
+        reportparam['figspec'] = True
+    if savepng:
+        reportparam['savepng'] = True
+    if newplot:
+        reportparam['newplot'] = True
     if debugtex:
         reportparam['debugtex'] = True
 
