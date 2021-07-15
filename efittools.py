@@ -172,7 +172,8 @@ def iterdb_write_quant(fileid,quant_arr):
             fileid.write(' ')
     fileid.write('\n')
 
-def output_iterdb(rhot,rhop,ne,te,ni,ti,file_base,shot_num,time_string,vrot=npy.array(0),nimp=npy.array(0)):
+#def write_iterdb(rhot,rhop,ne,te,ni,ti,file_base,shot_num,time_string,vrot=npy.array(0),nimp=npy.array(0)):
+def write_iterdb(rhot,ne,te,ni,ti,file_base,shot_num,time_string,vrot=npy.array(0),nimp=npy.array(0)):
     transition=';----END-OF-DATA-----------------COMMENTS:-----------\n'
     transition=transition+'********************************************************************************\n'
     transition=transition+'********************************************************************************\n'
