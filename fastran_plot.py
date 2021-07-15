@@ -124,7 +124,7 @@ def plot_fastran_outputs(fastrandata,plotparam={}):
     if not os.path.isdir(figurepath):
        os.system('mkdir '+figurepath)
 
-    if newplot:
+    if newplot and glob("%s*.png" % figurepath):
         os.system("rm %s*.png" % figurepath)
 
     fastranfigs = PdfPages(figurepath+'fastran_plots.pdf')
