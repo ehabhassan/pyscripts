@@ -49,6 +49,7 @@ def fastran_report(fastranfpath="./",reportparam={}):
 
         path_to_plamsa_state = "./" + ifastran + "/work/plasma_state"
         plasma_state_file = glob(path_to_plamsa_state + "/*")
+        if not plasma_state_file: continue
         slashinds = findall(plasma_state_file[0],"/")
         SHOT_NUM, TIME_ID = plasma_state_file[0][slashinds[-1]+2:].split(".")
 
@@ -76,7 +77,7 @@ def fastran_report(fastranfpath="./",reportparam={}):
             hcd['status']   = False
         if inputpath + "/intglf" in inputfile:
             tglf[SHOT_ID]     = Namelist(inputpath+"/intglf")
-            print(CGREEN + 'Reading intglf ... PASSED' + CEND)
+            print(CGREEN + 'Reading intglf ........ PASSED' + CEND)
             tglf['status']   = True
         else:
             tglf['status']   = False
@@ -119,7 +120,7 @@ def fastran_report(fastranfpath="./",reportparam={}):
     genraylhdiff = []
     genrayhcdiff = []
 
-    for ishot in range(1,len(lshots)-1):
+    for ishot in range(-1,len(lshots)-1):
         if hcd['status']:
             for ikey in hcd[lshots[ishot]]['inhcd'].keys():
                 if   ikey in hcddiff: continue
@@ -556,6 +557,7 @@ def fastran_report(fastranfpath="./",reportparam={}):
     texfhand.write("\n")    
     texfhand.write("\\begin{document}\n")
     texfhand.write("\\maketitle \n")
+    texfhand.write("\\tableofcontents \n")
 
     texfhand.write("\n")    
     texfhand.write("\\chapter{Input Files Parameters} \n")
@@ -799,30 +801,30 @@ def fastran_report(fastranfpath="./",reportparam={}):
         if SHOT_ID == lshots[0]:
            tblcol = ""
            hdrtxt = ""
-           if "WGHTA"         in fastrandiff: hdrtxt += " & WGHTA";          tblcol += "| >{\columncolor{yellow}}c "
-           else:                              hdrtxt += " & WGHTA";          tblcol += "| c "
-           if "NDEP0"         in fastrandiff: hdrtxt += " & NDEP0";          tblcol += "| >{\columncolor{yellow}}c "
-           else:                              hdrtxt += " & NDEP0";          tblcol += "| c "
-           if "NSEED"         in fastrandiff: hdrtxt += " & NSEED";          tblcol += "| >{\columncolor{yellow}}c "
-           else:                              hdrtxt += " & NSEED";          tblcol += "| c "
-           if "NZONES"        in fastrandiff: hdrtxt += " & NZONES";         tblcol += "| >{\columncolor{yellow}}c "
-           else:                              hdrtxt += " & NZONES";         tblcol += "| c "
-           if "NZNBMA"        in fastrandiff: hdrtxt += " & NZNBMA";         tblcol += "| >{\columncolor{yellow}}c "
-           else:                              hdrtxt += " & NZNBMA";         tblcol += "| c "
-           if "NZNBME"        in fastrandiff: hdrtxt += " & NZNBME";         tblcol += "| >{\columncolor{yellow}}c "
-           else:                              hdrtxt += " & NZNBME";         tblcol += "| c "
-           if "NPTCLS"        in fastrandiff: hdrtxt += " & NPTCLS";         tblcol += "| >{\columncolor{yellow}}c "
-           else:                              hdrtxt += " & NPTCLS";         tblcol += "| c "
-           if "NSDBGB"        in fastrandiff: hdrtxt += " & NSDBGB";         tblcol += "| >{\columncolor{yellow}}c "
-           else:                              hdrtxt += " & NSDBGB";         tblcol += "| c "
-           if "NMCURB"        in fastrandiff: hdrtxt += " & NMCURB";         tblcol += "| >{\columncolor{yellow}}c "
-           else:                              hdrtxt += " & NMCURB";         tblcol += "| c "
-           if "NSIGEXC"       in fastrandiff: hdrtxt += " & NSIGEXC";        tblcol += "| >{\columncolor{yellow}}c "
-           else:                              hdrtxt += " & NSIGEXC";        tblcol += "| c "
-           if "NZONE_FB"      in fastrandiff: hdrtxt += " & NZONE\_FB";      tblcol += "| >{\columncolor{yellow}}c "
-           else:                              hdrtxt += " & NZONE\_FB";      tblcol += "| c "
-           if "NLTEST_OUTPUT" in fastrandiff: hdrtxt += " & NLTEST\_OUTPUT"; tblcol += "| >{\columncolor{yellow}}c "
-           else:                              hdrtxt += " & NLTEST\_OUTPUT"; tblcol += "| c "
+           if "WGHTA"         in nubeamdiff: hdrtxt += " & WGHTA";          tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & WGHTA";          tblcol += "| c "
+           if "NDEP0"         in nubeamdiff: hdrtxt += " & NDEP0";          tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & NDEP0";          tblcol += "| c "
+           if "NSEED"         in nubeamdiff: hdrtxt += " & NSEED";          tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & NSEED";          tblcol += "| c "
+           if "NZONES"        in nubeamdiff: hdrtxt += " & NZONES";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & NZONES";         tblcol += "| c "
+           if "NZNBMA"        in nubeamdiff: hdrtxt += " & NZNBMA";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & NZNBMA";         tblcol += "| c "
+           if "NZNBME"        in nubeamdiff: hdrtxt += " & NZNBME";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & NZNBME";         tblcol += "| c "
+           if "NPTCLS"        in nubeamdiff: hdrtxt += " & NPTCLS";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & NPTCLS";         tblcol += "| c "
+           if "NSDBGB"        in nubeamdiff: hdrtxt += " & NSDBGB";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & NSDBGB";         tblcol += "| c "
+           if "NMCURB"        in nubeamdiff: hdrtxt += " & NMCURB";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & NMCURB";         tblcol += "| c "
+           if "NSIGEXC"       in nubeamdiff: hdrtxt += " & NSIGEXC";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & NSIGEXC";        tblcol += "| c "
+           if "NZONE_FB"      in nubeamdiff: hdrtxt += " & NZONE\_FB";      tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & NZONE\_FB";      tblcol += "| c "
+           if "NLTEST_OUTPUT" in nubeamdiff: hdrtxt += " & NLTEST\_OUTPUT"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & NLTEST\_OUTPUT"; tblcol += "| c "
            texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
            texfhand.write("\\hline \n")
            texfhand.write("NUBEAM" + hdrtxt + "  \\\\ \n")
@@ -862,16 +864,16 @@ def fastran_report(fastranfpath="./",reportparam={}):
         if SHOT_ID == lshots[0]:
            tblcol = ""
            hdrtxt = ""
-           if "NKDIFB"   in fastrandiff: hdrtxt += " & NKDIFB";    tblcol += "| >{\columncolor{yellow}}c "
-           else:                         hdrtxt += " & NKDIFB";    tblcol += "| c "
-           if "DIFB_0"   in fastrandiff: hdrtxt += " & DIFB\_0";   tblcol += "| >{\columncolor{yellow}}c "
-           else:                         hdrtxt += " & DIFB\_0";   tblcol += "| c "
-           if "DIFB_A"   in fastrandiff: hdrtxt += " & DIFB\_A";   tblcol += "| >{\columncolor{yellow}}c "
-           else:                         hdrtxt += " & DIFB\_A";   tblcol += "| c "
-           if "DIFB_IN"  in fastrandiff: hdrtxt += " & DIFB\_IN";  tblcol += "| >{\columncolor{yellow}}c "
-           else:                         hdrtxt += " & DIFB\_IN";  tblcol += "| c "
-           if "DIFB_OUT" in fastrandiff: hdrtxt += " & DIFB\_OUT"; tblcol += "| >{\columncolor{yellow}}c "
-           else:                         hdrtxt += " & DIFB\_OUT"; tblcol += "| c "
+           if "NKDIFB"   in nubeamdiff: hdrtxt += " & NKDIFB";    tblcol += "| >{\columncolor{yellow}}c "
+           else:                        hdrtxt += " & NKDIFB";    tblcol += "| c "
+           if "DIFB_0"   in nubeamdiff: hdrtxt += " & DIFB\_0";   tblcol += "| >{\columncolor{yellow}}c "
+           else:                        hdrtxt += " & DIFB\_0";   tblcol += "| c "
+           if "DIFB_A"   in nubeamdiff: hdrtxt += " & DIFB\_A";   tblcol += "| >{\columncolor{yellow}}c "
+           else:                        hdrtxt += " & DIFB\_A";   tblcol += "| c "
+           if "DIFB_IN"  in nubeamdiff: hdrtxt += " & DIFB\_IN";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                        hdrtxt += " & DIFB\_IN";  tblcol += "| c "
+           if "DIFB_OUT" in nubeamdiff: hdrtxt += " & DIFB\_OUT"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                        hdrtxt += " & DIFB\_OUT"; tblcol += "| c "
            texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
            texfhand.write("\\hline \n")
            texfhand.write("NBI\_MODEL" + hdrtxt + "  \\\\ \n")
@@ -893,16 +895,29 @@ def fastran_report(fastranfpath="./",reportparam={}):
     texfhand.write("\\end{center} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{6}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
+        if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "NBEAM"   in nubeamdiff: hdrtxt += " & NBEAM";   tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & NBEAM";   tblcol += "| c "
+           if "ABEAMA"  in nubeamdiff: hdrtxt += " & ABEAMA";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & ABEAMA";  tblcol += "| c "
+           if "XZBEAMA" in nubeamdiff: hdrtxt += " & XZBEAMA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & XZBEAMA"; tblcol += "| c "
+           if "NLCO"    in nubeamdiff: hdrtxt += " & NLCO";    tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & NLCO";    tblcol += "| c "
+           if "NBSHAPA" in nubeamdiff: hdrtxt += " & NBSHAPA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & NBSHAPA"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
+           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
+           texfhand.write("\\hline \n")
         rectxt = ""
-        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): hdrtxt += " & NBEAM";    rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
+        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
         nbeam = nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0]
         
         if "ABEAMA"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys():
-           hdrtxt += " & ABEAMA"
            rectxt += " & $\\begin{matrix} \n"
            for irec in range(0,nbeam,4):
                rectxt += str(nubeam[SHOT_ID]['NBI_CONFIG']['ABEAMA'][irec+0]) + " & "
@@ -912,7 +927,6 @@ def fastran_report(fastranfpath="./",reportparam={}):
            rectxt += "\\end{matrix}$ \n" 
 
         if "XZBEAMA"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys():
-           hdrtxt += " & XZBEAMA"
            rectxt += " & $\\begin{matrix} \n"
            for irec in range(0,nbeam,4):
                rectxt += str(nubeam[SHOT_ID]['NBI_CONFIG']['XZBEAMA'][irec+0]) + " & "
@@ -922,7 +936,6 @@ def fastran_report(fastranfpath="./",reportparam={}):
            rectxt += "\\end{matrix}$ \n" 
 
         if "NLCO"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys():
-           hdrtxt += " & NLCO"
            rectxt += " & $\\begin{matrix} \n"
            for irec in range(0,nbeam,4):
                rectxt += str(nubeam[SHOT_ID]['NBI_CONFIG']['NLCO'][irec+0]) + " & "
@@ -940,24 +953,33 @@ def fastran_report(fastranfpath="./",reportparam={}):
                rectxt += str(nubeam[SHOT_ID]['NBI_CONFIG']['NBSHAPA'][irec+2]) + " & "
                rectxt += str(nubeam[SHOT_ID]['NBI_CONFIG']['NBSHAPA'][irec+3]) + "\\\\ \n"
            rectxt += "\\end{matrix}$ \n" 
-
-        if SHOT_ID == lshots[0]:
-           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
-           texfhand.write("\\hline \n")
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
-        texfhand.write("\\hline \n")
-        
+    texfhand.write("\\hline \n")
     texfhand.write("\\end{tabular}\n")
     texfhand.write("\\end{center} \n")
 
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{6}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
+        if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "NBEAM"   in nubeamdiff: hdrtxt += " & NBEAM";   tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & NBEAM";   tblcol += "| c "
+           if "BMWIDRA" in nubeamdiff: hdrtxt += " & BMWIDRA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & BMWIDRA"; tblcol += "| c "
+           if "BMWIDZA" in nubeamdiff: hdrtxt += " & BMWIDZA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & BMWIDZA"; tblcol += "| c "
+           if "FOCLRA"  in nubeamdiff: hdrtxt += " & FOCLRA";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & FOCLRA";  tblcol += "| c "
+           if "FOCLZA"  in nubeamdiff: hdrtxt += " & FOCLZA";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & FOCLZA";  tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
+           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
+           texfhand.write("\\hline \n")
         rectxt = ""
-        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): hdrtxt += " & NBEAM";    rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
+        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
         nbeam = nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0]
 
         if "BMWIDRA"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys():
@@ -1000,9 +1022,6 @@ def fastran_report(fastranfpath="./",reportparam={}):
                rectxt += str(nubeam[SHOT_ID]['NBI_CONFIG']['FOCLZA'][irec+3]) + "\\\\ \n"
            rectxt += "\\end{matrix}$ \n"               
 
-        if SHOT_ID == lshots[0]:
-           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
-           texfhand.write("\\hline \n")
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
         texfhand.write("\\hline \n")
 
@@ -1010,12 +1029,22 @@ def fastran_report(fastranfpath="./",reportparam={}):
     texfhand.write("\\end{center} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{4}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
+        if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "NBEAM" in nubeamdiff: hdrtxt += " & NBEAM"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                     hdrtxt += " & NBEAM"; tblcol += "| c "
+           if "DIVRA" in nubeamdiff: hdrtxt += " & DIVRA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                     hdrtxt += " & DIVRA"; tblcol += "| c "
+           if "DIVZA" in nubeamdiff: hdrtxt += " & DIVRA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                     hdrtxt += " & DIVRA"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
+           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
+           texfhand.write("\\hline \n")
         rectxt = ""
-        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): hdrtxt += " & NBEAM";    rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
+        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
         nbeam = nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0]
 
         if "DIVRA"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys():
@@ -1038,9 +1067,6 @@ def fastran_report(fastranfpath="./",reportparam={}):
                rectxt += str(nubeam[SHOT_ID]['NBI_CONFIG']['DIVZA'][irec+3]) + "\\\\ \n"
            rectxt += "\\end{matrix}$ "               
 
-        if SHOT_ID == lshots[0]:
-           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
-           texfhand.write("\\hline \n")
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
         texfhand.write("\\hline \n")
 
@@ -1049,12 +1075,22 @@ def fastran_report(fastranfpath="./",reportparam={}):
 
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{4}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
+        if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "NBEAM"   in nubeamdiff: hdrtxt += " & NBEAM";   tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & NBEAM";   tblcol += "| c "
+           if "RTCENA"  in nubeamdiff: hdrtxt += " & RTCENA";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & RTCENA";  tblcol += "| c "
+           if "NBAPSHA" in nubeamdiff: hdrtxt += " & NBAPSHA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & NBAPSHA"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
+           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
+           texfhand.write("\\hline \n")
         rectxt = ""
-        if "NBEAM"   in  nubeam[SHOT_ID]['NBI_CONFIG'].keys(): hdrtxt += " & NBEAM";    rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
+        if "NBEAM"   in  nubeam[SHOT_ID]['NBI_CONFIG'].keys(): rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
         nbeam = nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0]
 
         if "RTCENA"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys():
@@ -1077,9 +1113,6 @@ def fastran_report(fastranfpath="./",reportparam={}):
                rectxt += str(nubeam[SHOT_ID]['NBI_CONFIG']['NBAPSHA'][irec+3]) + "\\\\ \n"
            rectxt += "\\end{matrix}$ "
 
-        if SHOT_ID == lshots[0]:
-           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
-           texfhand.write("\\hline \n")
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
         texfhand.write("\\hline \n")
 
@@ -1087,12 +1120,22 @@ def fastran_report(fastranfpath="./",reportparam={}):
     texfhand.write("\\end{center} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{4}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
+        if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "NBEAM"  in nubeamdiff: hdrtxt += " & NBEAM";   tblcol += "| >{\columncolor{yellow}}c "
+           else:                      hdrtxt += " & NBEAM";   tblcol += "| c "
+           if "XLBTNA" in nubeamdiff: hdrtxt += " & XLBTNA";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                      hdrtxt += " & XLBTNA";  tblcol += "| c "
+           if "XYBSCA" in nubeamdiff: hdrtxt += " & XYBSCA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                      hdrtxt += " & XYBSCA"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
+           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
+           texfhand.write("\\hline \n")
         rectxt = ""
-        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): hdrtxt += " & NBEAM";    rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
+        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
         nbeam = nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0]
 
         if "XLBTNA"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys():
@@ -1115,9 +1158,6 @@ def fastran_report(fastranfpath="./",reportparam={}):
                rectxt += str(nubeam[SHOT_ID]['NBI_CONFIG']['XYBSCA'][irec+3]) + "\\\\ \n"
            rectxt += "\\end{matrix}$ "
 
-        if SHOT_ID == lshots[0]:
-           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
-           texfhand.write("\\hline \n")
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
         texfhand.write("\\hline \n")
 
@@ -1125,12 +1165,22 @@ def fastran_report(fastranfpath="./",reportparam={}):
     texfhand.write("\\end{center} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{4}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
+        if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "NBEAM"  in nubeamdiff: hdrtxt += " & NBEAM";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                      hdrtxt += " & NBEAM";  tblcol += "| c "
+           if "XLBAPA" in nubeamdiff: hdrtxt += " & XLBAPA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                      hdrtxt += " & XLBAPA"; tblcol += "| c "
+           if "XYBAPA" in nubeamdiff: hdrtxt += " & XYBAPA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                      hdrtxt += " & XYBAPA"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
+           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
+           texfhand.write("\\hline \n")
         rectxt = ""
-        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): hdrtxt += " & NBEAM";    rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
+        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
         nbeam = nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0]
 
         if "XLBAPA"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys():
@@ -1153,9 +1203,6 @@ def fastran_report(fastranfpath="./",reportparam={}):
                rectxt += str(nubeam[SHOT_ID]['NBI_CONFIG']['XYBAPA'][irec+3]) + "\\\\ \n"
            rectxt += "\\end{matrix}$ "
 
-        if SHOT_ID == lshots[0]:
-           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
-           texfhand.write("\\hline \n")
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
         texfhand.write("\\hline \n")
 
@@ -1163,12 +1210,22 @@ def fastran_report(fastranfpath="./",reportparam={}):
     texfhand.write("\\end{center} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{4}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
+        if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "NBEAM"   in nubeamdiff: hdrtxt += " & NBEAM";   tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & NBEAM";   tblcol += "| c "
+           if "RAPEDGA" in nubeamdiff: hdrtxt += " & RAPEDGA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & RAPEDGA"; tblcol += "| c "
+           if "XZPEDGA" in nubeamdiff: hdrtxt += " & XZPEDGA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                       hdrtxt += " & XZPEDGA"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
+           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
+           texfhand.write("\\hline \n")
         rectxt = ""
-        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): hdrtxt += " & NBEAM";    rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
+        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
         nbeam = nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0]
 
         if "RAPEDGA"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys():
@@ -1191,9 +1248,6 @@ def fastran_report(fastranfpath="./",reportparam={}):
                rectxt += str(nubeam[SHOT_ID]['NBI_CONFIG']['XZPEDGA'][irec+3]) + "\\\\ \n"
            rectxt += "\\end{matrix}$ "
 
-        if SHOT_ID == lshots[0]:
-           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
-           texfhand.write("\\hline \n")
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
         texfhand.write("\\hline \n")
 
@@ -1201,12 +1255,22 @@ def fastran_report(fastranfpath="./",reportparam={}):
     texfhand.write("\\end{center} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{4}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
+        if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "NBEAM"    in nubeamdiff: hdrtxt += " & NBEAM";    tblcol += "| >{\columncolor{yellow}}c "
+           else:                        hdrtxt += " & NBEAM";    tblcol += "| c "
+           if "XRAPOFFA" in nubeamdiff: hdrtxt += " & XRAPOFFA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                        hdrtxt += " & XRAPOFFA"; tblcol += "| c "
+           if "XZAPOFFA" in nubeamdiff: hdrtxt += " & XZAPOFFA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                        hdrtxt += " & XZAPOFFA"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
+           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
+           texfhand.write("\\hline \n")
         rectxt = ""
-        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): hdrtxt += " & NBEAM";    rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
+        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
         nbeam = nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0]
 
         if "XRAPOFFA"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys():
@@ -1229,9 +1293,6 @@ def fastran_report(fastranfpath="./",reportparam={}):
                rectxt += str(nubeam[SHOT_ID]['NBI_CONFIG']['XZAPOFFA'][irec+3]) + "\\\\ \n"
            rectxt += "\\end{matrix}$ "
 
-        if SHOT_ID == lshots[0]:
-           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
-           texfhand.write("\\hline \n")
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
         texfhand.write("\\hline \n")
 
@@ -1239,12 +1300,24 @@ def fastran_report(fastranfpath="./",reportparam={}):
     texfhand.write("\\end{center} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{5}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
+        if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "NBEAM"  in nubeamdiff: hdrtxt += " & NBEAM";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                      hdrtxt += " & NBEAM";  tblcol += "| c "
+           if "EINJA"  in nubeamdiff: hdrtxt += " & EINJA";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                      hdrtxt += " & EINJA";  tblcol += "| c "
+           if "FFULLA" in nubeamdiff: hdrtxt += " & FFULLA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                      hdrtxt += " & FFULLA"; tblcol += "| c "
+           if "FHALFA" in nubeamdiff: hdrtxt += " & FHALFA"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                      hdrtxt += " & FHALFA"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
+           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
+           texfhand.write("\\hline \n")
         rectxt = ""
-        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): hdrtxt += " & NBEAM";    rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
+        if "NBEAM"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys(): rectxt += " & " + str(nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0])
         nbeam = nubeam[SHOT_ID]['NBI_CONFIG']['NBEAM'][0]
 
         if "EINJA"   in nubeam[SHOT_ID]['NBI_CONFIG'].keys():
@@ -1277,9 +1350,6 @@ def fastran_report(fastranfpath="./",reportparam={}):
                rectxt += str(nubeam[SHOT_ID]['NBI_CONFIG']['FHALFA'][irec+3]) + "\\\\ \n"
            rectxt += "\\end{matrix}$ "
 
-        if SHOT_ID == lshots[0]:
-           texfhand.write("NBI\_CONFIG" + hdrtxt + "  \\\\ \n")
-           texfhand.write("\\hline \n")
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
         texfhand.write("\\hline \n")
 
@@ -1294,41 +1364,41 @@ def fastran_report(fastranfpath="./",reportparam={}):
         if SHOT_ID == lshots[0]:
            tblcol = ""
            hdrtxt = ""
-           if "RIN"      in fastrandiff: hdrtxt += " & RIN";     tblcol += "| >{\columncolor{yellow}}c "
+           if "RIN"      in  nfreyadiff: hdrtxt += " & RIN";     tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & RIN";     tblcol += "| c "
-           if "ROUT"     in fastrandiff: hdrtxt += " & ROUT";    tblcol += "| >{\columncolor{yellow}}c "
+           if "ROUT"     in  nfreyadiff: hdrtxt += " & ROUT";    tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & ROUT";    tblcol += "| c "
-           if "BPTOR"    in fastrandiff: hdrtxt += " & BPTOR";   tblcol += "| >{\columncolor{yellow}}c "
+           if "BPTOR"    in  nfreyadiff: hdrtxt += " & BPTOR";   tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & BPTOR";   tblcol += "| c "
-           if "EBKEV"    in fastrandiff: hdrtxt += " & EBKEV";   tblcol += "| >{\columncolor{yellow}}c "
+           if "EBKEV"    in  nfreyadiff: hdrtxt += " & EBKEV";   tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & EBKEV";   tblcol += "| c "
-           if "FBCUR"    in fastrandiff: hdrtxt += " & FBCUR";   tblcol += "| >{\columncolor{yellow}}c "
+           if "FBCUR"    in  nfreyadiff: hdrtxt += " & FBCUR";   tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & FBCUR";   tblcol += "| c "
-           if "BLENI"    in fastrandiff: hdrtxt += " & BLENI";   tblcol += "| >{\columncolor{yellow}}c "
+           if "BLENI"    in  nfreyadiff: hdrtxt += " & BLENI";   tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & BLENI";   tblcol += "| c "
-           if "BLENP"    in fastrandiff: hdrtxt += " & BLENP";   tblcol += "| >{\columncolor{yellow}}c "
+           if "BLENP"    in  nfreyadiff: hdrtxt += " & BLENP";   tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & BLENP";   tblcol += "| c "
-           if "NBEAMS"   in fastrandiff: hdrtxt += " & NBEAMS";  tblcol += "| >{\columncolor{yellow}}c "
+           if "NBEAMS"   in  nfreyadiff: hdrtxt += " & NBEAMS";  tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & NBEAMS";  tblcol += "| c "
-           if "RMAJOR"   in fastrandiff: hdrtxt += " & RMAJOR";  tblcol += "| >{\columncolor{yellow}}c "
+           if "RMAJOR"   in  nfreyadiff: hdrtxt += " & RMAJOR";  tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & RMAJOR";  tblcol += "| c "
-           if "RMINOR"   in fastrandiff: hdrtxt += " & RMINOR";  tblcol += "| >{\columncolor{yellow}}c "
+           if "RMINOR"   in  nfreyadiff: hdrtxt += " & RMINOR";  tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & RMINOR";  tblcol += "| c "
-           if "ANGLEV"   in fastrandiff: hdrtxt += " & ANGLEV";  tblcol += "| >{\columncolor{yellow}}c "
+           if "ANGLEV"   in  nfreyadiff: hdrtxt += " & ANGLEV";  tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & ANGLEV";  tblcol += "| c "
-           if "ANGLEH"   in fastrandiff: hdrtxt += " & ANGLEH";  tblcol += "| >{\columncolor{yellow}}c "
+           if "ANGLEH"   in  nfreyadiff: hdrtxt += " & ANGLEH";  tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & ANGLEH";  tblcol += "| c "
-           if "NSOURC"   in fastrandiff: hdrtxt += " & NSOURC";  tblcol += "| >{\columncolor{yellow}}c "
+           if "NSOURC"   in  nfreyadiff: hdrtxt += " & NSOURC";  tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & NSOURC";  tblcol += "| c "
-           if "SFRAC1"   in fastrandiff: hdrtxt += " & SFRAC1";  tblcol += "| >{\columncolor{yellow}}c "
+           if "SFRAC1"   in  nfreyadiff: hdrtxt += " & SFRAC1";  tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & SFRAC1";  tblcol += "| c "
-           if "RPIVOT"   in fastrandiff: hdrtxt += " & RPIVOT";  tblcol += "| >{\columncolor{yellow}}c "
+           if "RPIVOT"   in  nfreyadiff: hdrtxt += " & RPIVOT";  tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & RPIVOT";  tblcol += "| c "
-           if "ZPIVOT"   in fastrandiff: hdrtxt += " & ZPIVOT";  tblcol += "| >{\columncolor{yellow}}c "
+           if "ZPIVOT"   in  nfreyadiff: hdrtxt += " & ZPIVOT";  tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & ZPIVOT";  tblcol += "| c "
-           if "BVOFSET"  in fastrandiff: hdrtxt += " & BVOFSET"; tblcol += "| >{\columncolor{yellow}}c "
+           if "BVOFSET"  in  nfreyadiff: hdrtxt += " & BVOFSET"; tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & BVOFSET"; tblcol += "| c "
-           if "BHOFSET"  in fastrandiff: hdrtxt += " & BHOFSET"; tblcol += "| >{\columncolor{yellow}}c "
+           if "BHOFSET"  in  nfreyadiff: hdrtxt += " & BHOFSET"; tblcol += "| >{\columncolor{yellow}}c "
            else:                         hdrtxt += " & BHOFSET"; tblcol += "| c "
            texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
            texfhand.write("\\hline \n")
@@ -1381,37 +1451,37 @@ def fastran_report(fastranfpath="./",reportparam={}):
         if SHOT_ID == lshots[0]:
            tblcol = ""
            hdrtxt = ""
-           if "MF"              in fastrandiff: hdrtxt += " & MF";                tblcol += "| >{\columncolor{yellow}}c "
+           if "MF"              in  nfreyadiff: hdrtxt += " & MF";                tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & MF";                tblcol += "| c "
-           if "NPART"           in fastrandiff: hdrtxt += " & NPART";             tblcol += "| >{\columncolor{yellow}}c "
+           if "NPART"           in  nfreyadiff: hdrtxt += " & NPART";             tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & NPART";             tblcol += "| c "
-           if "NAMEB"           in fastrandiff: hdrtxt += " & NAMEB";             tblcol += "| >{\columncolor{yellow}}c "
+           if "NAMEB"           in  nfreyadiff: hdrtxt += " & NAMEB";             tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & NAMEB";             tblcol += "| c "
-           if "BTIME"           in fastrandiff: hdrtxt += " & BTIME";             tblcol += "| >{\columncolor{yellow}}c "
+           if "BTIME"           in  nfreyadiff: hdrtxt += " & BTIME";             tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & BTIME";             tblcol += "| c "
-           if "NPSKIP"          in fastrandiff: hdrtxt += " & NPSKIP";            tblcol += "| >{\columncolor{yellow}}c "
+           if "NPSKIP"          in  nfreyadiff: hdrtxt += " & NPSKIP";            tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & NPSKIP";            tblcol += "| c "
-           if "IEXCIT"          in fastrandiff: hdrtxt += " & IEXCIT";            tblcol += "| >{\columncolor{yellow}}c "
+           if "IEXCIT"          in  nfreyadiff: hdrtxt += " & IEXCIT";            tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & IEXCIT";            tblcol += "| c "
-           if "IZSTRP"          in fastrandiff: hdrtxt += " & IZSTRP";            tblcol += "| >{\columncolor{yellow}}c "
+           if "IZSTRP"          in  nfreyadiff: hdrtxt += " & IZSTRP";            tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & IZSTRP";            tblcol += "| c "
-           if "RELNUB"          in fastrandiff: hdrtxt += " & RELNUB";            tblcol += "| >{\columncolor{yellow}}c "
+           if "RELNUB"          in  nfreyadiff: hdrtxt += " & RELNUB";            tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & RELNUB";            tblcol += "| c "
-           if "IBSLOW"          in fastrandiff: hdrtxt += " & IBSLOW";            tblcol += "| >{\columncolor{yellow}}c "
+           if "IBSLOW"          in  nfreyadiff: hdrtxt += " & IBSLOW";            tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & IBSLOW";            tblcol += "| c "
-           if "RTSTCX"          in fastrandiff: hdrtxt += " & RTSTCX";            tblcol += "| >{\columncolor{yellow}}c "
+           if "RTSTCX"          in  nfreyadiff: hdrtxt += " & RTSTCX";            tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & RTSTCX";            tblcol += "| c "
-           if "BEAMON"          in fastrandiff: hdrtxt += " & BEAMON";            tblcol += "| >{\columncolor{yellow}}c "
+           if "BEAMON"          in  nfreyadiff: hdrtxt += " & BEAMON";            tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & BEAMON";            tblcol += "| c "
-           if "FDBEAM"          in fastrandiff: hdrtxt += " & FDBEAM";            tblcol += "| >{\columncolor{yellow}}c "
+           if "FDBEAM"          in  nfreyadiff: hdrtxt += " & FDBEAM";            tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & FDBEAM";            tblcol += "| c "
-           if "TIMBPLT"         in fastrandiff: hdrtxt += " & TIMBPLT";           tblcol += "| >{\columncolor{yellow}}c "
+           if "TIMBPLT"         in  nfreyadiff: hdrtxt += " & TIMBPLT";           tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & TIMBPLT";           tblcol += "| c "
-           if "NBEAMTCX"        in fastrandiff: hdrtxt += " & NBEAMTCX";          tblcol += "| >{\columncolor{yellow}}c "
+           if "NBEAMTCX"        in  nfreyadiff: hdrtxt += " & NBEAMTCX";          tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & NBEAMTCX";          tblcol += "| c "
-           if "ITERATE_BEAM"    in fastrandiff: hdrtxt += " & ITERATE\_BEAM";     tblcol += "| >{\columncolor{yellow}}c "
+           if "ITERATE_BEAM"    in  nfreyadiff: hdrtxt += " & ITERATE\_BEAM";     tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & ITERATE\_BEAM";     tblcol += "| c "
-           if "FAST_ION_TARGET" in fastrandiff: hdrtxt += " & FAST\_ION\_TARGET"; tblcol += "| >{\columncolor{yellow}}c "
+           if "FAST_ION_TARGET" in  nfreyadiff: hdrtxt += " & FAST\_ION\_TARGET"; tblcol += "| >{\columncolor{yellow}}c "
            else:                                hdrtxt += " & FAST\_ION\_TARGET"; tblcol += "| c "
            texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
            texfhand.write("\\hline \n")
@@ -1460,29 +1530,29 @@ def fastran_report(fastranfpath="./",reportparam={}):
         if SHOT_ID == lshots[0]:
            tblcol = ""
            hdrtxt = ""
-           if "ALEN"    in fastrandiff: hdrtxt += " & ALEN";    tblcol += "| >{\columncolor{yellow}}c "
+           if "ALEN"    in  nfreyadiff: hdrtxt += " & ALEN";    tblcol += "| >{\columncolor{yellow}}c "
            else:                        hdrtxt += " & ALEN";    tblcol += "| c "
-           if "NAPTR"   in fastrandiff: hdrtxt += " & NAPTR";   tblcol += "| >{\columncolor{yellow}}c "
+           if "NAPTR"   in  nfreyadiff: hdrtxt += " & NAPTR";   tblcol += "| >{\columncolor{yellow}}c "
            else:                        hdrtxt += " & NAPTR";   tblcol += "| c "
-           if "BHFOC"   in fastrandiff: hdrtxt += " & BHFOC";   tblcol += "| >{\columncolor{yellow}}c "
+           if "BHFOC"   in  nfreyadiff: hdrtxt += " & BHFOC";   tblcol += "| >{\columncolor{yellow}}c "
            else:                        hdrtxt += " & BHFOC";   tblcol += "| c "
-           if "BVFOC"   in fastrandiff: hdrtxt += " & BVFOC";   tblcol += "| >{\columncolor{yellow}}c "
+           if "BVFOC"   in  nfreyadiff: hdrtxt += " & BVFOC";   tblcol += "| >{\columncolor{yellow}}c "
            else:                        hdrtxt += " & BVFOC";   tblcol += "| c "
-           if "BHDIV"   in fastrandiff: hdrtxt += " & BHDIV";   tblcol += "| >{\columncolor{yellow}}c "
+           if "BHDIV"   in  nfreyadiff: hdrtxt += " & BHDIV";   tblcol += "| >{\columncolor{yellow}}c "
            else:                        hdrtxt += " & BHDIV";   tblcol += "| c "
-           if "BVDIV"   in fastrandiff: hdrtxt += " & BVDIV";   tblcol += "| >{\columncolor{yellow}}c "
+           if "BVDIV"   in  nfreyadiff: hdrtxt += " & BVDIV";   tblcol += "| >{\columncolor{yellow}}c "
            else:                        hdrtxt += " & BVDIV";   tblcol += "| c "
-           if "AHEIGH"  in fastrandiff: hdrtxt += " & AHEIGH";  tblcol += "| >{\columncolor{yellow}}c "
+           if "AHEIGH"  in  nfreyadiff: hdrtxt += " & AHEIGH";  tblcol += "| >{\columncolor{yellow}}c "
            else:                        hdrtxt += " & AHEIGH";  tblcol += "| c "
-           if "AWIDTH"  in fastrandiff: hdrtxt += " & AWIDTH";  tblcol += "| >{\columncolor{yellow}}c "
+           if "AWIDTH"  in  nfreyadiff: hdrtxt += " & AWIDTH";  tblcol += "| >{\columncolor{yellow}}c "
            else:                        hdrtxt += " & AWIDTH";  tblcol += "| c "
-           if "BHEIGH"  in fastrandiff: hdrtxt += " & BHEIGH";  tblcol += "| >{\columncolor{yellow}}c "
+           if "BHEIGH"  in  nfreyadiff: hdrtxt += " & BHEIGH";  tblcol += "| >{\columncolor{yellow}}c "
            else:                        hdrtxt += " & BHEIGH";  tblcol += "| c "
-           if "BWIDTH"  in fastrandiff: hdrtxt += " & BWIDTH";  tblcol += "| >{\columncolor{yellow}}c "
+           if "BWIDTH"  in  nfreyadiff: hdrtxt += " & BWIDTH";  tblcol += "| >{\columncolor{yellow}}c "
            else:                        hdrtxt += " & BWIDTH";  tblcol += "| c "
-           if "NASHAPE" in fastrandiff: hdrtxt += " & NASHAPE"; tblcol += "| >{\columncolor{yellow}}c "
+           if "NASHAPE" in  nfreyadiff: hdrtxt += " & NASHAPE"; tblcol += "| >{\columncolor{yellow}}c "
            else:                        hdrtxt += " & NASHAPE"; tblcol += "| c "
-           if "NBSHAPE" in fastrandiff: hdrtxt += " & NBSHAPE"; tblcol += "| >{\columncolor{yellow}}c "
+           if "NBSHAPE" in  nfreyadiff: hdrtxt += " & NBSHAPE"; tblcol += "| >{\columncolor{yellow}}c "
            else:                        hdrtxt += " & NBSHAPE"; tblcol += "| c "
            texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
            texfhand.write("\\hline \n")
@@ -1522,22 +1592,39 @@ def fastran_report(fastranfpath="./",reportparam={}):
     texfhand.write("\\section{LIST OF HCD INPUTS} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{9}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
-        rectxt = ""
-        if "PE"        in hcd[SHOT_ID]['inhcd'].keys(): hdrtxt += " & Pe";         rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['PE'][0])
-        if "PI"        in hcd[SHOT_ID]['inhcd'].keys(): hdrtxt += " & Pi";         rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['PI'][0])
-        if "NSRC"      in hcd[SHOT_ID]['inhcd'].keys(): hdrtxt += " & nsrc";       rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['NSRC'][0])
-        if "XMID"      in hcd[SHOT_ID]['inhcd'].keys(): hdrtxt += " & xmid";       rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['XMID'][0])
-        if "XWID"      in hcd[SHOT_ID]['inhcd'].keys(): hdrtxt += " & xwid";       rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['XWID'][0])
-        if "J0_SEED"   in hcd[SHOT_ID]['inhcd'].keys(): hdrtxt += " & j0\_seed";   rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['J0_SEED'][0])
-        if "X0_SEED"   in hcd[SHOT_ID]['inhcd'].keys(): hdrtxt += " & x0\_seed";   rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['X0_SEED'][0])
-        if "DRHO_SEED" in hcd[SHOT_ID]['inhcd'].keys(): hdrtxt += " & drho\_seed"; rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['DRHO_SEED'][0])
         if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "PE"        in genrayhcdiff: hdrtxt += " & PE";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                           hdrtxt += " & PE";         tblcol += "| c "
+           if "PI"        in genrayhcdiff: hdrtxt += " & PI";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                           hdrtxt += " & PI";         tblcol += "| c "
+           if "NSRC"      in genrayhcdiff: hdrtxt += " & NSRC";       tblcol += "| >{\columncolor{yellow}}c "
+           else:                           hdrtxt += " & NSRC";       tblcol += "| c "
+           if "XMID"      in genrayhcdiff: hdrtxt += " & XMID";       tblcol += "| >{\columncolor{yellow}}c "
+           else:                           hdrtxt += " & XMID";       tblcol += "| c "
+           if "XWID"      in genrayhcdiff: hdrtxt += " & XWID";       tblcol += "| >{\columncolor{yellow}}c "
+           else:                           hdrtxt += " & XWID";       tblcol += "| c "
+           if "J0_SEED"   in genrayhcdiff: hdrtxt += " & J0\_SEED";   tblcol += "| >{\columncolor{yellow}}c "
+           else:                           hdrtxt += " & J0\_SEED";   tblcol += "| c "
+           if "X0_SEED"   in genrayhcdiff: hdrtxt += " & X0\_SEED";   tblcol += "| >{\columncolor{yellow}}c "
+           else:                           hdrtxt += " & X0\_SEED";   tblcol += "| c "
+           if "DRHO_SEED" in genrayhcdiff: hdrtxt += " & DRHO\_SEED"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                           hdrtxt += " & DRHO\_SEED"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
            texfhand.write("HCD" + hdrtxt + "  \\\\ \n")
            texfhand.write("\\hline \n")
+        rectxt = ""
+        if "PE"        in hcd[SHOT_ID]['inhcd'].keys(): rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['PE'][0])
+        if "PI"        in hcd[SHOT_ID]['inhcd'].keys(): rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['PI'][0])
+        if "NSRC"      in hcd[SHOT_ID]['inhcd'].keys(): rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['NSRC'][0])
+        if "XMID"      in hcd[SHOT_ID]['inhcd'].keys(): rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['XMID'][0])
+        if "XWID"      in hcd[SHOT_ID]['inhcd'].keys(): rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['XWID'][0])
+        if "J0_SEED"   in hcd[SHOT_ID]['inhcd'].keys(): rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['J0_SEED'][0])
+        if "X0_SEED"   in hcd[SHOT_ID]['inhcd'].keys(): rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['X0_SEED'][0])
+        if "DRHO_SEED" in hcd[SHOT_ID]['inhcd'].keys(): rectxt += " & " + str(hcd[SHOT_ID]['inhcd']['DRHO_SEED'][0])
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
     texfhand.write("\\hline \n")
     texfhand.write("\\end{tabular}\n")
@@ -1547,194 +1634,366 @@ def fastran_report(fastranfpath="./",reportparam={}):
     texfhand.write("\\section{LIST OF GENRAY\_HC INPUTS} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{8}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
-        rectxt = ""
-        if "B0"            in genrayhc[SHOT_ID]['GENR'].keys(): hdrtxt += " & B0";             rectxt += " & " + str(genrayhc[SHOT_ID]['GENR']['B0'][0])
-        if "R0X"           in genrayhc[SHOT_ID]['GENR'].keys(): hdrtxt += " & R0X";            rectxt += " & " + str(genrayhc[SHOT_ID]['GENR']['R0X'][0])
-        if "STAT"          in genrayhc[SHOT_ID]['GENR'].keys(): hdrtxt += " & STAT";           rectxt += " & " + str(genrayhc[SHOT_ID]['GENR']['STAT'][0])
-        if "RAYOP"         in genrayhc[SHOT_ID]['GENR'].keys(): hdrtxt += " & RAYOP";          rectxt += " & " + str(genrayhc[SHOT_ID]['GENR']['RAYOP'][0])
-        if "OUTDAT"        in genrayhc[SHOT_ID]['GENR'].keys(): hdrtxt += " & OUTDAT";         rectxt += " & " + str(genrayhc[SHOT_ID]['GENR']['OUTDAT'][0])
-        if "MNEMONIC"      in genrayhc[SHOT_ID]['GENR'].keys(): hdrtxt += " & MNEMONIC";       rectxt += " & " + str(genrayhc[SHOT_ID]['GENR']['MNEMONIC'][0])
-        if "DIELECTRIC_OP" in genrayhc[SHOT_ID]['GENR'].keys(): hdrtxt += " & DIELECTRIC\_OP"; rectxt += " & " + str(genrayhc[SHOT_ID]['GENR']['DIELECTRIC_OP'][0])
         if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "B0"            in genrayhcdiff: hdrtxt += " & B0";             tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & B0";             tblcol += "| c "
+           if "R0X"           in genrayhcdiff: hdrtxt += " & R0X";            tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & R0X";            tblcol += "| c "
+           if "STAT"          in genrayhcdiff: hdrtxt += " & STAT";           tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & STAT";           tblcol += "| c "
+           if "RAYOP"         in genrayhcdiff: hdrtxt += " & RAYOP";          tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & RAYOP";          tblcol += "| c "
+           if "OUTDAT"        in genrayhcdiff: hdrtxt += " & OUTDAT";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & OUTDAT";         tblcol += "| c "
+           if "MNEMONIC"      in genrayhcdiff: hdrtxt += " & MNEMONIC";       tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & MNEMONIC";       tblcol += "| c "
+           if "DIELECTRIC_OP" in genrayhcdiff: hdrtxt += " & DIELECTRIC\_OP"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & DIELECTRIC\_OP"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
            texfhand.write("GENR" + hdrtxt + "  \\\\ \n")
            texfhand.write("\\hline \n")
+        rectxt = ""
+        if "B0"            in genrayhc[SHOT_ID]['GENR'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GENR']['B0'][0])
+        if "R0X"           in genrayhc[SHOT_ID]['GENR'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GENR']['R0X'][0])
+        if "STAT"          in genrayhc[SHOT_ID]['GENR'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GENR']['STAT'][0])
+        if "RAYOP"         in genrayhc[SHOT_ID]['GENR'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GENR']['RAYOP'][0])
+        if "OUTDAT"        in genrayhc[SHOT_ID]['GENR'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GENR']['OUTDAT'][0])
+        if "MNEMONIC"      in genrayhc[SHOT_ID]['GENR'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GENR']['MNEMONIC'][0])
+        if "DIELECTRIC_OP" in genrayhc[SHOT_ID]['GENR'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GENR']['DIELECTRIC_OP'][0])
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
     texfhand.write("\\hline \n")
     texfhand.write("\\end{tabular}\n")
     texfhand.write("\\end{center} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{10}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
-        rectxt = ""
-        if "IPSI"     in genrayhc[SHOT_ID]['TOKAMAK'].keys(): hdrtxt += " & IPSI";      rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['IPSI'][0])
-        if "NLOOP"    in genrayhc[SHOT_ID]['TOKAMAK'].keys(): hdrtxt += " & NLOOP";     rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['NLOOP'][0])
-        if "IEFFIC"   in genrayhc[SHOT_ID]['TOKAMAK'].keys(): hdrtxt += " & IEFFIC";    rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['IEFFIC'][0])
-        if "EQDSKIN"  in genrayhc[SHOT_ID]['TOKAMAK'].keys(): hdrtxt += " & EQDSKIN";   rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['EQDSKIN'][0])
-        if "IONETWO"  in genrayhc[SHOT_ID]['TOKAMAK'].keys(): hdrtxt += " & IONETWO";   rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['IONETWO'][0])
-        if "INDEXRHO" in genrayhc[SHOT_ID]['TOKAMAK'].keys(): hdrtxt += " & INDEXRHO";  rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['INDEXRHO'][0])
-        if "PSIFACTR" in genrayhc[SHOT_ID]['TOKAMAK'].keys(): hdrtxt += " & PSIFACTR";  rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['PSIFACTR'][0])
-        if "DELTRIPL" in genrayhc[SHOT_ID]['TOKAMAK'].keys(): hdrtxt += " & DELTRIPL";  rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['DELTRIPL'][0])
-        if "I_RIPPLE" in genrayhc[SHOT_ID]['TOKAMAK'].keys(): hdrtxt += " & I\_RIPPLE"; rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['I_RIPPLE'][0])
         if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "IPSI"     in genrayhcdiff: hdrtxt += " & IPSI";      tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & IPSI";      tblcol += "| c "
+           if "NLOOP"    in genrayhcdiff: hdrtxt += " & NLOOP";     tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & NLOOP";     tblcol += "| c "
+           if "IEFFIC"   in genrayhcdiff: hdrtxt += " & IEFFIC";    tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & IEFFIC";    tblcol += "| c "
+           if "EQDSKIN"  in genrayhcdiff: hdrtxt += " & EQDSKIN";   tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & EQDSKIN";   tblcol += "| c "
+           if "IONETWO"  in genrayhcdiff: hdrtxt += " & IONETWO";   tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & IONETWO";   tblcol += "| c "
+           if "INDEXRHO" in genrayhcdiff: hdrtxt += " & INDEXRHO";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & INDEXRHO";  tblcol += "| c "
+           if "PSIFACTR" in genrayhcdiff: hdrtxt += " & PSIFACTR";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & PSIFACTR";  tblcol += "| c "
+           if "DELTRIPL" in genrayhcdiff: hdrtxt += " & DELTRIPL";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & DELTRIPL";  tblcol += "| c "
+           if "I_RIPPLE" in genrayhcdiff: hdrtxt += " & I\_RIPPLE"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & I\_RIPPLE"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
            texfhand.write("TOKAMAK" + hdrtxt + "  \\\\ \n")
            texfhand.write("\\hline \n")
+        rectxt = ""
+        if "IPSI"     in genrayhc[SHOT_ID]['TOKAMAK'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['IPSI'][0])
+        if "NLOOP"    in genrayhc[SHOT_ID]['TOKAMAK'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['NLOOP'][0])
+        if "IEFFIC"   in genrayhc[SHOT_ID]['TOKAMAK'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['IEFFIC'][0])
+        if "EQDSKIN"  in genrayhc[SHOT_ID]['TOKAMAK'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['EQDSKIN'][0])
+        if "IONETWO"  in genrayhc[SHOT_ID]['TOKAMAK'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['IONETWO'][0])
+        if "INDEXRHO" in genrayhc[SHOT_ID]['TOKAMAK'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['INDEXRHO'][0])
+        if "PSIFACTR" in genrayhc[SHOT_ID]['TOKAMAK'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['PSIFACTR'][0])
+        if "DELTRIPL" in genrayhc[SHOT_ID]['TOKAMAK'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['DELTRIPL'][0])
+        if "I_RIPPLE" in genrayhc[SHOT_ID]['TOKAMAK'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['TOKAMAK']['I_RIPPLE'][0])
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
     texfhand.write("\\hline \n")
     texfhand.write("\\end{tabular}\n")
     texfhand.write("\\end{center} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{11}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
-        rectxt = ""
-        if "IBW"         in genrayhc[SHOT_ID]['WAVE'].keys(): hdrtxt += " & IBW";           rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['IBW'][0])
-        if "IOXM"        in genrayhc[SHOT_ID]['WAVE'].keys(): hdrtxt += " & IOXM";          rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['IOXM'][0])
-        if "JWAVE"       in genrayhc[SHOT_ID]['WAVE'].keys(): hdrtxt += " & JWAVE";         rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['JWAVE'][0])
-        if "ISTART"      in genrayhc[SHOT_ID]['WAVE'].keys(): hdrtxt += " & ISTART";        rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['ISTART'][0])
-        if "FRQNCY"      in genrayhc[SHOT_ID]['WAVE'].keys(): hdrtxt += " & FRQNCY";        rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['FRQNCY'][0])
-        if "IREFLM"      in genrayhc[SHOT_ID]['WAVE'].keys(): hdrtxt += " & IREFLM";        rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['IREFLM'][0])
-        if "DELPWRMN"    in genrayhc[SHOT_ID]['WAVE'].keys(): hdrtxt += " & DELPWRMN";      rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['DELPWRMN'][0])
-        if "I_VGR_INI"   in genrayhc[SHOT_ID]['WAVE'].keys(): hdrtxt += " & I\_VGR\_INI";   rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['I_VGR_INI'][0])
-        if "POLDIST_MX"  in genrayhc[SHOT_ID]['WAVE'].keys(): hdrtxt += " & POLDIST\_MX";   rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['POLDIST_MX'][0])
-        if "IOXM_N_NPAR" in genrayhc[SHOT_ID]['WAVE'].keys(): hdrtxt += " & IOXM\_N\_NPAR"; rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['IOXM_N_NPAR'][0])
         if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "IBW"         in genrayhcdiff: hdrtxt += " & IBW";           tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & IBW";           tblcol += "| c "
+           if "IOXM"        in genrayhcdiff: hdrtxt += " & IOXM";          tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & IOXM";          tblcol += "| c "
+           if "JWAVE"       in genrayhcdiff: hdrtxt += " & JWAVE";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & JWAVE";         tblcol += "| c "
+           if "ISTART"      in genrayhcdiff: hdrtxt += " & ISTART";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & ISTART";        tblcol += "| c "
+           if "FRQNCY"      in genrayhcdiff: hdrtxt += " & FRQNCY";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & FRQNCY";        tblcol += "| c "
+           if "IREFLM"      in genrayhcdiff: hdrtxt += " & IREFLM";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & IREFLM";        tblcol += "| c "
+           if "DELPWRMN"    in genrayhcdiff: hdrtxt += " & DELPWRMN";      tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & DELPWRMN";      tblcol += "| c "
+           if "I_VGR_INI"   in genrayhcdiff: hdrtxt += " & I\_VGR\_INI";   tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & I\_VGR\_INI";   tblcol += "| c "
+           if "POLDIST_MX"  in genrayhcdiff: hdrtxt += " & POLDIST\_MX";   tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & POLDIST\_MX";   tblcol += "| c "
+           if "IOXM_N_NPAR" in genrayhcdiff: hdrtxt += " & IOXM\_N\_NPAR"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & IOXM\_N\_NPAR"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
            texfhand.write("WAVE" + hdrtxt + "  \\\\ \n")
            texfhand.write("\\hline \n")
+        rectxt = ""
+        if "IBW"         in genrayhc[SHOT_ID]['WAVE'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['IBW'][0])
+        if "IOXM"        in genrayhc[SHOT_ID]['WAVE'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['IOXM'][0])
+        if "JWAVE"       in genrayhc[SHOT_ID]['WAVE'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['JWAVE'][0])
+        if "ISTART"      in genrayhc[SHOT_ID]['WAVE'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['ISTART'][0])
+        if "FRQNCY"      in genrayhc[SHOT_ID]['WAVE'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['FRQNCY'][0])
+        if "IREFLM"      in genrayhc[SHOT_ID]['WAVE'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['IREFLM'][0])
+        if "DELPWRMN"    in genrayhc[SHOT_ID]['WAVE'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['DELPWRMN'][0])
+        if "I_VGR_INI"   in genrayhc[SHOT_ID]['WAVE'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['I_VGR_INI'][0])
+        if "POLDIST_MX"  in genrayhc[SHOT_ID]['WAVE'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['POLDIST_MX'][0])
+        if "IOXM_N_NPAR" in genrayhc[SHOT_ID]['WAVE'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['WAVE']['IOXM_N_NPAR'][0])
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
     texfhand.write("\\hline \n")
     texfhand.write("\\end{tabular}\n")
     texfhand.write("\\end{center} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{16}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
-        rectxt = ""
-        if "IB"            in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & IB";             rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['IB'][0])
-        if "ID"            in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & ID";             rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['ID'][0])
-        if "JY_D"          in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & JY\_D";          rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['JY_D'][0])
-        if "DEL_Y"         in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & DEL\_Y";         rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['DEL_Y'][0])
-        if "IHERM"         in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & IHERM";          rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['IHERM'][0])
-        if "IFLUX"         in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & IFLUX";          rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['IFLUX'][0])
-        if "ISWITCH"       in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & ISWITCH";        rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['ISWITCH'][0])
-        if "IABSORP"       in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & IABSORP";        rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['IABSORP'][0])
-        if "IDSWITCH"      in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & IDSWITCH";       rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['IDSWITCH'][0])
-        if "IABSWITCH"     in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & IABSWITCH";      rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['IABSWITCH'][0])
-        if "I_IM_NPERP"    in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & I\_IM\_NPERP";   rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['I_IM_NPERP'][0])
-        if "N_RELT_HARM"   in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & N\_RELT\_HARM";  rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['N_RELT_HARM'][0])
-        if "N_RELT_INTGR"  in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & N\_RELT\_INTGR"; rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['N_RELT_INTGR'][0])
-        if "I_GEOM_OPTIC"  in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & I\_GEOM\_OPTIC"; rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['I_GEOM_OPTIC'][0])
-        if "RAY_DIRECTION" in genrayhc[SHOT_ID]['DISPERS'].keys(): hdrtxt += " & RAY\_DIRECTION"; rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['RAY_DIRECTION'][0])
         if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "IB"            in genrayhcdiff: hdrtxt += " & IB";             tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & IB";             tblcol += "| c "
+           if "ID"            in genrayhcdiff: hdrtxt += " & ID";             tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & ID";             tblcol += "| c "
+           if "JY_D"          in genrayhcdiff: hdrtxt += " & JY\_D";          tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & JY\_D";          tblcol += "| c "
+           if "DEL_Y"         in genrayhcdiff: hdrtxt += " & DEL\_Y";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & DEL\_Y";         tblcol += "| c "
+           if "IHERM"         in genrayhcdiff: hdrtxt += " & IHERM";          tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & IHERM";          tblcol += "| c "
+           if "IFLUX"         in genrayhcdiff: hdrtxt += " & IFLUX";          tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & IFLUX";          tblcol += "| c "
+           if "ISWITCH"       in genrayhcdiff: hdrtxt += " & ISWITCH";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & ISWITCH";        tblcol += "| c "
+           if "IABSORP"       in genrayhcdiff: hdrtxt += " & IABSORP";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & IABSORP";        tblcol += "| c "
+           if "IDSWITCH"      in genrayhcdiff: hdrtxt += " & IDSWITCH";       tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & IDSWITCH";       tblcol += "| c "
+           if "IABSWITCH"     in genrayhcdiff: hdrtxt += " & IABSWITCH";      tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & IABSWITCH";      tblcol += "| c "
+           if "I_IM_NPERP"    in genrayhcdiff: hdrtxt += " & I\_IM\_NPERP";   tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & I\_IM\_NPERP";   tblcol += "| c "
+           if "N_RELT_HARM"   in genrayhcdiff: hdrtxt += " & N\_RELT\_HARM";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & N\_RELT\_HARM";  tblcol += "| c "
+           if "N_RELT_INTGR"  in genrayhcdiff: hdrtxt += " & N\_RELT\_INTGR"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & N\_RELT\_INTGR"; tblcol += "| c "
+           if "I_GEOM_OPTIC"  in genrayhcdiff: hdrtxt += " & I\_GEOM\_OPTIC"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & I\_GEOM\_OPTIC"; tblcol += "| c "
+           if "RAY_DIRECTION" in genrayhcdiff: hdrtxt += " & RAY\_DIRECTION"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                               hdrtxt += " & RAY\_DIRECTION"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
            texfhand.write("DISPERS" + hdrtxt + "  \\\\ \n")
            texfhand.write("\\hline \n")
+        rectxt = ""
+        if "IB"            in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['IB'][0])
+        if "ID"            in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['ID'][0])
+        if "JY_D"          in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['JY_D'][0])
+        if "DEL_Y"         in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['DEL_Y'][0])
+        if "IHERM"         in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['IHERM'][0])
+        if "IFLUX"         in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['IFLUX'][0])
+        if "ISWITCH"       in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['ISWITCH'][0])
+        if "IABSORP"       in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['IABSORP'][0])
+        if "IDSWITCH"      in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['IDSWITCH'][0])
+        if "IABSWITCH"     in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['IABSWITCH'][0])
+        if "I_IM_NPERP"    in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['I_IM_NPERP'][0])
+        if "N_RELT_HARM"   in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['N_RELT_HARM'][0])
+        if "N_RELT_INTGR"  in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['N_RELT_INTGR'][0])
+        if "I_GEOM_OPTIC"  in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['I_GEOM_OPTIC'][0])
+        if "RAY_DIRECTION" in genrayhc[SHOT_ID]['DISPERS'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['DISPERS']['RAY_DIRECTION'][0])
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
     texfhand.write("\\hline \n")
     texfhand.write("\\end{tabular}\n")
     texfhand.write("\\end{center} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{13}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
-        rectxt = ""
-        if "IRKMETH"     in genrayhc[SHOT_ID]['NUMERCL'].keys(): hdrtxt += " & IRKMETH";      rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['IRKMETH'][0])
-        if "NDIM1"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): hdrtxt += " & NDIM1";        rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['NDIM1'][0])
-        if "ISOLV"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): hdrtxt += " & ISOLV";        rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['ISOLV'][0])
-        if "IDIF"        in genrayhc[SHOT_ID]['NUMERCL'].keys(): hdrtxt += " & IDIF";         rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['IDIF'][0])
-        if "NRELT"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): hdrtxt += " & NRELT";        rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['NRELT'][0])
-        if "PRMT1"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): hdrtxt += " & PRMT1";        rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['PRMT1'][0])
-        if "PRMT2"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): hdrtxt += " & PRMT2";        rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['PRMT2'][0])
-        if "PRMT3"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): hdrtxt += " & PRMT3";        rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['PRMT3'][0])
-        if "PRMT4"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): hdrtxt += " & PRMT4";        rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['PRMT4'][0])
-        if "PRMT6"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): hdrtxt += " & PRMT6";        rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['PRMT6'][0])
-        if "ICORRECT"    in genrayhc[SHOT_ID]['NUMERCL'].keys(): hdrtxt += " & ICORRECT";     rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['ICORRECT'][0])
-        if "MAXSTEPS_RK" in genrayhc[SHOT_ID]['NUMERCL'].keys(): hdrtxt += " & MAXSTEPS\_RK"; rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['MAXSTEPS_RK'][0])
         if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "IDIF"        in genrayhcdiff: hdrtxt += " & IDIF";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & IDIF";         tblcol += "| c "
+           if "NDIM1"       in genrayhcdiff: hdrtxt += " & NDIM1";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & NDIM1";        tblcol += "| c "
+           if "ISOLV"       in genrayhcdiff: hdrtxt += " & ISOLV";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & ISOLV";        tblcol += "| c "
+           if "NRELT"       in genrayhcdiff: hdrtxt += " & NRELT";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & NRELT";        tblcol += "| c "
+           if "PRMT1"       in genrayhcdiff: hdrtxt += " & PRMT1";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & PRMT1";        tblcol += "| c "
+           if "PRMT2"       in genrayhcdiff: hdrtxt += " & PRMT2";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & PRMT2";        tblcol += "| c "
+           if "PRMT3"       in genrayhcdiff: hdrtxt += " & PRMT3";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & PRMT3";        tblcol += "| c "
+           if "PRMT4"       in genrayhcdiff: hdrtxt += " & PRMT4";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & PRMT4";        tblcol += "| c "
+           if "PRMT6"       in genrayhcdiff: hdrtxt += " & PRMT6";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & PRMT6";        tblcol += "| c "
+           if "IRKMETH"     in genrayhcdiff: hdrtxt += " & IRKMETH";      tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & IRKMETH";      tblcol += "| c "
+           if "ICORRECT"    in genrayhcdiff: hdrtxt += " & ICORRECT";     tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & ICORRECT";     tblcol += "| c "
+           if "MAXSTEPS_RK" in genrayhcdiff: hdrtxt += " & MAXSTEPS\_RK"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                             hdrtxt += " & MAXSTEPS\_RK"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
            texfhand.write("NUMERCL" + hdrtxt + "  \\\\ \n")
            texfhand.write("\\hline \n")
+        rectxt = ""
+        if "IDIF"        in genrayhc[SHOT_ID]['NUMERCL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['IDIF'][0])
+        if "NDIM1"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['NDIM1'][0])
+        if "ISOLV"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['ISOLV'][0])
+        if "NRELT"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['NRELT'][0])
+        if "PRMT1"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['PRMT1'][0])
+        if "PRMT2"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['PRMT2'][0])
+        if "PRMT3"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['PRMT3'][0])
+        if "PRMT4"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['PRMT4'][0])
+        if "PRMT6"       in genrayhc[SHOT_ID]['NUMERCL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['PRMT6'][0])
+        if "IRKMETH"     in genrayhc[SHOT_ID]['NUMERCL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['IRKMETH'][0])
+        if "ICORRECT"    in genrayhc[SHOT_ID]['NUMERCL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['ICORRECT'][0])
+        if "MAXSTEPS_RK" in genrayhc[SHOT_ID]['NUMERCL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['NUMERCL']['MAXSTEPS_RK'][0])
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
     texfhand.write("\\hline \n")
     texfhand.write("\\end{tabular}\n")
     texfhand.write("\\end{center} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{7}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
-        rectxt = ""
-        if "IWJ"      in genrayhc[SHOT_ID]['OUTPUT'].keys(): hdrtxt += " & IWJ";        rectxt += " & " + str(genrayhc[SHOT_ID]['OUTPUT']['IWJ'][0])
-        if "IWCNTR"   in genrayhc[SHOT_ID]['OUTPUT'].keys(): hdrtxt += " & IWCNTR";     rectxt += " & " + str(genrayhc[SHOT_ID]['OUTPUT']['IWCNTR'][0])
-        if "IWOPEN"   in genrayhc[SHOT_ID]['OUTPUT'].keys(): hdrtxt += " & IWOPEN";     rectxt += " & " + str(genrayhc[SHOT_ID]['OUTPUT']['IWOPEN'][0])
-        if "ITOOLS"   in genrayhc[SHOT_ID]['OUTPUT'].keys(): hdrtxt += " & ITOOLS";     rectxt += " & " + str(genrayhc[SHOT_ID]['OUTPUT']['ITOOLS'][0])
-        if "I_PLOT_B" in genrayhc[SHOT_ID]['OUTPUT'].keys(): hdrtxt += " & I\_PLOT\_D"; rectxt += " & " + str(genrayhc[SHOT_ID]['OUTPUT']['I_PLOT_B'][0])
-        if "I_PLOT_D" in genrayhc[SHOT_ID]['OUTPUT'].keys(): hdrtxt += " & I\_PLOT\_D"; rectxt += " & " + str(genrayhc[SHOT_ID]['OUTPUT']['I_PLOT_D'][0])
         if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "IWJ"      in genrayhcdiff: hdrtxt += " & IWJ";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & IWJ";        tblcol += "| c "
+           if "IWCNTR"   in genrayhcdiff: hdrtxt += " & IWCNTR";     tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & IWCNTR";     tblcol += "| c "
+           if "IWOPEN"   in genrayhcdiff: hdrtxt += " & IWOPEN";     tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & IWOPEN";     tblcol += "| c "
+           if "ITOOLS"   in genrayhcdiff: hdrtxt += " & ITOOLS";     tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & ITOOLS";     tblcol += "| c "
+           if "I_PLOT_B" in genrayhcdiff: hdrtxt += " & I\_PLOT\_B"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & I\_PLOT\_B"; tblcol += "| c "
+           if "I_PLOT_D" in genrayhcdiff: hdrtxt += " & I\_PLOT\_D"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                          hdrtxt += " & I\_PLOT\_D"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
            texfhand.write("OUTPUT" + hdrtxt + "  \\\\ \n")
            texfhand.write("\\hline \n")
+        rectxt = ""
+        if "IWJ"      in genrayhc[SHOT_ID]['OUTPUT'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['OUTPUT']['IWJ'][0])
+        if "IWCNTR"   in genrayhc[SHOT_ID]['OUTPUT'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['OUTPUT']['IWCNTR'][0])
+        if "IWOPEN"   in genrayhc[SHOT_ID]['OUTPUT'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['OUTPUT']['IWOPEN'][0])
+        if "ITOOLS"   in genrayhc[SHOT_ID]['OUTPUT'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['OUTPUT']['ITOOLS'][0])
+        if "I_PLOT_B" in genrayhc[SHOT_ID]['OUTPUT'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['OUTPUT']['I_PLOT_B'][0])
+        if "I_PLOT_D" in genrayhc[SHOT_ID]['OUTPUT'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['OUTPUT']['I_PLOT_D'][0])
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
     texfhand.write("\\hline \n")
     texfhand.write("\\end{tabular}\n")
     texfhand.write("\\end{center} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{7}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
-        rectxt = ""
-        if "NDENS"       in genrayhc[SHOT_ID]['PLASMA'].keys(): hdrtxt += " & NDENS";       rectxt += " & " + str(genrayhc[SHOT_ID]['PLASMA']['NDENS'][0])
-        if "NBULK"       in genrayhc[SHOT_ID]['PLASMA'].keys(): hdrtxt += " & NBULK";       rectxt += " & " + str(genrayhc[SHOT_ID]['PLASMA']['NBULK'][0])
-        if "IZEFF"       in genrayhc[SHOT_ID]['PLASMA'].keys(): hdrtxt += " & IZEFF";       rectxt += " & " + str(genrayhc[SHOT_ID]['PLASMA']['IZEFF'][0])
-        if "IDENS"       in genrayhc[SHOT_ID]['PLASMA'].keys(): hdrtxt += " & IDENS";       rectxt += " & " + str(genrayhc[SHOT_ID]['PLASMA']['IDENS'][0])
-        if "DEN_SCALE"   in genrayhc[SHOT_ID]['PLASMA'].keys(): hdrtxt += " & DEN\_SCALE";  rectxt += " & " + str(genrayhc[SHOT_ID]['PLASMA']['DEN_SCALE'][0])
-        if "TEMP_SCALE"  in genrayhc[SHOT_ID]['PLASMA'].keys(): hdrtxt += " & TEMP\_SCALE"; rectxt += " & " + str(genrayhc[SHOT_ID]['PLASMA']['TEMP_SCALE'][0])
         if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "NDENS"      in genrayhcdiff: hdrtxt += " & NDENS";       tblcol += "| >{\columncolor{yellow}}c "
+           else:                            hdrtxt += " & NDENS";       tblcol += "| c "
+           if "NBULK"      in genrayhcdiff: hdrtxt += " & NBULK";       tblcol += "| >{\columncolor{yellow}}c "
+           else:                            hdrtxt += " & NBULK";       tblcol += "| c "
+           if "IZEFF"      in genrayhcdiff: hdrtxt += " & IZEFF";       tblcol += "| >{\columncolor{yellow}}c "
+           else:                            hdrtxt += " & IZEFF";       tblcol += "| c "
+           if "IDENS"      in genrayhcdiff: hdrtxt += " & IDENS";       tblcol += "| >{\columncolor{yellow}}c "
+           else:                            hdrtxt += " & IDENS";       tblcol += "| c "
+           if "DEN_SCALE"  in genrayhcdiff: hdrtxt += " & DEN\_SCALE";  tblcol += "| >{\columncolor{yellow}}c "
+           else:                            hdrtxt += " & DEN\_SCALE";  tblcol += "| c "
+           if "TEMP_SCALE" in genrayhcdiff: hdrtxt += " & TEMP\_SCALE"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                            hdrtxt += " & TEMP\_SCALE"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
            texfhand.write("PLASMA" + hdrtxt + "  \\\\ \n")
            texfhand.write("\\hline \n")
+        rectxt = ""
+        if "NDENS"       in genrayhc[SHOT_ID]['PLASMA'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['PLASMA']['NDENS'][0])
+        if "NBULK"       in genrayhc[SHOT_ID]['PLASMA'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['PLASMA']['NBULK'][0])
+        if "IZEFF"       in genrayhc[SHOT_ID]['PLASMA'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['PLASMA']['IZEFF'][0])
+        if "IDENS"       in genrayhc[SHOT_ID]['PLASMA'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['PLASMA']['IDENS'][0])
+        if "DEN_SCALE"   in genrayhc[SHOT_ID]['PLASMA'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['PLASMA']['DEN_SCALE'][0])
+        if "TEMP_SCALE"  in genrayhc[SHOT_ID]['PLASMA'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['PLASMA']['TEMP_SCALE'][0])
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
     texfhand.write("\\hline \n")
     texfhand.write("\\end{tabular}\n")
     texfhand.write("\\end{center} \n")
 
     texfhand.write("\\begin{center} \n")
-    texfhand.write("\\begin{tabular}{| *{18}{c |}}\n")
-    texfhand.write("\\hline \n")
     for SHOT_ID in lshots:
-        hdrtxt = ""
-        rectxt = ""
-        if "NTHIN"        in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & NTHIN";          rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['NTHIN'][0])
-        if "ANMIN"        in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & ANMIN";          rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['ANMIN'][0])
-        if "ANMAX"        in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & ANMAX";          rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['ANMAX'][0])
-        if "NNKPAR"       in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & NNKPAR";         rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['NNKPAR'][0])
-        if "POWERS"       in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & POWERS";         rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['POWERS'][0])
-        if "NNKPOL"       in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & NNKPOL";         rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['NNKPOL'][0])
-        if "NGRILL"       in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & NGRILL";         rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['NGRILL'][0])
-        if "HEIGHT"       in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & HEIGHT";         rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['HEIGHT'][0])
-        if "THGRILL"      in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & THGRILL";        rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['THGRILL'][0])
-        if "RHOPSI0"      in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & RHOPSI0";        rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['RHOPSI0'][0])
-        if "ANPOLMIN"     in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & ANPOLMIN";       rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['ANPOLMIN'][0])
-        if "IGRILLPW"     in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & IGRILLPW";       rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['IGRILLPW'][0])
-        if "PHIGRILL"     in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & PHIGRILL";       rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['PHIGRILL'][0])
-        if "ANPOLMAX"     in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & ANPOLMAX";       rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['ANPOLMAX'][0])
-        if "IGRILLTW"     in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & IGRILLTW";       rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['IGRILLTW'][0])
-        if "I_N_POLOIDAL" in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & I\_N\_POLOIDAL"; rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['I_N_POLOIDAL'][0])
-        if "I_RHO_CUTOFF" in genrayhc[SHOT_ID]['GRILL'].keys(): hdrtxt += " & I\_RHO\_CUTOFF"; rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['I_RHO_CUTOFF'][0])
         if SHOT_ID == lshots[0]:
+           tblcol = ""
+           hdrtxt = ""
+           if "NTHIN"        in genrayhcdiff: hdrtxt += " & NTHIN";          tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & NTHIN";          tblcol += "| c "
+           if "ANMIN"        in genrayhcdiff: hdrtxt += " & ANMIN";          tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & ANMIN";          tblcol += "| c "
+           if "ANMAX"        in genrayhcdiff: hdrtxt += " & ANMAX";          tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & ANMAX";          tblcol += "| c "
+           if "NNKPAR"       in genrayhcdiff: hdrtxt += " & NNKPAR";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & NNKPAR";         tblcol += "| c "
+           if "POWERS"       in genrayhcdiff: hdrtxt += " & POWERS";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & POWERS";         tblcol += "| c "
+           if "NNKPOL"       in genrayhcdiff: hdrtxt += " & NNKPOL";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & NNKPOL";         tblcol += "| c "
+           if "NGRILL"       in genrayhcdiff: hdrtxt += " & NGRILL";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & NGRILL";         tblcol += "| c "
+           if "HEIGHT"       in genrayhcdiff: hdrtxt += " & HEIGHT";         tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & HEIGHT";         tblcol += "| c "
+           if "THGRILL"      in genrayhcdiff: hdrtxt += " & THGRILL";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & THGRILL";        tblcol += "| c "
+           if "RHOPSI0"      in genrayhcdiff: hdrtxt += " & RHOPSI0";        tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & RHOPSI0";        tblcol += "| c "
+           if "ANPOLMIN"     in genrayhcdiff: hdrtxt += " & ANPOLMIN";       tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & ANPOLMIN";       tblcol += "| c "
+           if "IGRILLPW"     in genrayhcdiff: hdrtxt += " & IGRILLPW";       tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & IGRILLPW";       tblcol += "| c "
+           if "PHIGRILL"     in genrayhcdiff: hdrtxt += " & PHIGRILL";       tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & PHIGRILL";       tblcol += "| c "
+           if "ANPOLMAX"     in genrayhcdiff: hdrtxt += " & ANPOLMAX";       tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & ANPOLMAX";       tblcol += "| c "
+           if "IGRILLTW"     in genrayhcdiff: hdrtxt += " & IGRILLTW";       tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & IGRILLTW";       tblcol += "| c "
+           if "I_N_POLOIDAL" in genrayhcdiff: hdrtxt += " & I\_N\_POLOIDAL"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & I\_N\_POLOIDAL"; tblcol += "| c "
+           if "I_RHO_CUTOFF" in genrayhcdiff: hdrtxt += " & I\_RHO\_CUTOFF"; tblcol += "| >{\columncolor{yellow}}c "
+           else:                              hdrtxt += " & I\_RHO\_CUTOFF"; tblcol += "| c "
+           texfhand.write("\\begin{tabular}{| c " + tblcol + "|}\n")
+           texfhand.write("\\hline \n")
            texfhand.write("GRILL" + hdrtxt + "  \\\\ \n")
            texfhand.write("\\hline \n")
+        rectxt = ""
+        if "NTHIN"        in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['NTHIN'][0])
+        if "ANMIN"        in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['ANMIN'][0])
+        if "ANMAX"        in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['ANMAX'][0])
+        if "NNKPAR"       in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['NNKPAR'][0])
+        if "POWERS"       in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['POWERS'][0])
+        if "NNKPOL"       in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['NNKPOL'][0])
+        if "NGRILL"       in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['NGRILL'][0])
+        if "HEIGHT"       in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['HEIGHT'][0])
+        if "THGRILL"      in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['THGRILL'][0])
+        if "RHOPSI0"      in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['RHOPSI0'][0])
+        if "ANPOLMIN"     in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['ANPOLMIN'][0])
+        if "IGRILLPW"     in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['IGRILLPW'][0])
+        if "PHIGRILL"     in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['PHIGRILL'][0])
+        if "ANPOLMAX"     in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['ANPOLMAX'][0])
+        if "IGRILLTW"     in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['IGRILLTW'][0])
+        if "I_N_POLOIDAL" in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['I_N_POLOIDAL'][0])
+        if "I_RHO_CUTOFF" in genrayhc[SHOT_ID]['GRILL'].keys(): rectxt += " & " + str(genrayhc[SHOT_ID]['GRILL']['I_RHO_CUTOFF'][0])
         texfhand.write(SHOT_ID + rectxt + "\\\\ \n")
     texfhand.write("\\hline \n")
     texfhand.write("\\end{tabular}\n")
@@ -1754,66 +2013,11 @@ def fastran_report(fastranfpath="./",reportparam={}):
         texfhand.write("\\end{figure} \n")
         texfhand.write("\\clearpage \n")
 
-   #texfhand.write("\\clearpage \n")
-   #texfhand.write("\\begin{figure}[!h] \n")
-   #texfhand.write("\\begin{center} \n")
-   #texfhand.write("\\begin{tabular}{c} \n")
-   #texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"currents.png} \n")
-   #texfhand.write("\\end{tabular} \n")
-   #texfhand.write("\\end{center} \n")
-   #texfhand.write("\\end{figure} \n")
-
-   #texfhand.write("\\clearpage \n")
-   #texfhand.write("\\begin{figure}[!h] \n")
-   #texfhand.write("\\begin{center} \n")
-   #texfhand.write("\\begin{tabular}{c} \n")
-   #texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"geometry.png} \n")
-   #texfhand.write("\\end{tabular} \n")
-   #texfhand.write("\\end{center} \n")
-   #texfhand.write("\\end{figure} \n")
-
-   #texfhand.write("\\clearpage \n")
-   #texfhand.write("\\begin{figure}[!h] \n")
-   #texfhand.write("\\begin{center} \n")
-   #texfhand.write("\\begin{tabular}{c} \n")
-   #texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"mainheating.png} \n")
-   #texfhand.write("\\end{tabular} \n")
-   #texfhand.write("\\end{center} \n")
-   #texfhand.write("\\end{figure} \n")
-
-   #texfhand.write("\\clearpage \n")
-   #texfhand.write("\\begin{figure}[!h] \n")
-   #texfhand.write("\\begin{center} \n")
-   #texfhand.write("\\begin{tabular}{c} \n")
-   #texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"otherheating.png} \n")
-   #texfhand.write("\\end{tabular} \n")
-   #texfhand.write("\\end{center} \n")
-   #texfhand.write("\\end{figure} \n")
-
-   #texfhand.write("\\clearpage \n")
-   #texfhand.write("\\begin{figure}[!h] \n")
-   #texfhand.write("\\begin{center} \n")
-   #texfhand.write("\\begin{tabular}{c} \n")
-   #texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"heattransport.png} \n")
-   #texfhand.write("\\end{tabular} \n")
-   #texfhand.write("\\end{center} \n")
-   #texfhand.write("\\end{figure} \n")
-
-   #texfhand.write("\\clearpage \n")
-   #texfhand.write("\\begin{figure}[!h] \n")
-   #texfhand.write("\\begin{center} \n")
-   #texfhand.write("\\begin{tabular}{c} \n")
-   #texfhand.write("\\includegraphics[scale=0.80]{"+figurepath+"heatflux.png} \n")
-   #texfhand.write("\\end{tabular} \n")
-   #texfhand.write("\\end{center} \n")
-   #texfhand.write("\\end{figure} \n")
-
     texfhand.write("\n")    
     texfhand.write("\\end{document} \n")
     texfhand.close()
 
     print(CYELLOW + 'Processing TEX to PDF ...' + CEND)
-   #latex2pdf_cmd = "pdflatex -interaction=batchmode -output-directory=" + reportpath + " " + reportpath + texfname)
     if 'debugtex' in reportparam and reportparam['debugtex']:
         latex2pdf_cmd = "pdflatex -output-directory=" + reportpath + " " + reportpath + texfname
     else:
@@ -1857,5 +2061,3 @@ if __name__ == "__main__":
     sys.exit()
 
 
-
-   #texfhand.write("\\multicolumn{2}{|c|}{General}\\\\ \n")
