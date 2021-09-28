@@ -172,7 +172,6 @@ def findall(inlist,item):
     return inds
 
 
-<<<<<<< HEAD
 def getrecord(rec,datain):
     if type(datain) == dict:
        dataout = {}
@@ -239,8 +238,6 @@ def write_csv(csvfn,csvdict):
     return 1
 
 
-=======
->>>>>>> 7c0d900362339af9fc7ea7341e74170f46748f28
 def create_namelist(setParam={}):
     wfh = open('chease_namelist','w')
     wfh.write('*** for EQDSK file copied onto EXPEQ file \n')
@@ -365,7 +362,6 @@ def create_namelist(setParam={}):
 
     return setParam
 
-<<<<<<< HEAD
 def read_chease(cheasefpath,setParam={},Normalized=False,**kwargs):
     if os.path.isfile(cheasefpath) == False:
        errorFunc = traceback.extract_stack(limit=2)[-2][3]
@@ -1569,9 +1565,6 @@ def write_expeq(setParam={},outfile=True,**kwargs):
        ofh.close()
 
     return expeq
-
-=======
->>>>>>> 7c0d900362339af9fc7ea7341e74170f46748f28
 
 def find_boundary(eqdsk='',setParam={}):
     if eqdsk:

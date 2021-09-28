@@ -10,63 +10,7 @@ import matplotlib.pyplot                        as plt
 
 from matplotlib.backends.backend_pdf import PdfPages
 
-#eqdskpath   = "../../Discharges/Houshmandyar/g164880.04600"
-#iterdbpath  = "../../Discharges/Houshmandyar/DIIID_164880_4600.iterdb"
 
-eqdskpath   = "../../Discharges/Houshmandyar/g164900.04100"
-iterdbpath  = "../../Discharges/Houshmandyar/DIIID_164900_4100.iterdb"
-
-
-<<<<<<< HEAD
-    eqdskpath   = "DIIID162940/DIIID162940.eqdsk"
-    iterdbpath  = "/global/cscratch1/sd/ehab/ITERDB//DIIID162940.iterdb"
-    iterdbdata  = cheasepy.read_iterdb(iterdbpath)
-    print(iterdbdata['rhotor'][npy.argmin(abs(iterdbdata['rhotor']-0.970))])
-    print(iterdbdata['Vrot'][npy.argmin(abs(iterdbdata['rhotor']-0.970))])
-    sys.exit()
-
-   #fg1 = plt.figure("pressure")
-   #ax1 = fg1.add_subplot(1,1,1)
-
-   #fg2 = plt.figure("ffprime")
-   #ax2 = fg2.add_subplot(1,1,1)
-
-   #fg3 = plt.figure("q-profile")
-   #ax3 = fg3.add_subplot(1,1,1)
-
-   #fg4 = plt.figure("RZ-Surface")
-   #ax4 = fg4.add_subplot(1,1,1)
-
-   #eqdskpath   = "/global/cscratch1/sd/ehab/EQDSK/g164900.04100"
-   #eqdskdata = cheasepy.read_eqdsk(eqdskfpath=eqdskpath)
-   #ax1.plot(eqdskdata['rhotor'],eqdskdata['pressure'],label='g164900.04100')
-   #ax2.plot(eqdskdata['rhotor'],eqdskdata['ffprime'],label='g164900.04100')
-   #ax3.plot(eqdskdata['rhotor'],eqdskdata['q'],label='g164900.04100')
-   #ax4.plot(eqdskdata['rbound'],eqdskdata['zbound'],label='g164900.04100')
-
-   #eqdskpath   = "/global/cscratch1/sd/ehab/EQDSK/g164880.04600"
-   #eqdskdata = cheasepy.read_eqdsk(eqdskfpath=eqdskpath)
-   #ax1.plot(eqdskdata['rhotor'],eqdskdata['pressure'],label='g164880.04600')
-   #ax2.plot(eqdskdata['rhotor'],eqdskdata['ffprime'],label='g164880.04600')
-   #ax3.plot(eqdskdata['rhotor'],eqdskdata['q'],label='g164880.04600')
-   #ax4.plot(eqdskdata['rbound'],eqdskdata['zbound'],label='g164880.04600')
-
-   #ax1.set_xlabel("$\\rho_{\\phi}$")
-   #ax2.set_xlabel("$\\rho_{\\phi}$")
-   #ax3.set_xlabel("$\\rho_{\\phi}$")
-   #ax4.set_xlabel("R")
-
-   #ax1.set_ylabel("Pressure")
-   #ax2.set_ylabel("ffprime")
-   #ax3.set_ylabel("Safety Factor")
-   #ax4.set_ylabel("Z")
-
-   #plt.legend()
-   #plt.show()
-   #sys.exit()
-
-    profilepath = "/global/cscratch1/sd/ehab/PROFILES/p164880.4600.0"
-=======
 def main():
 
    #'collective' is used to plot the rational surfaces for all
@@ -85,12 +29,10 @@ def main():
     q_eqdsk  = True
 
     eqdskdata = fusionfiles.read_eqdsk(eqdskfpath=eqdskpath)
->>>>>>> 7c0d900362339af9fc7ea7341e74170f46748f28
 
     setParam = {}
 
    #Setup a range of toroidal mode numbers to search for MTM over this range
-<<<<<<< HEAD
    #setParam.update({'n0':(2,6)})
     setParam.update({'n0':(1,30)})
 
@@ -98,14 +40,12 @@ def main():
    #setParam.update({'frequency':(1.0e3,550.0e3)})
    #setParam.update({'frequency':((50.0e3,55.0e3),(85.0e3,105.0e3),(290.0e3,500.0e3))})
     setParam.update({'frequency':((50.0e3,55.0e3),(85.0e3,105.0e3))})
-=======
     setParam.update({'n0':(1,12)})
    #setParam.update({'n0':(16,13,29)})
 
    #Setup a range or multiple ranges of frequencies from spectrogram
     setParam.update({'frequency':(50.0e3,320.0e3)})
    #setParam.update({'frequency':((50.0e3,55.0e3),(85.0e3,105.0e3),(290.0e3,500.0e3))})
->>>>>>> 7c0d900362339af9fc7ea7341e74170f46748f28
 
    #Setup the center of the location you're searching in
     setParam.update({'rhotor':0.975})
@@ -114,11 +54,8 @@ def main():
     setParam.update({'rholim':(0.850,0.990)})
 
    #Setup the a percentage from maximum diamagnetic frequency to match
-<<<<<<< HEAD
     setParam.update({'omegapct':80.0})
-=======
     setParam.update({'omegapct':85.0})
->>>>>>> 7c0d900362339af9fc7ea7341e74170f46748f28
 
     mtmfreq = get_mtm_frequency(profilefpath=profilepath,eqdskfpath=eqdskpath,setParam=setParam)
    #mtmfreq = get_mtm_frequency(iterdbfpath=iterdbpath,eqdskfpath=eqdskpath,setParam=setParam)
@@ -361,14 +298,11 @@ def get_mtm_frequency(iterdbfpath,eqdskfpath,imported={},setParam={}):
 
     if 'n0' in setParam:
        if type(setParam['n0']) in [int,float,str]:
-<<<<<<< HEAD
           n0bgn = int(setParam['n0'])
           n0end = int(setParam['n0'])
-=======
           n0bgn  = int(setParam['n0'])
           n0end  = int(setParam['n0'])
           nrange = range(n0bgn,n0end+1)
->>>>>>> 7c0d900362339af9fc7ea7341e74170f46748f28
        else:
           if   len(setParam['n0']) == 2:
                n0bgn  = int(setParam['n0'][0])
@@ -466,13 +400,11 @@ def get_mtm_frequency(iterdbfpath,eqdskfpath,imported={},setParam={}):
 
     mtm_frequency['rho']  = iterdbdata['rhotor'][bgnid:endid]
     mtm_frequency['qtor'] = q_rhotor[bgnid:endid]
-<<<<<<< HEAD
     for n0 in range(n0bgn,n0end+1):
         rs        = npy.sqrt(qe*iterdbdata['Te'][bgnid:endid]/mi)/(qe*Bref/mi)
         kymin     = (n0*q_rhotor[bgnid:endid]*rs)/(Lref*iterdbdata['rhotor'][bgnid:endid])
 
         omegastar    = kymin*(TePrime[bgnid:endid]+nePrime[bgnid:endid])
-=======
     
    #for n0 in range(n0bgn,n0end+1):
     for n0 in nrange:
@@ -483,7 +415,6 @@ def get_mtm_frequency(iterdbfpath,eqdskfpath,imported={},setParam={}):
        #omegastar   += kymin*npy.sqrt(iterdbdata['ne'][bgnid:endid]/iterdbdata['ne'][ped_mid_id])*nePrime[bgnid:endid]
         omegastar    = kymin*TePrime[bgnid:endid]
         omegastar   += kymin*nePrime[bgnid:endid]
->>>>>>> 7c0d900362339af9fc7ea7341e74170f46748f28
         omegagyro    = npy.sqrt(qe*iterdbdata['Te'][bgnid:endid]/mp/mref)/Lref
         omegaMTM     = omegastar*omegagyro/2.0/npy.pi
         omegaDoppler = iterdbdata['Vrot'][bgnid:endid]*n0/2.0/npy.pi

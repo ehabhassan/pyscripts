@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import json
 import argparse
@@ -18,6 +19,18 @@ CBLUE   = '\33[34m'
 CGREEN  = '\33[32m'
 CYELLOW = '\33[33m'
 
+
+
+
+def read_dcon(fn_log):
+    for line in open(fn_log,"r").readlines():
+        if re.compile("\s*betaN_ideal-nowall").search(line):
+            betan_ideal_nowall = float(line.split(":")[-1])
+        if re.compile("\s*betaN_ideal-wall").search(line):
+            betan_ideal_wall = float(line.split(":")[-1])
+    if "betan_ideal_nowall" not in locals(): betan_ideal_nowall = 0.0
+    if "betan_ideal_wall"   not in locals(): betan_ideal_wall = 0.0
+    return betan_ideal_nowall,betan_ideal_wall
 
 #def read_fastran_outputs(WORK_DIR,CURRENT_FASTRAN):
 #    PATH_TO_FILE = os.path.join(WORK_DIR,CURRENT_FASTRAN)
@@ -42,6 +55,7 @@ def read_fastran_outputs(fastranfpath):
         if name == 'q':         fastran[name]['symbol'] = "$q$"
         if name == 'a':         fastran[name]['symbol'] = "$a$"
         if name == 'R':         fastran[name]['symbol'] = "$R$"
+        if name == 'b0':        fastran[name]['symbol'] = "$B_0$"
         if name == 'te':        fastran[name]['symbol'] = "$T_e$"           # DONE
         if name == 'ti':        fastran[name]['symbol'] = "$T_i$"           # DONE
         if name == 'ne':        fastran[name]['symbol'] = "$n_e$"           # DONE
@@ -103,7 +117,7 @@ def read_state_outputs(statefpath):
     return state
 
 
-def plot_fastran_outputs(fastrandata,plotparam={}):
+def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
     shots = list(fastrandata.keys())
     nshot = len(shots)
 
@@ -134,7 +148,14 @@ def plot_fastran_outputs(fastrandata,plotparam={}):
     colornames = clr.cnames.items()
 
     colors = ['red','blue','green','orange','black','cyan','sienna','magenta','teal','olive']
-    styles = ['-','--','-.',':']
+   #styles = ['-','--','-.',':']
+    styles = [(0,()),(0,(1,10)),(0,(1,1)),(0,(5,10)),(0,(5,5)),(0,(5,1))]
+    styles.append([(0,(3,10,1,10)),(0,(3,5,1,5)),(0,(3,1,1,1)),(0,(3,5,1,5,1,5)),(0,(3,10,1,10,1,10)),(0,(3,1,1,1,1,1))])
+
+    for key,value in kwargs.items():
+        if key in ['state','statedata']:
+           statedata = value.copy()
+           stateflag = True
 
     if figspec:
         if not os.path.isfile("figspec.json"):
@@ -154,14 +175,66 @@ def plot_fastran_outputs(fastrandata,plotparam={}):
                 if type(jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"]) not in [list,tuple]:
                     jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"] = [jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"]]
                 for ifield in jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"]:
-                    lstyle = styles[jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"].index(ifield)]
                     for shot in shots:
-                        lcolor = colors[shots.index(shot)]
-                        llabel = ifield + "-" + shot
+                        if len(shots) > 1:
+                            lcolor = colors[shots.index(shot)]
+                            lstyle = styles[jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"].index(ifield)]
+                        else:
+                            lcolor = colors[jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"].index(ifield)]
+                            lstyle = styles[shots.index(shot)]
+                        if not jsonfdata["figures"][ifig]["subplots"][isubfig]['label']:
+                            if "symbol" in fastrandata[shot][ifield]:
+                                if len(shots) > 1:
+                                    llabel = fastrandata[shot][ifield]['symbol'] + "-" + shot
+                                else:
+                                    llabel = fastrandata[shot][ifield]['symbol']
+                            else:
+                                if len(shots) > 1:
+                                    llabel = ifield + "-" + shot
+                                else:
+                                    llabel = ifield
+                        else:
+                            llabel = ""
+                            if type(jsonfdata["figures"][ifig]["subplots"][isubfig]['label']) not in [list,tuple]:
+                                labelkey = jsonfdata["figures"][ifig]["subplots"][isubfig]['label']
+                                if jsonfdata["figures"][ifig]["subplots"][isubfig]['label'] in fastrandata[shot]:
+                                    labelsym = fastrandata[shot][jsonfdata["figures"][ifig]["subplots"][isubfig]['label']]['symbol']
+                                    llabel  += labelsym + " = " + str(fastrandata[shot][labelkey]['data'][-1])
+                                else:
+                                    llabel  += jsonfdata["figures"][ifig]["subplots"][isubfig]['label']
+                            else:
+                                for ilabel in jsonfdata["figures"][ifig]["subplots"][isubfig]['label']:
+                                    if ilabel in fastrandata[shot]:
+                                        llabel += fastrandata[shot][ilabel]['symbol'] + " = %3.2f" % fastrandata[shot][ilabel]['data'][-1]
+                                    else:
+                                        llabel  += ilabel
+                                    if ilabel != jsonfdata["figures"][ifig]["subplots"][isubfig]['label'][-1]:
+                                        llabel += " , "
+
+                       #pop_a = mpatches.Patch(color='#5DC83F', label='Population Dataset 1')
+                       #pop_b = mpatches.Patch(color='#CE5D45', label='Population Dataset 2')
+                       #plt.legend(handles=[pop_a,pop_b])
+
                         axs[isubfig].plot(fastrandata[shot]['rho']['data'][:],fastrandata[shot][ifield]['data'][-1,:],color=lcolor,linestyle=lstyle,label=llabel)
+                       #if ifield == 'j_tot':
+                         #  axs[isubfig].plot(statedata[shot]['rho_eq']['data'][:],statedata[shot]['curt']['data'][:]*1.0e-6,color=lcolor,linestyle="--",label="Target $J_{\\parallel}$")
+                         #  axs[isubfig].plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curbeam']['data'][:]*1.0e-5,color=lcolor,linestyle=":",label="curbeam")
+                         #  axs[isubfig].plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curfusn']['data'][:]*1.0e-5,color=lcolor,linestyle=":",label="curfusn")
+                         #  axs[isubfig].plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curmino']['data'][:]*1.0e-5,color=lcolor,linestyle=":",label="curmino")
+                         #  axs[isubfig].plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curech']['data'][:]*1.0e-5,color=lcolor,linestyle=":",label="curech")
+                         #  axs[isubfig].plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curich']['data'][:]*1.0e-5,color=lcolor,linestyle=":",label="curich")
+                         #  axs[isubfig].plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curr_ohmic']['data'][:]*1.0e-5,color=lcolor,linestyle="--",label="curr_ohmic")
+                         #  axs[isubfig].plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curr_bootstrap']['data'][:]*1.0e-5,color=lcolor,linestyle="-.",label="curr_bootstrap")
+
                 axs[isubfig].set_title( jsonfdata["figures"][ifig]["subplots"][isubfig]["title"])
-                axs[isubfig].set_ylabel(jsonfdata["figures"][ifig]["subplots"][isubfig]["ylabel"])
-                axs[isubfig].set_xlabel(jsonfdata["figures"][ifig]["subplots"][isubfig]['xlabel'])
+                if not jsonfdata["figures"][ifig]["subplots"][isubfig]["ylabel"]:
+                    axs[isubfig].set_ylabel(ifield)
+                else:
+                    axs[isubfig].set_ylabel(jsonfdata["figures"][ifig]["subplots"][isubfig]["ylabel"])
+                if not jsonfdata["figures"][ifig]["subplots"][isubfig]["xlabel"]:
+                    axs[isubfig].set_xlabel("$\\rho$")
+                else:
+                    axs[isubfig].set_xlabel(jsonfdata["figures"][ifig]["subplots"][isubfig]['xlabel'])
                 if not jsonfdata["figures"][ifig]["subplots"][isubfig]['xticks']:
                    axs[isubfig].set_xticks([])
                 if jsonfdata["figures"][ifig]["subplots"][isubfig]['legend']:
@@ -242,6 +315,96 @@ def plot_fastran_outputs(fastrandata,plotparam={}):
         niaxs.legend()
         fastranfigs.savefig(nifig)
         if savepng: nifig.savefig(figurepath+"ni.png")
+        plt.close(nifig)
+
+        nifig = plt.figure("BOOTSTRAP CURRENT PROFILE",dpi=200)
+        niaxs = nifig.add_subplot(111)
+        for shot in shots:
+            lcolor = colors[shots.index(shot)]
+            lsytle = styles[0]
+            llabel = shot
+            niaxs.plot(fastrandata[shot]['rho']['data'][:],fastrandata[shot]['j_bs']['data'][-1,:],color=lcolor,linestyle=lstyle,label=llabel)
+        niaxs.set_title("Bootstrap Current Profile")
+        niaxs.set_ylabel("$J_{bs}$")
+        niaxs.set_xlabel("$\\rho$")
+        niaxs.legend()
+        fastranfigs.savefig(nifig)
+        if savepng: nifig.savefig(figurepath+"jbs.png")
+        plt.close(nifig)
+
+        nifig = plt.figure("OHMIC CURRENT PROFILE",dpi=200)
+        niaxs = nifig.add_subplot(111)
+        for shot in shots:
+            lcolor = colors[shots.index(shot)]
+            lsytle = styles[0]
+            llabel = shot
+            niaxs.plot(fastrandata[shot]['rho']['data'][:],fastrandata[shot]['j_oh']['data'][-1,:],color=lcolor,linestyle=lstyle,label=llabel)
+        niaxs.set_title("Ohmic Current Profile")
+        niaxs.set_ylabel("$J_{oh}$")
+        niaxs.set_xlabel("$\\rho$")
+        niaxs.legend()
+        fastranfigs.savefig(nifig)
+        if savepng: nifig.savefig(figurepath+"joh.png")
+        plt.close(nifig)
+
+        nifig = plt.figure("TOTAL CURRENT PROFILE",dpi=200)
+        niaxs = nifig.add_subplot(111)
+        for shot in shots:
+            lcolor = colors[shots.index(shot)]
+            lsytle = styles[0]
+            llabel = shot
+            niaxs.plot(fastrandata[shot]['rho']['data'][:],fastrandata[shot]['j_tot']['data'][-1,:],color=lcolor,linestyle=lstyle,label=llabel)
+        niaxs.set_title("Total Current Profile")
+        niaxs.set_ylabel("$J_{tot}$")
+        niaxs.set_xlabel("$\\rho$")
+        niaxs.legend()
+        fastranfigs.savefig(nifig)
+        if savepng: nifig.savefig(figurepath+"jtot.png")
+        plt.close(nifig)
+
+        nifig = plt.figure("SAFETY FACTOR PROFILE",dpi=200)
+        niaxs = nifig.add_subplot(111)
+        for shot in shots:
+            lcolor = colors[shots.index(shot)]
+            lsytle = styles[0]
+            llabel = shot
+            niaxs.plot(fastrandata[shot]['rho']['data'][:],fastrandata[shot]['q']['data'][-1,:],color=lcolor,linestyle=lstyle,label=llabel)
+        niaxs.set_title("Safety Factor Profile")
+        niaxs.set_ylabel("$q$")
+        niaxs.set_xlabel("$\\rho$")
+        niaxs.legend()
+        fastranfigs.savefig(nifig)
+        if savepng: nifig.savefig(figurepath+"q.png")
+        plt.close(nifig)
+
+        nifig = plt.figure("MAGNETIC SHEAR PROFILE",dpi=200)
+        niaxs = nifig.add_subplot(111)
+        for shot in shots:
+            lcolor = colors[shots.index(shot)]
+            lsytle = styles[0]
+            llabel = shot
+            niaxs.plot(fastrandata[shot]['rho']['data'][:],fastrandata[shot]['shat']['data'][-1,:],color=lcolor,linestyle=lstyle,label=llabel)
+        niaxs.set_title("Magnetic Shear Profile")
+        niaxs.set_ylabel("$\\hat{s}$")
+        niaxs.set_xlabel("$\\rho$")
+        niaxs.legend()
+        fastranfigs.savefig(nifig)
+        if savepng: nifig.savefig(figurepath+"shat.png")
+        plt.close(nifig)
+
+        nifig = plt.figure("MAGNETIC PERTURBATION PROFILE",dpi=200)
+        niaxs = nifig.add_subplot(111)
+        for shot in shots:
+            lcolor = colors[shots.index(shot)]
+            lsytle = styles[0]
+            llabel = shot
+            niaxs.plot(fastrandata[shot]['rho']['data'][:],fastrandata[shot]['betan_loc']['data'][-1,:],color=lcolor,linestyle=lstyle,label=llabel)
+        niaxs.set_title("Magnetic Perturbation Profile")
+        niaxs.set_ylabel("$\\beta_N$")
+        niaxs.set_xlabel("$\\rho$")
+        niaxs.legend()
+        fastranfigs.savefig(nifig)
+        if savepng: nifig.savefig(figurepath+"betan.png")
         plt.close(nifig)
 
         fastranfigs.close()
@@ -646,6 +809,10 @@ def plot_fastran_outputs(fastrandata,plotparam={}):
 def fastran_plot(WORK_DIR,plotparam={}):
     if 'cmpfigs' in plotparam:  cmpfigs = plotparam['cmpfigs']
     else:                       cmpfigs = False
+    if 'summary' in plotparam:  summary = plotparam['summary']
+    else:                       summary = False
+    if 'addbeta' in plotparam:  addbeta = plotparam['addbeta']
+    else:                       addbeta = False
     if cmpfigs: statedata = {}
     fastrandata = {}
     
@@ -659,9 +826,17 @@ def fastran_plot(WORK_DIR,plotparam={}):
     CASE_ID = 0
     shotref = ""
 
+    if addbeta and not summary:
+        plotparam['betan_ideal_wall']   = {}
+        plotparam['betan_ideal_nowall'] = {}
+
     for iWORK_DIR in WORK_DIR:
-        WORK_DIR[WORK_DIR.index(iWORK_DIR)] = iWORK_DIR + '/work/plasma_state/'
-        iWORK_DIR += '/work/plasma_state/'
+        if iWORK_DIR[-1] != "/":
+            WORK_DIR[WORK_DIR.index(iWORK_DIR)] = iWORK_DIR + "/"
+            iWORK_DIR += "/"
+        if not summary:
+            WORK_DIR[WORK_DIR.index(iWORK_DIR)] = iWORK_DIR + 'work/plasma_state/'
+            iWORK_DIR += 'work/plasma_state/'
         WORK_FILES = glob(iWORK_DIR+'*')
         
         for FILE in WORK_FILES:
@@ -688,34 +863,79 @@ def fastran_plot(WORK_DIR,plotparam={}):
 
         if fCURRENT_STATE[WORK_DIR.index(iWORK_DIR)] and cmpfigs:
            statedata[shot] = read_state_outputs(os.path.join(iWORK_DIR,CURRENT_STATE))
+           print(CRED + "STATE DATA" + CEND)
+           for ikey in sorted(list(statedata[shot].keys())):
+               print(ikey,npy.shape(statedata[shot][ikey]['data']),statedata[shot][ikey]['long_name'])
+          #    if ikey in ['triang','Rmajor_mean','rMinor_mean','elong','B_axis']:
+          #      print(ikey,": ",statedata[shot][ikey]['long_name']," = ",statedata[shot][ikey]['data'])
 
         if fCURRENT_FASTRAN[WORK_DIR.index(iWORK_DIR)]:
            fastrandata[shot] = read_fastran_outputs(os.path.join(iWORK_DIR,CURRENT_FASTRAN))
            print(CGREEN + 'READING CURRENT_FASTRAN from %s ... PASSED' % iWORK_DIR + CEND)
+          #print(CRED + "FASTRAN DATA" + CEND)
+          #for ikey in sorted(list(fastrandata[shot].keys())):
+          #    if ikey in ['pnbe','pnbi','poh','prad','prfe','prfi']: 
+          #        print(ikey,fastrandata[shot][ikey]['data'][-1])
+          #    print(ikey,npy.shape(fastrandata[shot][ikey]['data']))
+          #    if ikey in ['aminor','rmajor','delta','kappa']:
+          #         print(ikey,fastrandata[shot][ikey]['data'])
         else:
            print(CRED + 'READING CURRENT_FASTRAN from %s ... FAILED' % iWORK_DIR + CEND)
-    
+
+        if addbeta and not summary:
+            portdirs = glob(iWORK_DIR[:-13] + "/*")
+            betan_ideal_wall   = 0.0
+            betan_ideal_nowall = 0.0
+            for iport in portdirs:
+                if "fastran_betaiw_dcon_corsica" in iport:
+                    xdconfpath = iport+"/xdcon.log"
+                    loc_betan_ideal_nowall,loc_betan_ideal_wall = read_dcon(xdconfpath)
+                    betan_ideal_wall   = max(betan_ideal_wall,  loc_betan_ideal_wall)
+                    betan_ideal_nowall = max(betan_ideal_nowall,loc_betan_ideal_nowall)
+                elif "fastran_betanw_dcon_corsica" in iport:
+                    xdconfpath = iport+"/xdcon.log"
+                    loc_betan_ideal_nowall,loc_betan_ideal_wall = read_dcon(xdconfpath)
+                    betan_ideal_wall   = max(betan_ideal_wall,  loc_betan_ideal_wall)
+                    betan_ideal_nowall = max(betan_ideal_nowall,loc_betan_ideal_nowall)
+            plotparam['betan_ideal_wall'][shot]   = betan_ideal_wall
+            plotparam['betan_ideal_nowall'][shot] = betan_ideal_nowall
+
+   #shots = list(fastrandata.keys())
+   #print(CRED + "STATE" + CEND)
+   #for ikey in list(statedata[shots[0]].keys()):   print(ikey,npy.size(statedata[shots[-1]][ikey]))
+   #print(CRED + "FASTRAN" + CEND)
+   #for ikey in list(fastrandata[shots[0]].keys()): print(ikey,npy.size(fastrandata[shots[-1]][ikey]))
+
+    shots = list(fastrandata.keys())
+   #for ikey in list(fastrandata[shots[-1]].keys()): print(ikey)
     if any(fCURRENT_FASTRAN):
-       fastranplot = plot_fastran_outputs(fastrandata,plotparam=plotparam)
+        if fCURRENT_STATE[WORK_DIR.index(iWORK_DIR)] and cmpfigs:
+            fastranplot = plot_fastran_outputs(fastrandata,plotparam=plotparam,state=statedata)
+        else:
+            fastranplot = plot_fastran_outputs(fastrandata,plotparam=plotparam)
 
     return fastrandata,fastranplot
     
         
 if __name__ == "__main__":
    parser = argparse.ArgumentParser()
+   parser.add_argument('--summary', '-summary', action='store_const',const=1,help='Plot FASTRAN output from Summary Folder.')
    parser.add_argument('--newplot', '-newplot', action='store_const',const=1,help='Remove the old figures and plot new ones.')
-   parser.add_argument('--savepng','-savepng', action='store_const',const=1,help='Save output figures in PNG files in addition to PDF file.')
-   parser.add_argument('--figspec','-figspec', action='store_const',const=1,help='Create Figures Based on Specifications provided by the user.')
-   parser.add_argument('--cmpfigs','-cmpfigs', action='store_const',const=1,help='Create Comparison Figures for Data from Different Source Files.')
+   parser.add_argument('--cmpfigs', '-cmpfigs', action='store_const',const=1,help='Create Comparison Figures for Data from Different Source Files.')
+   parser.add_argument('--savepng', '-savepng', action='store_const',const=1,help='Save output figures in PNG files in addition to PDF file.')
+   parser.add_argument('--figspec', '-figspec', action='store_const',const=1,help='Create Figures Based on Specifications provided by the user.')
+   parser.add_argument('--addbeta', '-addbeta',action='store_const',const=1,help='Add betan limit to each figure.')
    parser.add_argument('inputs',nargs='*')
 
    if parser.parse_args():
-       args = parser.parse_args()
+       args    = parser.parse_args()
        inputs  = args.inputs
        newplot = args.newplot
        savepng = args.savepng
        figspec = args.figspec
        cmpfigs = args.cmpfigs
+       summary = args.summary
+       addbeta = args.addbeta
 
    plotparam = {}
    if newplot:
@@ -726,6 +946,10 @@ if __name__ == "__main__":
        plotparam['figspec'] = True
    if cmpfigs:
        plotparam['cmpfigs'] = True
+   if summary:
+       plotparam['summary'] = True
+   if addbeta:
+       plotparam['addbeta'] = True
 
    if inputs == []:
        print(CRED + 'SIMULATION FOLDER(S) NOT FOUND/PROVIDED ... EXIT!' + CEND)

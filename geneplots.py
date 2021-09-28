@@ -3,6 +3,7 @@
 
 import os
 import math
+import pickle
 import warnings
 import genetools
 import efittools
@@ -819,6 +820,8 @@ def plot_field(field,param={},reportpath='',setParam={}):
     if 'display' in setParam: display = True
     else:                     display = False
 
+    axcollect = {}
+
     for ifieldf in field:
         if not param.keys():
            if 'dat' in ifieldf:
@@ -826,6 +829,11 @@ def plot_field(field,param={},reportpath='',setParam={}):
            else:
               paramfpath = ifieldf[:-10]+"parameters"+ifieldf[-5:]
            param = genetools.read_parameters(paramfpath)
+
+        if 'kx_center' in param['box']:
+            theta0 = param['box']['kx_center']/2.0/npy.pi/param['box']['kymin']/param['geometry']['shat']
+        else:
+            theta0 = 0.0
 
         if 'x_local' in param['general']:
             if param['general']['x_local']:
@@ -846,6 +854,8 @@ def plot_field(field,param={},reportpath='',setParam={}):
            apar    = field[ifieldf]['apar']
            nfields = field[ifieldf]['nfields']
             
+           axcollect['Local'] = {}
+
            zgrid = npy.arange(nx*nz)/float(nx*nz-1)*(2.0*nx-(2.0/nz))-nx
 
            phi1d  = npy.zeros(nx*nz,dtype='complex128')
@@ -890,11 +900,13 @@ def plot_field(field,param={},reportpath='',setParam={}):
            axhand.plot(zgrid[phinds],npy.imag(phi1d[phinds]),color='blue',label=r'$Im[\phi]$')
            axhand.plot(zgrid[phinds],npy.abs(phi1d[phinds]),color='black',label=r'$|\phi|$')
            if nphi:
-              axhand.set_title(r'$\phi(k_y=%1.3f,n_{\phi} = %5d)$' % (ky,nphi))
+              axhand.set_title(r'$\phi(k_y=%1.3f,n_{\phi} = %5d,\theta_0 = %7.4f)$' % (ky,nphi,theta0))
            else:
               axhand.set_title(r'$\phi(k_y=%1.3f)$' % (ky))
            axhand.set_xlabel(r'$z/\pi$',size=18)
            axhand.legend()
+
+           axcollect['Local']['PHI'] = axhand
 
            if nfields>1:
               aparinds = (abs(apar1d)>=1.0e-4)
@@ -905,7 +917,7 @@ def plot_field(field,param={},reportpath='',setParam={}):
               axhand.plot(zgrid[aparinds],npy.imag(apar1d[aparinds]),color='blue',label=r'$Im[A_{||}]$')
               axhand.plot(zgrid[aparinds],npy.abs(apar1d[aparinds]),color='black',label=r'$|A_{||}|$')
               if nphi:
-                 axhand.set_title(r'$A_{||}(k_y=%1.3f,n_{\phi} = %5d)$' % (ky,nphi))
+                 axhand.set_title(r'$A_{||}(k_y=%1.3f,n_{\phi} = %5d,\theta_0 = %7.4f)$' % (ky,nphi,theta0))
               else:
                  axhand.set_title(r'$A_{||}(k_y=%1.3f)$' % (ky))
               axhand.set_xlabel(r'$z/\pi$',size=18)
@@ -943,7 +955,7 @@ def plot_field(field,param={},reportpath='',setParam={}):
               axhand.plot(zgrid[geninds],-npy.real(omega_complex*apar1d)[geninds],'-',color = 'black',label=r'$Re[\omega A_{||}]$')
               axhand.plot(zgrid[geninds],-npy.imag(omega_complex*apar1d)[geninds],'-.',color = 'black',label=r'$Im[\omega A_{||}]$')
               if nphi:
-                 axhand.set_title(r'$\nabla\phi,\partial_tA_{||}(k_y=%1.3f,n_{\phi} = %5d)$' % (ky,nphi))
+                 axhand.set_title(r'$\nabla\phi,\partial_tA_{||}(k_y=%1.3f,n_{\phi} = %5d,\theta_0 = %7.4f)$' % (ky,nphi,theta0))
               else:
                  axhand.set_title(r'$\nabla\phi,\partial_tA_{||}(k_y=%1.3f)$' % (ky))
               axhand.set_xlabel(r'$z/\pi$',size=18)
@@ -952,7 +964,7 @@ def plot_field(field,param={},reportpath='',setParam={}):
            if display: plt.show()
 
            PHIfig.savefig(reportpath+'phi_mode_%s.png' % (ifieldf[-4:]))
-           plt.close(PHIfig)
+          #plt.close(PHIfig)
            if nfields>1:
               APARfig.savefig(reportpath+'apar_mode_%s.png' % (ifieldf[-4:]))
               plt.close(APARfig)
@@ -1229,7 +1241,8 @@ def plot_field(field,param={},reportpath='',setParam={}):
                  IEPAR2Dfig.savefig(reportpath+'imag_Epar_mode_%s_2d.png' % (ifieldf[-4:]))
                  plt.close(IEPAR2Dfig)
 
-    return 1
+   #return axcollect
+    return zgrid[phinds],phi1d[phinds]
 
 def plot_geometry(geometryfpath,reportpath='',setParam={}):
     if type(geometryfpath)==str:

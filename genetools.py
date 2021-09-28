@@ -7,6 +7,7 @@ import glob
 import math
 import numpy as npy
 
+import mathtools
 import efittools
 import read_iterdb
 
@@ -973,12 +974,9 @@ def read_field(fieldfpath,Normalized=True,timeslot=None,fieldfmt=None):
         field.set_time(field.tfld[t_ind])
 
         if 'x_local' in pars:
-           if pars['x_local'].lower() in ['t','true']:
-              x_local = True
-           else:
-              x_local = False
-        else:
-           x_local = True
+           if pars['x_local'].lower() in ['t','true']:  x_local = True
+           else:                                        x_local = False
+        else:                                           x_local = True
 
         if fieldfmt=='original':
            phi  = field.phi()
@@ -1013,8 +1011,8 @@ def read_field(fieldfpath,Normalized=True,timeslot=None,fieldfmt=None):
            apar3d = field.apar()
 
            if x_local:
-              if   fieldfmt=='local-central': nx = 1
-              elif fieldfmt=='local-flatten': nx = field.nx
+              if   fieldfmt=='local-central': nx = 1;        ikx_grid = npy.array([0])
+              elif fieldfmt=='local-flatten': nx = field.nx; ikx_grid = npy.arange(-nx//2+1,nx//2+1,dtype=int)
               ny   = field.ny
               nz   = field.nz
               phi  = npy.zeros(nx*nz,dtype='complex128')
@@ -1032,6 +1030,12 @@ def read_field(fieldfpath,Normalized=True,timeslot=None,fieldfmt=None):
                  lx        = float(pars['lx'])
                  phase     = -npy.e**(-npy.pi*(0.0+1.0J)*shat*kymin*lx)
               shatsgn = int(npy.sign(float(pars['shat'])))
+
+             #for iy in range(ny):
+             #    for ix in ikx_grid:
+             #        phi[(ix-ikx_grid[0])*nz:(ix-ikx_grid[0]+1)*nz] = phi3d[:,iy,ix*shatsgn]*phase**ix
+             #        if int(field.nfields)>1  and float(pars['beta'])!=0:
+             #            apar[(ix-ikx_grid[0])*nz:(ix-ikx_grid[0]+1)*nz] = apar3d[:,iy,ix*shatsgn]*phase**ix
 
               for iy in range(ny):
                 for ix in range(nx//2):
@@ -2207,21 +2211,47 @@ def merge_runs(runspathlist,destination='./'):
         if runpath[-1]=='/': runpath=runpath[:-1]
         nlocalfiles = len(glob.glob(runpath+'/nrg*'))
         for ifile in range(1,nlocalfiles+1):
-            os.system('cp %s/nrg_%04d %s/nrg_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
-            os.system('cp %s/vsp_%04d %s/vsp_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
-            os.system('cp %s/field_%04d %s/field_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
-            os.system('cp %s/omega_%04d %s/omega_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
-            os.system('cp %s/energy_%04d %s/energy_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
-            os.system('cp %s/parameters_%04d %s/parameters_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
-            os.system('cp %s/tracer_efit_%04d %s/tracer_efit_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
-            os.system('cp %s/checkpoint_%04d %s/checkpoint_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
-            os.system('cp %s/s_checkpoint_%04d %s/s_checkpoint_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
-            if os.path.isfile('%s/mom_i_%04d'%(runpath,ifile)):
-               os.system('cp %s/mom_i_%04d %s/mom_i_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
-            if os.path.isfile('%s/mom_e_%04d'%(runpath,ifile)):
-               os.system('cp %s/mom_e_%04d %s/mom_e_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
-            if os.path.isfile('%s/mom_z_%04d'%(runpath,ifile)):
-               os.system('cp %s/mom_z_%04d %s/mom_z_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
+            if os.path.isfile('%s/nrg.dat' % runpath):
+                if os.path.isfile('%s/nrg.dat'%(runpath)):
+                    os.system('cp %s/nrg.dat %s/nrg_%04d'                   %(runpath,destination,ntotalfiles+ifile))
+                if os.path.isfile('%s/vsp.dat'%(runpath)):
+                    os.system('cp %s/vsp.dat %s/vsp_%04d'                   %(runpath,destination,ntotalfiles+ifile))
+                if os.path.isfile('%s/field.dat'%(runpath)):
+                    os.system('cp %s/field.dat %s/field_%04d'               %(runpath,destination,ntotalfiles+ifile))
+                if os.path.isfile('%s/omega.dat'%(runpath)):
+                    os.system('cp %s/omega.dat %s/omega_%04d'               %(runpath,destination,ntotalfiles+ifile))
+                if os.path.isfile('%s/energy.dat'%(runpath)):
+                    os.system('cp %s/energy.dat %s/energy_%04d'             %(runpath,destination,ntotalfiles+ifile))
+                if os.path.isfile('%s/parameters.dat'%(runpath)):
+                    os.system('cp %s/parameters.dat %s/parameters_%04d'     %(runpath,destination,ntotalfiles+ifile))
+                if os.path.isfile('%s/tracer_efit.dat'%(runpath)):
+                    os.system('cp %s/tracer_efit.dat %s/tracer_efit_%04d'   %(runpath,destination,ntotalfiles+ifile))
+                if os.path.isfile('%s/checkpoint.dat'%(runpath)):
+                    os.system('cp %s/checkpoint.dat %s/checkpoint_%04d'     %(runpath,destination,ntotalfiles+ifile))
+                if os.path.isfile('%s/s_checkpoint.dat'%(runpath)):
+                    os.system('cp %s/s_checkpoint.dat %s/s_checkpoint_%04d' %(runpath,destination,ntotalfiles+ifile))
+                if os.path.isfile('%s/mom_i.dat'%(runpath)):
+                   os.system('cp %s/mom_i.dat %s/mom_i_%04d'                %(runpath,destination,ntotalfiles+ifile))
+                if os.path.isfile('%s/mom_e.dat'%(runpath)):
+                   os.system('cp %s/mom_e.dat %s/mom_e_%04d'                %(runpath,destination,ntotalfiles+ifile))
+                if os.path.isfile('%s/mom_z.dat'%(runpath)):
+                   os.system('cp %s/mom_z.dat %s/mom_z_%04d'                %(runpath,destination,ntotalfiles+ifile))
+            else:
+                os.system('cp %s/nrg_%04d %s/nrg_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
+                os.system('cp %s/vsp_%04d %s/vsp_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
+                os.system('cp %s/field_%04d %s/field_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
+                os.system('cp %s/omega_%04d %s/omega_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
+                os.system('cp %s/energy_%04d %s/energy_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
+                os.system('cp %s/parameters_%04d %s/parameters_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
+                os.system('cp %s/tracer_efit_%04d %s/tracer_efit_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
+                os.system('cp %s/checkpoint_%04d %s/checkpoint_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
+                os.system('cp %s/s_checkpoint_%04d %s/s_checkpoint_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
+                if os.path.isfile('%s/mom_i_%04d'%(runpath,ifile)):
+                   os.system('cp %s/mom_i_%04d %s/mom_i_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
+                if os.path.isfile('%s/mom_e_%04d'%(runpath,ifile)):
+                   os.system('cp %s/mom_e_%04d %s/mom_e_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
+                if os.path.isfile('%s/mom_z_%04d'%(runpath,ifile)):
+                   os.system('cp %s/mom_z_%04d %s/mom_z_%04d'%(runpath,ifile,destination,ntotalfiles+ifile))
         ntotalfiles += nlocalfiles
 
    #wfh = open('%s/scan.log' %destination,'w')
@@ -2244,8 +2274,8 @@ def read_geometry(geomfpath):
 
 
 def get_kperp(paramfpath,setParam={}):
-    #Modified by Ehab Hassan on 2020-03-17
-    #following Xing work.
+    #Developed by Ehab Hassan on 2020-03-01
+    #Modified  by Ehab Hassan on 2020-03-17
     paramdata = read_parameters(paramfpath=paramfpath)
     paramfpath = paramdata['filepath']
     if 'dat' in paramfpath[-15:]: datext = True
@@ -2263,19 +2293,15 @@ def get_kperp(paramfpath,setParam={}):
     if 'x_local' in paramdata['general']: x_local = paramdata['general']['x_local']
     else:                                 x_local = True
 
-    if 'local_central' in setParam:
-       local_central = setParam['local_central']
-    else:
-       local_central = False
+    if 'local_central' in setParam:       local_central = setParam['local_central']
+    else:                                 local_central = False
 
-    if 'local_flatten' in setParam:
-       local_flatten = setParam['local_flatten']
-    else:
-       local_flatten = False
+    if 'local_flatten' in setParam:       local_flatten = setParam['local_flatten']
+    else:                                 local_flatten = False
 
     nx = paramdata['box']['nx0']
     if local_central: ikx_grid = [0]
-    else:             ikx_grid = npy.arange(-nx//2+1,nx//2+1)
+    else:             ikx_grid = npy.arange(-nx//2+1,nx//2+1,dtype=int)
     if   'lx' in paramdata['box']:  lx = paramdata['box']['lx']
     elif 'lx' in paramdata['info']: lx = paramdata['info']['lx']
     else:                           lx = None
@@ -2337,18 +2363,39 @@ def get_kperp(paramfpath,setParam={}):
         gradBx = gradBx/Bfield
         gradBy = gradBy/Bfield
 
-    mu0 = 4.0e-7*npy.pi
+  # for i in ikx_grid:
+  #     kx        = i*dkx + kx_center
+  #     loc_kperp = npy.sqrt(gxx*kx**2 + 2.0*gxy*kx*ky + gyy*ky**2)
+  #     loc_gradB =-(kx*gradBx + ky*gradBy)/Bfield
+  #     loc_vcurv = loc_gradB + ky*paramdata['geometry']['dpdx_pm']/Bfield**2/2.0
 
-    for i in ikx_grid:
-        kx        = i*dkx+kx_center
-        loc_kperp = npy.sqrt(gxx*kx**2+2.0*gxy*kx*ky+gyy*ky**2)
-        loc_gradB =-(kx*gradBx+ky*gradBy)/Bfield
-        loc_vcurv  = ky*paramdata['geometry']['dpdx_pm']/Bfield**2/2.0/mu0
+  #     if x_local:
+  #        kperp[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz] = loc_kperp
+  #        vcurv[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz] = loc_vcurv
+  #        gradB[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz] = loc_gradB
+  #     else:
+  #        kperp = loc_kperp
+  #        vcurv = loc_vcurv
+  #        gradB = loc_gradB
+
+    for ix in range(nx//2):
+        kx        = ix*dkx + kx_center
+        if ix < nx//2: kx     = -ix*dkx + kx_center
+
+        loc_kperp = npy.sqrt(gxx*kx**2 + 2.0*gxy*kx*ky + gyy*ky**2)
+        loc_gradB =-(kx*gradBx + ky*gradBy)/Bfield
+        loc_vcurv = loc_gradB + ky*paramdata['geometry']['dpdx_pm']/Bfield**2/2.0
 
         if x_local:
-           kperp[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz] = loc_kperp
-           vcurv[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz] = loc_vcurv
-           gradB[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz] = loc_gradB
+           kperp[(ix+nx//2)*nz:(ix+nx//2+1)*nz] = loc_kperp
+           if ix < nx//2:
+              kperp[(nx//2-ix-1)*nz:(nx//2-ix)*nz] = loc_kperp
+           vcurv[(ix+nx//2)*nz:(ix+nx//2+1)*nz] = loc_vcurv
+           if ix < nx//2:
+              vcurv[(nx//2-ix-1)*nz:(nx//2-ix)*nz] = loc_vcurv
+           gradB[(ix+nx//2)*nz:(ix+nx//2+1)*nz] = loc_gradB
+           if ix < nx//2:
+              gradB[(nx//2-ix-1)*nz:(nx//2-ix)*nz] = loc_gradB
         else:
            kperp = loc_kperp
            vcurv = loc_vcurv
@@ -2390,6 +2437,7 @@ def get_kperp(paramfpath,setParam={}):
        plt.show()
 
     return kperp,vcurv,gradB
+
 
 def get_zgrid(paramfpath,setParam={}):
     #Modified by Ehab Hassan on 2020-03-18
@@ -2484,6 +2532,107 @@ def get_zgrid(paramfpath,setParam={}):
 
     return zgrid,jacobian
 
+
+def eigenfunction_average_bessel(kperp, omegaD, field, jacobian, zgrid, mass_ratio=1, charge=1):
+
+    alpha = 2.0/3.0
+    kperp = kperp*npy.sqrt(mass_ratio)/abs(charge)
+    bessel_factor = 1.0 / npy.sqrt(1.0 + 2.0 * (kperp**2 + npy.pi * alpha * kperp**4) / (1.0 + alpha * kperp**2))
+
+    numer = 0.
+    denom = 0.
+    
+    for i in npy.arange(npy.size(field)-1):
+        loc_numer  = (kperp[i]**2 * abs(field[i])**2 + kperp[i+1]**2 * abs(field[i+1])**2) / 2.0
+        loc_numer *= (zgrid[i+1] - zgrid[i]) / jacobian[i]
+
+        numer += loc_numer
+
+        loc_denom  = (abs(field[i])**2 + abs(field[i+1])**2)/2.0
+        loc_denom *= (zgrid[i+1] - zgrid[i]) / jacobian[i]
+
+        denom += loc_denom
+
+    kperp_avg = npy.sqrt(numer/denom)
+
+    numer = 0.
+    denom = 0.
+    for i in npy.arange(len(field)-1):
+        loc_numer  = (omegaD[i] * abs(field[i])**2 * bessel_factor[i] + omegaD[i+1] * abs(field[i+1])**2 * bessel_factor[i+1])/2.0
+        loc_numer *= (zgrid[i+1] - zgrid[i]) / jacobian[i]
+
+        numer += loc_numer
+
+        loc_denom  = (abs(field[i])**2 * bessel_factor[i] + abs(field[i+1])**2 * bessel_factor[i+1])/2.0
+        loc_denom *= (zgrid[i+1] - zgrid[i]) / jacobian[i]
+
+        denom += loc_denom
+
+    omegaD_avg = numer/denom
+
+    return kperp_avg,omegaD_avg
+
+
+def get_magnetic_drift_frequency(paramfpath,setParam={}):
+
+    if "dat" in paramfpath: paramind = ".dat"
+    else:                   paramind = paramfpath[-5:]
+    paramdata = read_parameters(paramfpath)
+
+    if 'center_only' in setParam:   center_only = setParam['center_only']
+    else:                           center_only = False
+    if 'local_central' in setParam: local_central = setParam['local_central']
+    else:                           local_central = False
+    if 'local_flatten' in setParam: local_flatten = setParam['local_flatten']
+    else:                           local_flatten = False
+
+    setparam                   = {}
+    if center_only:   setparam['center_only']   = center_only
+    if local_central: setparam['local_central'] = local_central
+    if local_flatten: setparam['local_flatten'] = local_flatten
+
+    kperp, omega_curvB, omega_gradB = get_kperp(paramfpath, setParam=setparam)
+    zgrid, jacobian = get_zgrid(paramfpath, setParam=setparam)
+
+    if 'dat' in paramfpath[-15:]:
+        fieldfpath = paramfpath[:-14]+'field.dat'
+    else:
+        fieldfpath = paramfpath[:-15]+'field'+paramfpath[-5:]
+
+    if center_only: fielddata = read_field(fieldfpath=fieldfpath,fieldfmt='local-central')
+    else:           fielddata = read_field(fieldfpath=fieldfpath,fieldfmt='local-flatten')
+
+    mainKey = list(fielddata.keys())[0]
+    if 'phi' in setParam and setParam['phi']:
+        field = fielddata[mainKey]['phi']
+    else:
+        field = fielddata[mainKey]['apar']
+    fldmx = field[npy.argmax(abs(field))]
+    field = field / fldmx
+    omegaD = omega_curvB
+    kperp_avg, omegaD_avg = eigenfunction_average_bessel(kperp, omegaD, field, jacobian, zgrid)
+
+   #fldamp = 1.0
+   #plt.plot(zgrid,omegaD,label="$\\omega_{\\nabla{B}}$")
+   #plt.plot(zgrid,kperp,label="$k_{\\perp}$")
+   #if "phi" in setParam and setParam["phi"]:
+   #    plt.plot(zgrid,fldamp*abs(field),label="|$\\phi$|")
+   #    plt.plot(zgrid,fldamp*npy.real(field),label="Re($\\phi$)")
+   #    plt.plot(zgrid,fldamp*npy.imag(field),label="Im($\\phi$)")
+   #    plt.ylabel("$\\omega_{\\nabla{B}}$,$\\phi$")
+   #else:
+   #    plt.plot(zgrid,fldamp*abs(field),label="|$A_{\\parallel}$|")
+   #    plt.plot(zgrid,fldamp*npy.real(field),label="Re($A_{\\parallel}$)")
+   #    plt.plot(zgrid,fldamp*npy.imag(field),label="Im($A_{\\parallel}$)")
+   #    plt.ylabel("$\\omega_{\\nabla{B}}$,$A_{\\parallel}$")
+   #plt.xlabel("Z")
+   #plt.title("$n_{\\phi}$ = %02d" % paramdata['box']['n0_global'])
+   #plt.legend()
+   #plt.show()
+
+    return kperp_avg, omegaD_avg
+
+
 def get_kpar(paramfpath,fieldname='phi',setParam={}):
     #Modified by Ehab Hassan on 2020-03-18
     #Based on Xing work.
@@ -2497,6 +2646,7 @@ def get_kpar(paramfpath,fieldname='phi',setParam={}):
 
     if 'center_only' in setParam: center_only = setParam['center_only']
     else:                         center_only = False
+
 
     if 'scale_field' in setParam: scale_field = setParam['scale_field']
     else:                         scale_field = False
@@ -2541,11 +2691,6 @@ def get_kpar(paramfpath,fieldname='phi',setParam={}):
     if scale_field:
        field =field/npy.max(abs(field))
 
-   #print(npy.shape(field))
-   #print(npy.shape(jacobian))
-   #print(npy.size(zgrid))
-   #sys.exit()
-
     if x_local:
        dfielddz = npy.empty(npy.size(field),dtype='complex128')
        for i in range(len(field)-1):
@@ -2577,7 +2722,6 @@ def get_kpar(paramfpath,fieldname='phi',setParam={}):
         plt.show()
  
     return kpar
-
 
 def get_plasma_info(genefpath='',setParam={},timeslot=None):
    #Developed by Ehab Hassan on 2020-04-14
@@ -2722,10 +2866,27 @@ def n0_to_ky(parampath='',parameters={},setParam={}):
 
 
 def main():
+
     scanlist = []
     for iscan in sys.argv[1:]:
         scanlist.append(iscan)
     merge_runs(runspathlist=scanlist,destination='./')
+    sys.exit()
+
+    if len(sys.argv) > 1:
+        if "dat" in sys.argv[1]: paramfpath = "parameters.dat"
+        else:                    paramfpath = "parameters_"+sys.argv[1]
+    setparam = {}
+    setparam['phi'] = True
+  # setparam['center_only']   = True
+  # setparam['local_central'] = True
+    setparam['local_flatten'] = True
+    kperp, omegaD = get_magnetic_drift_frequency(paramfpath,setParam=setparam)
+    conv_units = units_conversion(paramfpath=paramfpath)
+    Lref = conv_units['Lref']
+    cref = conv_units['cref']
+    print(kperp,omegaD*(cref/Lref)*1.0e-6)
+
     sys.exit()
 
     fieldfname = sys.argv[1]

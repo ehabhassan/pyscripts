@@ -47,8 +47,12 @@ def fastran_report(fastranfpath="./",reportparam={}):
         inputpath = "./" + ifastran + "/input"
         inputfile = glob(inputpath + "/*")
 
-        path_to_plamsa_state = "./" + ifastran + "/work/plasma_state"
+        if not summary:
+            path_to_plamsa_state = "./" + ifastran + "/work/plasma_state"
+        else:
+            path_to_plamsa_state = "./" + ifastran
         plasma_state_file = glob(path_to_plamsa_state + "/*")
+        print(plasma_state_file)
         if not plasma_state_file: continue
         slashinds = findall(plasma_state_file[0],"/")
         SHOT_NUM, TIME_ID = plasma_state_file[0][slashinds[-1]+2:].split(".")
@@ -2032,7 +2036,9 @@ if __name__ == "__main__":
     parser.add_argument('--newplot', '-newplot', action='store_const',const=1,help='Remove the old figures and plot new ones.')
     parser.add_argument('--figspec', '-figspec', action='store_const',const=1,help='Use Figure Specifications in JSON file to plot Figures.')
     parser.add_argument('--savepng', '-savepng', action='store_const',const=1,help='Save Figures in PNG files format beside PDF fileformat.')
+    parser.add_argument('--summary', '-summary', action='store_const',const=1,help='Read the Plasma State from Summary Folder.')
     parser.add_argument('--debugtex','-debugtex',action='store_const',const=1,help='Show details while compiling TEX file to PDF.')
+    parser.add_argument('--addbetan','-addbetan',action='store_const',const=1,help='Add betan limit to each figure.')
     parser.add_argument('inputs',nargs='*')
 
     if parser.parse_args():
@@ -2042,7 +2048,9 @@ if __name__ == "__main__":
         newplot  = args.newplot
         figspec  = args.figspec
         savepng  = args.savepng
+        summary  = args.summary
         debugtex = args.debugtex
+        addbetan = args.addbetan
 
     reportparam = {}
     if noplot:
@@ -2053,8 +2061,12 @@ if __name__ == "__main__":
         reportparam['savepng'] = True
     if newplot:
         reportparam['newplot'] = True
+    if summary:
+        reportparam['summary'] = True
     if debugtex:
         reportparam['debugtex'] = True
+    if addbetan:
+        reportparam['addbetan'] = True
 
     fastran_report(fastranfpath=inputs[:],reportparam=reportparam)
 

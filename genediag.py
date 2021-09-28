@@ -291,7 +291,25 @@ for mode in modeorder:
        fielddata = genetools.read_field(fieldfpath=fieldfpath,timeslot=tbgn)
        plotParam = {}
        if display: plotParam['display'] = True
-       fieldplot = geneplots.plot_field(field=fielddata,setParam=plotParam)
+      #fieldplot = geneplots.plot_field(field=fielddata,setParam=plotParam)
+      #PHIaxs = fieldplot["Local"]["PHI"]
+       zgrid,phi = geneplots.plot_field(field=fielddata,setParam=plotParam)
+
+
+       
+       kperp,vcurv,gradB = genetools.get_kperp(paramfpath=paramfpath,setParam={'local_flatten':True})
+      #kperp,vcurv,gradB = genetools.get_kperp(paramfpath=paramfpath,setParam={'local_central':True})
+       wDrift_prof = kperp*(vcurv+gradB)
+
+       fg1 = plt.figure()
+       ax1 = fg1.add_subplot(311)
+       ax2 = fg1.add_subplot(312)
+       ax3 = fg1.add_subplot(313)
+       ax1.plot(phi)
+       ax2.plot(kperp)
+       ax3.plot(wDrift_prof)
+
+       plt.show()
 
     if plotnrg:
        if   mode.isdigit():

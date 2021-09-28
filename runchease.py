@@ -8,27 +8,28 @@ import cheasepy
 
 importedVals = {}
 
-eqdskpath  = 'shots/JET_KEFITD_78697/PROFILES/jet78697.51005_hager.eqdsk'
-eqdskdata  = cheasepy.read_eqdsk(eqdskpath)
-qin   = eqdskdata['q']
-rhoin = eqdskdata['rhopsi']
+#eqdskpath  = 'shots/JET_KEFITD_78697/PROFILES/jet78697.51005_hager.eqdsk'
+#eqdskdata  = cheasepy.read_eqdsk(eqdskpath)
+#qin   = eqdskdata['q']
+#rhoin = eqdskdata['rhopsi']
+#
+#eqdskpath  = 'shots/DIIID_KEFITD_162940/DIIID_KEFITD_162940_EQDSK'
+#eqdskdata  = cheasepy.read_eqdsk(eqdskpath)
+#
+#iterdbpath1p0 = 'shots/JET_KEFITD_78697/PROFILES/jet78697.51005_hager_Z6.0Zeff2.35_negom_alpha0.7_omti_x0_0.96.iterdb'
+#iterdbdata1p0 = cheasepy.read_iterdb(iterdbfpath=iterdbpath1p0,eqdsk=eqdskpath,setParam={'nrhomesh':0})
+#
+#Pdiff = eqdskdata['pressure']-iterdbdata1p0['pressure']
+#
+#iterdbpath1p3 = 'shots/JET_KEFITD_78697/PROFILES/jet78697.51005_hager_Z6.0Zeff2.35_negom_alpha0.7_omti_x0_0.96_alpha1.3_omte_x0_0.97.iterdb'
+#iterdbdata1p3 = cheasepy.read_iterdb(iterdbfpath=iterdbpath1p3,eqdsk=eqdskpath,setParam={'nrhomesh':0})
+#
+#importedVals['rhotor']   = eqdskdata['rhotor']
+#importedVals['rhopsi']   = eqdskdata['rhopsi']
+#importedVals['q']        = numpy.interp(eqdskdata['rhopsi'],rhoin,qin)
+#importedVals['pressure'] = iterdbdata1p3['pressure']+Pdiff
 
 eqdskpath  = 'shots/DIIID_KEFITD_162940/DIIID_KEFITD_162940_EQDSK'
-eqdskdata  = cheasepy.read_eqdsk(eqdskpath)
-
-iterdbpath1p0 = 'shots/JET_KEFITD_78697/PROFILES/jet78697.51005_hager_Z6.0Zeff2.35_negom_alpha0.7_omti_x0_0.96.iterdb'
-iterdbdata1p0 = cheasepy.read_iterdb(iterdbfpath=iterdbpath1p0,eqdsk=eqdskpath,setParam={'nrhomesh':0})
-
-Pdiff = eqdskdata['pressure']-iterdbdata1p0['pressure']
-
-iterdbpath1p3 = 'shots/JET_KEFITD_78697/PROFILES/jet78697.51005_hager_Z6.0Zeff2.35_negom_alpha0.7_omti_x0_0.96_alpha1.3_omte_x0_0.97.iterdb'
-iterdbdata1p3 = cheasepy.read_iterdb(iterdbfpath=iterdbpath1p3,eqdsk=eqdskpath,setParam={'nrhomesh':0})
-
-importedVals['rhotor']   = eqdskdata['rhotor']
-importedVals['rhopsi']   = eqdskdata['rhopsi']
-importedVals['q']        = numpy.interp(eqdskdata['rhopsi'],rhoin,qin)
-importedVals['pressure'] = iterdbdata1p3['pressure']+Pdiff
-
 
 '''
 Source Options:
@@ -70,11 +71,11 @@ srcVals['boundary_type'] = 'asis'
 
 namelistVals = {}
 if srcVals['iterTotal']==0:
-   namelistVals['NS']        = 256
-   namelistVals['NT']        = 256
-   namelistVals['NISO']      = 256
-   namelistVals['NPSI']      = 1024
-   namelistVals['NCHI']      = 1024
+   namelistVals['NS']        = 64
+   namelistVals['NT']        = 64
+   namelistVals['NISO']      = 64
+   namelistVals['NPSI']      = 128
+   namelistVals['NCHI']      = 128
    namelistVals['NRBOX']     = 60
    namelistVals['NZBOX']     = 60
    namelistVals['RELAX']     = 0.0
