@@ -1,0 +1,177 @@
+{
+	"figures":
+	[
+		{
+			"name":"plasma_profiles",
+			"grid":[2,2],
+			"title":"Plasma Profiles",
+			"subplots":
+			[
+				{
+					"fields":"te",
+					"title":"",
+					"ylabel":"$T_{e}$ (Kev)",
+					"xlabel":"",
+					"xticks":false,
+					"yticks":true,
+					"xaxdir":"bottom",
+					"yaxdir":"left",
+					"legend":false,
+					"label2":"",
+					"legloc":"",
+					"legloc2":"",
+					"xlimit":"",
+					"ylimit":"",
+					"label":""
+				},
+				{
+					"fields":"ne",
+					"title":"",
+					"ylabel":"$n_{e}$ $\\times10^{19}$ ($m^{-3}$)",
+					"xlabel":"",
+					"xticks":false,
+					"yticks":true,
+					"xaxdir":"bottom",
+					"yaxdir":"right",
+					"legend":false,
+					"label2":"",
+					"legloc":"",
+					"legloc2":"",
+					"xlimit":"",
+					"ylimit":"",
+					"label":""
+				},
+				{
+					"fields":"ti",
+					"title":"",
+					"ylabel":"$T_{i}$ (Kev)",
+					"xlabel":"$\\rho_{\\phi}$",
+					"xticks":true,
+					"yticks":true,
+					"xaxdir":"bottom",
+					"yaxdir":"left",
+					"legend":false,
+					"label2":"",
+					"legloc":"",
+					"legloc2":"",
+					"xlimit":"",
+					"ylimit":"",
+					"label":""
+				},
+				{
+					"fields":"ni",
+					"title":"",
+					"ylabel":"$n_{i}$ $\\times10^{19}$ ($m^{-3}$)",
+					"xlabel":"$\\rho_{\\phi}$",
+					"xticks":true,
+					"yticks":true,
+					"xaxdir":"bottom",
+					"yaxdir":"right",
+					"legend":false,
+					"label2":"",
+					"legloc":"",
+					"legloc2":"",
+					"xlimit":"",
+					"ylimit":"",
+					"label":""
+				}
+			]
+		},
+                {
+                        "name":"geometry_profiles",
+                        "grid":[1,2],
+                        "title":"ECH Geometry Profiles",
+                        "subplots":
+                        [
+                                {
+                                        "fields":"q",
+                                        "title":"",
+                                        "ylabel":"$q$",
+					"xlabel":"$\\rho_{\\phi}$",
+                                        "xticks":true,
+                                        "yticks":true,
+                                        "xaxdir":"bottom",
+                                        "yaxdir":"left",
+                                        "legend":false,
+					"label2":"",
+					"legloc":"",
+					"legloc2":"",
+					"xlimit":"",
+					"ylimit":"",
+                                        "label":""
+                                },
+                                {
+                                        "fields":"shat",
+                                        "title":"",
+                                        "ylabel":"$\\hat{s}$",
+					"xlabel":"$\\rho_{\\phi}$",
+                                        "xticks":true,
+                                        "yticks":true,
+                                        "xaxdir":"bottom",
+                                        "yaxdir":"right",
+                                        "legend":false,
+                                        "label2":"",
+					"legloc":"",
+					"legloc2":"",
+					"xlimit":"",
+					"ylimit":"",
+                                        "label":""
+                                }
+                        ]
+                },
+		{
+			"name":"current_profiles",
+			"grid":[1,1],
+			"title":"Current Profiles",
+			"subplots":
+			[
+				{
+					"fields":["j_nb","j_bs","j_rf","j_oh","j_tot"],
+					"title":"",
+					"ylabel":"J $(MA/m^2)$",
+					"xlabel":"$\\rho_{\\phi}$",
+					"xticks":true,
+					"yticks":true,
+					"xaxdir":"bottom",
+					"yaxdir":"left",
+					"legend":true,
+					"label2":[
+						  "ICRF-$P_w$(MW)=0.2,EC-[$\\theta,\\phi,P_w$(GW)]=[107,212,15],HC-[$N_{l}$,$N_{u},P_w$]=[0.3,2.3,40],LH-[$N_{l}$,$N_{u},P_w$]=[1.5,2.5,36]", 
+						  "ICRF-$P_w$(MW)=0.2,EC-[$\\theta,\\phi,P_w$(GW)]=[105,209,15],HC-[$N_{l}$,$N_{u},P_w$]=[0.3,2.3,40],LH-[$N_{l}$,$N_{u},P_w$]=[1.5,2.5,36]" 
+						 ],
+					"legloc":"center right",
+					"legloc2":"upper left",
+					"xlimit":"",
+					"ylimit":[-0.25,2.7],
+					"label":""
+				}
+			]
+		},
+		{
+			"name":"Heating and Fusion Powers",
+			"grid":[1,1],
+			"title":"Heating and Fusion Powers",
+			"subplots":
+			[
+				{
+					"fields":["pi_rf","pe_rf","pe_fus","pi_fus","pe","pi"],
+					"title":"",
+					"ylabel":"P_{e,i} $(MW/m^2)$",
+					"xlabel":"$\\rho_{\\phi}$",
+					"xticks":true,
+					"yticks":true,
+					"xaxdir":"bottom",
+					"yaxdir":"left",
+					"legend":true,
+					"label2":"",
+					"legloc":"",
+					"legloc2":"",
+					"xlimit":"",
+					"ylimit":"",
+					"label":""
+				}
+			]
+		}
+	]
+
+}
