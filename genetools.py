@@ -791,7 +791,7 @@ def my_corr_func_complex(v1,v2,time,show_plot=False,v1eqv2=True):
         plt.show()
     return cfunc,tau,corr_time
 
-def read_mom(momfpath,specs='',Normalized=True,timeslot=None,momfmt=None):
+def read_mom(momfpath,specs='e',Normalized=True,timeslot=None,momfmt=None):
    #Developed by Ehab Hassan on 2019-03-15
     '''
     momfmt argument takes three choices:
@@ -863,15 +863,15 @@ def read_mom(momfpath,specs='',Normalized=True,timeslot=None,momfmt=None):
               momdata[imomf]['qperp'] = units['cref']*units['rhostar']*mom.qperp()[:,:,:]
               momdata[imomf]['upar']  = units['cref']*units['rhostar']*mom.upar()[:,:,:]
 
-              dz  = 2.0/nz
-              if 'lx_a' in pars:
-                   xgrid = npy.arange(nx)/float(nx-1)*float(pars['lx_a'])+float(pars['x0'])-float(pars['lx_a'])/2.0
-              else:
-                   xgrid = npy.arange(nx)/float(nx-1)*float(pars['lx'])-float(pars['lx'])/2.0
-              zgrid = npy.arange(nz)/float(nz-1)*(2.0-dz)-1.0
+           dz  = 2.0/nz
+           if 'lx_a' in pars:
+                xgrid = npy.arange(nx)/float(nx-1)*float(pars['lx_a'])+float(pars['x0'])-float(pars['lx_a'])/2.0
+           else:
+                xgrid = npy.arange(nx)/float(nx-1)*float(pars['lx'])-float(pars['lx'])/2.0
+           zgrid = npy.arange(nz)/float(nz-1)*(2.0-dz)-1.0
 
-              momdata[imomf]['xgrid'] = xgrid
-              momdata[imomf]['zgrid'] = xgrid
+           momdata[imomf]['xgrid'] = xgrid
+           momdata[imomf]['zgrid'] = zgrid
 
         elif momfmt in momfmttypes:
            dens3d  = mom.dens()[:,:,:]
@@ -2912,88 +2912,4 @@ if __name__ == "__main__":
     main()
 
 
-
-#def get_eigenfunctions(paramfpath,timeslot=-1,Normalize=True,setParam={}):
-#    #Modified by Ehab Hassan on 2020-03-18
-#    #following Xing work.
-#    paramdata = read_parameters(paramfpath=paramfpath)
-#    paramfpath = paramdata['filepath']
-#    if 'dat' in paramfpath[-15:]: datext = True
-#    else:                         datext = False
-#
-#    if 'center_only' in setParam: center_only = setParam['center_only']
-#    else:                         center_only = False
-#
-#    if 'smooth_field' in setParam: smooth_field = setParam['smooth_field']
-#    else:                          smooth_field = False
-#
-#    if datext:
-#       fieldfpath = paramfpath[:-14]+'field.dat'
-#    else:
-#       paramind = paramfpath[-5:]
-#       fieldfpath = paramfpath[:-15]+'field'+paramind
-#
-#    if center_only:
-#       ikx_grid  = [0]
-#       phi       = np.zeros(nz,dtype='complex128')
-#       apar      = np.zeros(nz,dtype='complex128')
-#       fielddata = read_field(fieldfpath=fieldfpath,Normalize=Normalize,fieldfmt='local-central')
-#    else:
-#       ikx_grid  = np.arange(-nx/2+1,nx/2+1)
-#       phi       = np.zeros(nx*nz,dtype='complex128')
-#       apar      = np.zeros(nx*nz,dtype='complex128')
-#       fielddata = read_field(fieldfpath=fieldfpath,Normalize=Normalize,fieldfmt='local-flatten')
-#
-#    nz = paramdata['box']['nz0']
-#    nx = paramdata['box']['nx0']
-#
-#    if 'n0_global' in paramdata['box']:
-#        phase_fac = -npy.e**(-2.0*npy.pi*(0.0+1.0J)*paramdata['box']['n0_global']*paramdata['geometry']['q0'])
-#    else:
-#        phase_fac = -1.0
-#
-#    if float(pars['shat']) > 0.:
-#        for i in ikx_grid:
-#            this_phi = field.phi()[:,0,i]*phase_fac**i
-#            phi[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz]=this_phi
-#            if int(pars['n_fields']) > 1 and float(pars['beta']) !=0:
-#                this_apar = field.apar()[:,0,i]*phase_fac**i
-#                apar[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz]=\
-#                                                                 this_apar
-#    else:
-#        for i in ikx_grid:
-#            this_phi = field.phi()[:,0,-i]*phase_fac**i
-#            phi[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz]=this_phi
-#            if pars['n_fields'] > 1 and pars['beta'] !=0:
-#                this_apar = field.apar()[:,0,-i]*phase_fac**i
-#                apar[(i-ikx_grid[0])*nz:(i-ikx_grid[0]+1)*nz]=this_apar
-#
-#    # Normalize phi and apar by highest value so that the peak abs val = 1
-#    if scale_field:
-#        phi = phi/np.max(abs(field.phi()[:,0,:]))
-#        if int(pars['n_fields']) > 1 and float(pars['beta']) !=0:
-#            apar = apar/np.max(abs(field.apar()[:,0,:]))
-#    if plot:
-#        if (timeslot == -1):
-#            figTitle='t = '+ str(field.tfld[setTime])
-#        else:
-#            figTitle='t = '+ str(field.tfld[isetTime])
-#        if center_only:
-#            figTitle = figTitle+' center only'
-#        else:
-#            figTitle = figTitle+' entire simulation domain'
-#        plt.plot(np.real(phi),label='Re(phi)')
-#        plt.plot(np.imag(phi),label='Im(phi)')
-#        plt.plot(abs(phi),label='abs(phi)')
-#        plt.title(figTitle)
-#        plt.legend()
-#        plt.show()
-#    if plot and fielddata['nfields']>1 and paramdata['geometry']['beta'] !=0:
-#        plt.plot(np.real(apar),label='Re(apar)')
-#        plt.plot(np.imag(apar),label='Im(apar)')
-#        plt.plot(abs(apar),label='abs(apar)')
-#        plt.title(figTitle)
-#        plt.legend()
-#        plt.show()
-#    return phi,apar
 
