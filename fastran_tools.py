@@ -35,6 +35,37 @@ def read_dcon(fn_log):
     if "betan_ideal_wall"   not in locals(): betan_ideal_wall = 0.0
     return betan_ideal_nowall,betan_ideal_wall
 
+
+#def read_state_outputs(WORK_DIR,CURRENT_EQSTATE):
+#    PATH_TO_FILE = os.path.join(WORK_DIR,CURRENT_STATE)
+#    cdffh = Dataset(PATH_TO_FILE, mode='r')
+def read_state_outputs(statefpath):
+    cdffh = Dataset(statefpath, mode='r')
+
+    state = {}
+    for name, variable in cdffh.variables.items():
+        state[name]                  = {}
+        state[name]['data']          = cdffh.variables[name][:]
+        state[name]['units']         = ""
+        state[name]['long_name']     = ""
+        state[name]['specification'] = ""
+        if   name == 'curt':            state[name]['symbol'] = "$I_{TOT}$"
+        elif name == 'curlh':           state[name]['symbol'] = "$I_{LH}$"
+        elif name == 'curech':          state[name]['symbol'] = "$I_{ECH}$"
+        elif name == 'curich':          state[name]['symbol'] = "$I_{ICH}$"
+        elif name == 'curbeam':         state[name]['symbol'] = "$I_{NB}$"
+        elif name == 'curr_ohmic':      state[name]['symbol'] = "$I_{OH}$"
+        elif name == 'curr_bootstrap':  state[name]['symbol'] = "$I_{BS}$"
+        else:                           state[name]['symbol'] = ""
+        varattrs = variable.ncattrs()
+        if varattrs:
+           for attrname in varattrs:
+               if   attrname == 'units':         state[name]['units']         = getattr(variable,attrname)
+               elif attrname == 'long_name':     state[name]['long_name']     = getattr(variable,attrname)
+               elif attrname == 'specification': state[name]['specification'] = getattr(variable,attrname)
+    return state
+
+
 #def read_fastran_outputs(WORK_DIR,CURRENT_FASTRAN):
 #    PATH_TO_FILE = os.path.join(WORK_DIR,CURRENT_FASTRAN)
 #    cdffh = Dataset(PATH_TO_FILE, mode='r')
@@ -105,35 +136,80 @@ def read_fastran_outputs(fastranfpath):
     return fastran
 
 
-#def read_state_outputs(WORK_DIR,CURRENT_EQSTATE):
-#    PATH_TO_FILE = os.path.join(WORK_DIR,CURRENT_STATE)
-#    cdffh = Dataset(PATH_TO_FILE, mode='r')
-def read_state_outputs(statefpath):
-    cdffh = Dataset(statefpath, mode='r')
+def read_fastran(WORK_DIR):
+    fastrandata = {}
 
-    state = {}
-    for name, variable in cdffh.variables.items():
-        state[name]                  = {}
-        state[name]['data']          = cdffh.variables[name][:]
-        state[name]['units']         = ""
-        state[name]['long_name']     = ""
-        state[name]['specification'] = ""
-        if   name == 'curt':            state[name]['symbol'] = "$I_{TOT}$"
-        elif name == 'curlh':           state[name]['symbol'] = "$I_{LH}$"
-        elif name == 'curech':          state[name]['symbol'] = "$I_{ECH}$"
-        elif name == 'curich':          state[name]['symbol'] = "$I_{ICH}$"
-        elif name == 'curbeam':         state[name]['symbol'] = "$I_{NB}$"
-        elif name == 'curr_ohmic':      state[name]['symbol'] = "$I_{OH}$"
-        elif name == 'curr_bootstrap':  state[name]['symbol'] = "$I_{BS}$"
-        else:                           state[name]['symbol'] = ""
-        varattrs = variable.ncattrs()
-        if varattrs:
-           for attrname in varattrs:
-               if   attrname == 'units':         state[name]['units']         = getattr(variable,attrname)
-               elif attrname == 'long_name':     state[name]['long_name']     = getattr(variable,attrname)
-               elif attrname == 'specification': state[name]['specification'] = getattr(variable,attrname)
-    return state
+    CASE_ID = 0
+    shotref = ""
 
+    for iWORK_DIR in WORK_DIR:
+        iWORK_DIR_PATH = '%s/work/plasma_state' % os.path.abspath(iWORK_DIR)
+        WORK_FILES = glob('%s/f*' % (iWORK_DIR_PATH))
+        if WORK_FILES:
+           FASTRAN_FILEPATH = WORK_FILES[0]
+           FASTRAN_FILENAME = FASTRAN_FILEPATH.replace(iWORK_DIR_PATH+'/','')
+           SHOT_NUMBER, TIME_ID = FASTRAN_FILENAME[1:].split('.')
+           shot = SHOT_NUMBER + '.' + TIME_ID
+           if shot == shotref:
+               CASE_ID += 1
+           elif shotref == "":
+               shotref = shot
+               CASE_ID += 1
+           elif shotref != "" and shot != shotref:
+               shotref = shot
+               CASE_ID = 1
+           shot = SHOT_NUMBER + '.' + TIME_ID + '.%02d' % CASE_ID
+
+           fastrandata[shot] = read_fastran_outputs(FASTRAN_FILEPATH)
+           print(CGREEN + 'READING CURRENT_FASTRAN IN %s ... PASSED' % iWORK_DIR_PATH + CEND)
+        else:
+           print(CRED   + 'READING CURRENT_FASTRAN IN %s ... FAILED' % iWORK_DIR_PATH + CEND)
+
+    return fastrandata
+
+
+def fastran_summary(fastrandata,**kwargs):
+    shots = list(fastrandata.keys())
+    nshot = len(shots)
+
+    reportpath = os.path.abspath(".")+"/fastran_report/"
+    if not os.path.isdir(reportpath):
+       os.system('mkdir '+reportpath)
+
+    infopath = os.path.abspath(".")+"/fastran_report/Summary/"
+    if not os.path.isdir(infopath):
+       os.system('mkdir '+infopath)
+
+    for shot in shots:
+        fhand = open("%ssummary_%s.dat" % (infopath,shot),"w")
+
+        Pext  = 0.0
+        for ipext in ["prfi","prfe","pnbi","pnbe"]:
+            Pext += fastrandata[shot][ipext]['data'][-1]
+        Pfus  = 0.0
+        for ipfus in ["pfusi","pfuse"]:
+            Pfus += fastrandata[shot][ipfus]['data'][-1]
+        Q = 5.0*Pfus/Pext
+
+        INI  = 0.0
+        for iINI in ["ibs","inb","irf"]:
+            INI += fastrandata[shot][iINI]['data'][-1]
+        fNI = INI/fastrandata[shot]["ip"]['data'][-1]
+        fBS = fastrandata[shot]["ibs"]['data'][-1]/fastrandata[shot]["ip"]['data'][-1]
+
+        H98 = fastrandata[shot]["tauth"]['data'][-1]/fastrandata[shot]["tau98"]['data'][-1]
+        H89 = fastrandata[shot]["tauth"]['data'][-1]/fastrandata[shot]["tau89"]['data'][-1]
+
+        fhand.write("%s\t%5.3f\n" % ("Q",Q))
+        fhand.write("%s\t%5.3f\n" % ("fNI",fNI))
+        fhand.write("%s\t%5.3f\n" % ("fBS",fBS))
+        fhand.write("%s\t%5.3f\n" % ("H98",H98))
+        fhand.write("%s\t%5.3f\n" % ("H89",H89))
+        fhand.write("%s\t%5.3f\n" % ("betan",fastrandata[shot]["betan"]['data'][-1]))
+
+    fhand.close()
+
+    return 1
 
 def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
     shots = list(fastrandata.keys())
@@ -151,37 +227,6 @@ def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
     reportpath = os.path.abspath(".")+"/fastran_report/"
     if not os.path.isdir(reportpath):
        os.system('mkdir '+reportpath)
-
-    infopath = os.path.abspath(".")+"/fastran_report/Info/"
-    if not os.path.isdir(infopath):
-       os.system('mkdir '+infopath)
-       
-    for shot in shots:
-        fhand = open("%sruninfo_%s.dat" % (infopath,shot),"w")
-
-        Pext  = 0.0
-        for ipext in ["poh","prad","prfi","prfe","pnbi","pnbe"]:
-            Pext += fastrandata[shot][ipext]['data'][-1]
-        Pfus  = 0.0
-        for ipfus in ["pfusi","pfuse"]:
-            Pfus += fastrandata[shot][ipfus]['data'][-1]
-        Q = Pfus/Pext
-
-        INI  = 0.0
-        for iINI in ["ibs","inb","irf"]:
-            INI += fastrandata[shot][iINI]['data'][-1]
-        fNI = INI/fastrandata[shot]["ip"]['data'][-1]
-        fBS = fastrandata[shot]["ibs"]['data'][-1]/fastrandata[shot]["ip"]['data'][-1]
-
-        H98 = fastrandata[shot]["tauth"]['data'][-1]/fastrandata[shot]["tau98"]['data'][-1]
-        H89 = fastrandata[shot]["tauth"]['data'][-1]/fastrandata[shot]["tau89"]['data'][-1]
-
-        fhand.write("%s\t%5.3f\n" % ("Q",Q))
-        fhand.write("%s\t%5.3f\n" % ("fNI",fNI))
-        fhand.write("%s\t%5.3f\n" % ("fBS",fBS))
-        fhand.write("%s\t%5.3f\n" % ("H98",H98))
-        fhand.write("%s\t%5.3f\n" % ("H89",H89))
-        fhand.write("%s\t%5.3f\n" % ("betan",fastrandata[shot]["betan"]['data'][-1]))
 
     figurepath = os.path.abspath(".")+"/fastran_report/Figures/"
     if not os.path.isdir(figurepath):
@@ -221,7 +266,6 @@ def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
                     jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"] = [jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"]]
                 llabel2 = []
 
-                ITOT = 0.0
                 for ifield in jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"]:
                     for shot in shots:
                         if len(shots) > 1:
@@ -265,33 +309,6 @@ def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
                                         llabel = ""
 
                             axs[isubfig].plot(fastrandata[shot]['rho']['data'][:],fastrandata[shot][ifield]['data'][-1,:],color=lcolor,linestyle=lstyle,label=llabel)
-
-                        elif ifield in statedata[shot]:
-                            if shot == shots[0]:
-                                if not jsonfdata["figures"][ifig]["subplots"][isubfig]['label']:
-                                    if "symbol" in statedata[shot][ifield] and statedata[shot][ifield]['symbol']:
-                                        llabel = statedata[shot][ifield]['symbol']
-                                    else:
-                                        llabel = ifield
-                                else:
-                                    if jsonfdata["figures"][ifig]["subplots"][isubfig]['label'] in statedata[shot]:
-                                        llabel = statedata[shot][jsonfdata["figures"][ifig]["subplots"][isubfig]['label']]['symbol']
-                                    else:
-                                        llabel = jsonfdata["figures"][ifig]["subplots"][isubfig]['label']
-                            else:
-                                        llabel = ""
-
-                            if ifield in ["curbeam","curich","curech","curr_bootstrap","curr_ohmic","curlh","curmino"]:
-                                ITOT += statedata[shot][ifield]['data']
-                                ifieldlen = npy.size(statedata[shot][ifield]['data'])
-                                axs[isubfig].plot(statedata[shot]['rho']['data'][:ifieldlen],statedata[shot][ifield]['data'][:]*1.0e-6,color=lcolor,linestyle=lstyle,label=llabel)
-                            else:
-                                ifieldlen = npy.size(statedata[shot][ifield]['data'])
-                                axs[isubfig].plot(statedata[shot]['rho']['data'][:ifieldlen],statedata[shot][ifield]['data'][:],color=lcolor,linestyle=lstyle,label=llabel)
-
-                if type(ITOT) not in [float]:
-                    ifieldlen = npy.size(ITOT)
-                    axs[isubfig].plot(statedata[shot]['rho']['data'][:ifieldlen],ITOT*1.0e-6,color=colors[-1],linestyle=styles[-1],label="$I_{TOT}$")
 
                 axs[isubfig].set_title( jsonfdata["figures"][ifig]["subplots"][isubfig]["title"])
                 if not jsonfdata["figures"][ifig]["subplots"][isubfig]["ylabel"]:
@@ -908,10 +925,7 @@ def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
     return True
         
 
-
 def fastran_plot(WORK_DIR,plotparam={}):
-    if 'summary' in plotparam:  summary = plotparam['summary']
-    else:                       summary = False
     if 'addbeta' in plotparam:  addbeta = plotparam['addbeta']
     else:                       addbeta = False
     if 'nostate' in plotparam:  nostate = plotparam['nostate']
@@ -964,30 +978,30 @@ def fastran_plot(WORK_DIR,plotparam={}):
                CASE_ID = 1
            shot = SHOT_NUMBER + '.' + TIME_ID + '.%02d' % CASE_ID
 
-        if fCURRENT_STATE[WORK_DIR.index(iWORK_DIR)] and not nostate:
-           statedata[shot] = read_state_outputs(os.path.join(iWORK_DIR,CURRENT_STATE))
-           print(CGREEN + 'READING CURRENT_STATE from %s ... PASSED' % iWORK_DIR + CEND)
-        #  for ikey in list(statedata[shot].keys()):
-        #      print(ikey,npy.size(statedata[shot][ikey]['data']),npy.shape(statedata[shot][ikey]['data']))
-        #  plt.plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curech']['data']*1.0e-6, label="ECH")
-        #  plt.plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curich']['data']*1.0e-6, label="ICH")
-        #  plt.plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curbeam']['data']*1.0e-6,label="NB")
-        #  plt.plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curr_ohmic']['data']*1.0e-6, label="OHMIC")
-        #  plt.plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curr_bootstrap']['data']*1.0e-6, label="BS")
-        #  plt.title("Current Drives")
-        #  plt.xlabel("$\\rho_{\\psi}$")
-        #  plt.ylabel("J ($MA/m^2$)")
-        #  plt.legend()
-        #  plt.show()
-          #if iWORK_DIR == WORK_DIR[0]:
-          #    print(CRED + "STATE DATA" + CEND)
-          #    f = open("statedata.dat", "w")
-          #    for ikey in sorted(list(statedata[shot].keys())):
-          #        f.write("%s\t\t%s\t\t%s\n" % (ikey,str(npy.shape(statedata[shot][ikey]['data'])),statedata[shot][ikey]['long_name']))
-          #        print(ikey,npy.shape(statedata[shot][ikey]['data']),statedata[shot][ikey]['long_name'])
-          #        if ikey in ['triang','Rmajor_mean','rMinor_mean','elong','B_axis']:
-          #          print(ikey,": ",statedata[shot][ikey]['long_name']," = ",statedata[shot][ikey]['data'])
-          #    f.close()
+       #if fCURRENT_STATE[WORK_DIR.index(iWORK_DIR)] and not nostate:
+       #   statedata[shot] = read_state_outputs(os.path.join(iWORK_DIR,CURRENT_STATE))
+       #   print(CGREEN + 'READING CURRENT_STATE from %s ... PASSED' % iWORK_DIR + CEND)
+       ##  for ikey in list(statedata[shot].keys()):
+       ##      print(ikey,npy.size(statedata[shot][ikey]['data']),npy.shape(statedata[shot][ikey]['data']))
+       ##  plt.plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curech']['data']*1.0e-6, label="ECH")
+       ##  plt.plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curich']['data']*1.0e-6, label="ICH")
+       ##  plt.plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curbeam']['data']*1.0e-6,label="NB")
+       ##  plt.plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curr_ohmic']['data']*1.0e-6, label="OHMIC")
+       ##  plt.plot(statedata[shot]['rho']['data'][:-1],statedata[shot]['curr_bootstrap']['data']*1.0e-6, label="BS")
+       ##  plt.title("Current Drives")
+       ##  plt.xlabel("$\\rho_{\\psi}$")
+       ##  plt.ylabel("J ($MA/m^2$)")
+       ##  plt.legend()
+       ##  plt.show()
+       #  #if iWORK_DIR == WORK_DIR[0]:
+       #  #    print(CRED + "STATE DATA" + CEND)
+       #  #    f = open("statedata.dat", "w")
+       #  #    for ikey in sorted(list(statedata[shot].keys())):
+       #  #        f.write("%s\t\t%s\t\t%s\n" % (ikey,str(npy.shape(statedata[shot][ikey]['data'])),statedata[shot][ikey]['long_name']))
+       #  #        print(ikey,npy.shape(statedata[shot][ikey]['data']),statedata[shot][ikey]['long_name'])
+       #  #        if ikey in ['triang','Rmajor_mean','rMinor_mean','elong','B_axis']:
+       #  #          print(ikey,": ",statedata[shot][ikey]['long_name']," = ",statedata[shot][ikey]['data'])
+       #  #    f.close()
 
         if fCURRENT_FASTRAN[WORK_DIR.index(iWORK_DIR)]:
            fastrandata[shot] = read_fastran_outputs(os.path.join(iWORK_DIR,CURRENT_FASTRAN))
@@ -1070,17 +1084,14 @@ def calc_dcon_betan(WORK_DIR):
     fCURRENT_INSTATE = [False for i in range(len(WORK_DIR))]
     fCURRENT_FASTRAN = [False for i in range(len(WORK_DIR))]
 
+    mainpath = os.path.abspath(".")
+
     for iWORK_DIR in WORK_DIR:
-        if iWORK_DIR[-1] != "/":
-            WORK_DIR[WORK_DIR.index(iWORK_DIR)] = iWORK_DIR + "/"
-            iWORK_DIR += "/"
-        if not summary:
-            WORK_DIR[WORK_DIR.index(iWORK_DIR)] = iWORK_DIR + 'work/plasma_state/'
-            iWORK_DIR += 'work/plasma_state/'
-        WORK_FILES = glob(iWORK_DIR+'*')
+        iWORK_DIR_PATH = os.path.abspath(iWORK_DIR)
+        WORK_FILES = glob('%s/work/plasma_state/*' % (iWORK_DIR_PATH))
 
         for FILE in WORK_FILES:
-            FILENAME = FILE.replace(iWORK_DIR,'')
+            FILENAME = FILE.replace('%s/work/plasma_state/' % (iWORK_DIR_PATH),'')
             if FILENAME[0] == 'b': CURRENT_BC      = FILENAME;  fCURRENT_BC[WORK_DIR.index(iWORK_DIR)]      =  True
             if FILENAME[0] == 's': CURRENT_STATE   = FILENAME;  fCURRENT_STATE[WORK_DIR.index(iWORK_DIR)]   =  True
             if FILENAME[0] == 'g': CURRENT_EQDSK   = FILENAME;  fCURRENT_EQDSK[WORK_DIR.index(iWORK_DIR)]   =  True
@@ -1088,7 +1099,7 @@ def calc_dcon_betan(WORK_DIR):
             if FILENAME[0] == 'i': CURRENT_INSTATE = FILENAME;  fCURRENT_INSTATE[WORK_DIR.index(iWORK_DIR)] =  True
             if FILENAME[0] == 'f': CURRENT_FASTRAN = FILENAME;  fCURRENT_FASTRAN[WORK_DIR.index(iWORK_DIR)] =  True
 
-        geqdskfpath = os.path.abspath(iWORK_DIR+CURRENT_EQDSK)
+        geqdskfpath = os.path.abspath("%s/work/plasma_state/%s" % (iWORK_DIR_PATH,CURRENT_EQDSK))
 
         if fCURRENT_FASTRAN[WORK_DIR.index(iWORK_DIR)]:
            SHOT_NUMBER, TIME_ID = CURRENT_FASTRAN[1:].split('.')
@@ -1103,7 +1114,7 @@ def calc_dcon_betan(WORK_DIR):
                CASE_ID = 1
            shot = SHOT_NUMBER + '.' + TIME_ID + '.%02d' % CASE_ID
 
-           shotpath = os.path.abspath(".")+"/fastran_report/DCON/"+shot
+           shotpath = mainpath+"/fastran_report/DCON/"+shot
            if not os.path.isdir(shotpath):
               os.system('mkdir '+shotpath)
 
@@ -1129,8 +1140,8 @@ def calc_dcon_betan(WORK_DIR):
            print(CGREEN + "Finding Stability Factor for betanw.bas" + CEND)
            os.system("%s betanw.bas >> xdcon.log"    % (dconfexec))
 
+           os.chdir('%s'                         % (mainpath))
            shots.append(shot)
-        print(iWORK_DIR,WORK_DIR)   
 
     return 1
 
@@ -1148,40 +1159,40 @@ def scale_geqdsk_file(cur_eqdsk_file,R0_scale,B0_scale):
        
 if __name__ == "__main__":
    parser = argparse.ArgumentParser()
+   parser.add_argument('--plot'   , '-plot',     action='store_const',const=1,help='Plot FASTRAN ouputs.')
+   parser.add_argument('--state',   '-state',    action='store_const',const=1,help='Include STATE data in the summary and plots.')
    parser.add_argument('--summary', '-summary',  action='store_const',const=1,help='Plot FASTRAN output from Summary Folder.')
    parser.add_argument('--newplot', '-newplot',  action='store_const',const=1,help='Remove the old figures and plot new ones.')
    parser.add_argument('--figspec', '-figspec',  action='store_const',const=1,help='Create Figures Based on Specifications provided by the user.')
    parser.add_argument('--getbeta', '-getbeta',  action='store_const',const=1,help='Calculate the beta values using DCON stability code.')
-   parser.add_argument('--nostate', '-nostate',  action='store_const',const=1,help='Do Not Extract or Plot Data from STATE File.')
    parser.add_argument('inputs',nargs='*')
 
    if parser.parse_args():
        args    = parser.parse_args()
+       plot    = args.plot
+       state   = args.state
        inputs  = args.inputs
        newplot = args.newplot
-       nostate = args.nostate
        figspec = args.figspec
        summary = args.summary
        getbeta = args.getbeta
 
    plotparam = {}
-   if newplot:
-       plotparam['newplot'] = True
-   if figspec:
-       plotparam['figspec'] = True
-   if summary:
-       plotparam['summary'] = True
-   if nostate:
-       plotparam['nostate'] = True
+   if newplot: plotparam['newplot'] = True
+   if figspec: plotparam['figspec'] = True
 
    if inputs == []:
        print(CRED + 'SIMULATION FOLDER(S) NOT FOUND/PROVIDED ... EXIT!' + CEND)
        sys.exit()
 
-   if getbeta:
-       dcon_betan = calc_dcon_betan(WORK_DIR=inputs)
-   else:
-       returnvals = fastran_plot(WORK_DIR=inputs,plotparam=plotparam)
-      #fastrandata,fastranplot = fastran_plot(WORK_DIR=inputs,plotparam=plotparam)
+   if   getbeta:
+        dcon_betan = calc_dcon_betan(WORK_DIR=inputs)
+   elif summary:
+        fastrandata = read_fastran(WORK_DIR=inputs)
+        returnvals  = fastran_summary(fastrandata)
+        plotsreturn   = plot_fastran_outputs(fastrandata,plotparam=plotparam)
+   elif plot or figspec:
+        fastrandata = read_fastran(WORK_DIR=inputs)
+        returnvals  = plot_fastran_outputs(fastrandata,plotparam=plotparam)
 
     
