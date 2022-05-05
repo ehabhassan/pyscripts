@@ -19,6 +19,8 @@ from scipy.interpolate               import CubicSpline
 from matplotlib.lines                import Line2D
 from matplotlib.backends.backend_pdf import PdfPages
 
+from Namelist import Namelist
+
 CEND    = '\033[0m'
 CRED    = '\33[31m'
 CBLUE   = '\33[34m'
@@ -592,81 +594,74 @@ def read_eped(WORK_DIR):
 
     return epeddata
 
-def eped_model(epeddata):
-    sims  = list(epeddata.keys())
-    nsims = len(sims)
-
-    IP   = []
-    IP1  = []
-    NPED = []
-    NPED1= []
-    PPED = []
-    WPED = []
-    for isim in sims:
-        if epeddata[isim]['p_E1']['data'][-1] <= 0.0 or epeddata[isim]['wid_E1']['data'][-1] <= 0.0: continue
-        print(epeddata[isim]['ip']['data'][-1],epeddata[isim]['neped']['data'][-1])
-        if epeddata[isim]['ip']['data'][-1] not in IP1:        IP1.append(epeddata[isim]['ip']['data'][-1])
-        if epeddata[isim]['neped']['data'][-1] not in NPED1: NPED1.append(epeddata[isim]['neped']['data'][-1]) 
-        IP.append(epeddata[isim]['ip']['data'][-1])
-        NPED.append(epeddata[isim]['neped']['data'][-1])
-        PPED.append(epeddata[isim]['p_E1']['data'][-1])
-        WPED.append(epeddata[isim]['wid_E1']['data'][-1])
-
-    IP   = npy.array(IP)
-    NPED = npy.array(NPED)
-    PPED = npy.array(PPED)
-    WPED = npy.array(WPED)
-
-    IP1D   = npy.linspace(min(IP),  max(IP),100)
-    NPED1D = npy.linspace(min(NPED),max(NPED),100)
-
-    eped_fit_model = lambda X, A, B, C: A * X[0]**B * X[1]**C 
-    (PPED_A, PPED_B, PPED_C), pcov = curve_fit(eped_fit_model, (NPED,IP), PPED)
-    (WPED_A, WPED_B, WPED_C), pcov = curve_fit(eped_fit_model, (NPED,IP), WPED)
-
-    fig = plt.figure("EPED Model",dpi=200)
-    ax1 = fig.add_subplot(221)
-    ax2 = fig.add_subplot(222)
-    ax3 = fig.add_subplot(223)
-    ax4 = fig.add_subplot(224)
-    ax1.plot(NPED,PPED,'ro')
-    ax1.plot(NPED1D,PPED_A*NPED1D**PPED_B*IP1D**PPED_C,'k')
-    ax2.plot(IP,PPED,'go')
-    ax2.plot(IP1D,  PPED_A*NPED1D**PPED_B*IP1D**PPED_C,'k')
-    ax3.plot(NPED,WPED,'b*')
-    ax3.plot(NPED1D,WPED_A*NPED1D**WPED_B*IP1D**WPED_C,'k')
-    ax4.plot(IP,WPED,'m*')
-    ax4.plot(IP1D,  WPED_A*NPED1D**WPED_B*IP1D**WPED_C,'k')
-    ax2.yaxis.tick_right()
-    ax2.yaxis.set_label_position("right")
-    ax4.yaxis.tick_right()
-    ax4.yaxis.set_label_position("right")
-    ax1.set_ylabel("$P_{ped}$",fontsize=12)
-    ax3.set_ylabel("$W_{ped}$",fontsize=12)
-    ax3.set_xlabel("$N_{EPED}$",fontsize=12)
-    ax2.set_ylabel("$P_{ped}$",fontsize=12)
-    ax4.set_ylabel("$W_{ped}$",fontsize=12)
-    ax4.set_xlabel("$I_{P}$",fontsize=12)
-    ax1.set_title("$P_{ped}$ = %3.2f$N_{eped}^{%3.2f}$$I_P^{%3.2f}$" % (PPED_A,PPED_B,PPED_C),fontsize=14)
-    ax2.set_title("$W_{ped}$ = %3.2f$N_{eped}^{%3.2f}$$I_P^{%3.2f}$" % (WPED_A,WPED_B,WPED_C),fontsize=14)
-    plt.suptitle("EPED Fitting Model",fontsize=16)
-    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-    fig.subplots_adjust(wspace=0,hspace=0)
-    plt.show()
-    plt.close(fig)
-
-   #fig = plt.figure("EPED Model",dpi=200)
-   #ax1 = fig.add_subplot(121)
-   #ax2 = fig.add_subplot(122)
-   #ax1.contour(NPED1,IP1,PPED.reshape([npy.size(NPED1),npy.size(IP1)]))
-   #ax2.contour(NPED1,IP1D,WPED.reshape([npy.size(NPED1),npy.size(IP1)]))
-   #plt.show()
-
-    model = {}
-    model['PPED'] = (PPED_A, PPED_B, PPED_C)
-    model['WPED'] = (WPED_A, WPED_B, WPED_C)
-
-    return model
+#def eped_model(epeddata):
+#    sims  = list(epeddata.keys())
+#    nsims = len(sims)
+#
+#    IP   = []
+#    IP1  = []
+#    NPED = []
+#    NPED1= []
+#    PPED = []
+#    WPED = []
+#    for isim in sims:
+#        if epeddata[isim]['p_E1']['data'][-1] <= 0.0 or epeddata[isim]['wid_E1']['data'][-1] <= 0.0: continue
+#        print(epeddata[isim]['ip']['data'][-1],epeddata[isim]['neped']['data'][-1])
+#        if epeddata[isim]['ip']['data'][-1] not in IP1:        IP1.append(epeddata[isim]['ip']['data'][-1])
+#        if epeddata[isim]['neped']['data'][-1] not in NPED1: NPED1.append(epeddata[isim]['neped']['data'][-1]) 
+#        IP.append(epeddata[isim]['ip']['data'][-1])
+#        NPED.append(epeddata[isim]['neped']['data'][-1])
+#        PPED.append(epeddata[isim]['p_E1']['data'][-1])
+#        WPED.append(epeddata[isim]['wid_E1']['data'][-1])
+#
+#    IP   = npy.array(IP)
+#    NPED = npy.array(NPED)
+#    PPED = npy.array(PPED)
+#    WPED = npy.array(WPED)
+#
+#    IP1D   = npy.linspace(min(IP),  max(IP),100)
+#    NPED1D = npy.linspace(min(NPED),max(NPED),100)
+#
+#    eped_fit_model = lambda X, A, B, C: A * X[0]**B * X[1]**C 
+#    (PPED_A, PPED_B, PPED_C), pcov = curve_fit(eped_fit_model, (NPED,IP), PPED)
+#    (WPED_A, WPED_B, WPED_C), pcov = curve_fit(eped_fit_model, (NPED,IP), WPED)
+#
+#    fig = plt.figure("EPED Model",dpi=200)
+#    ax1 = fig.add_subplot(221)
+#    ax2 = fig.add_subplot(222)
+#    ax3 = fig.add_subplot(223)
+#    ax4 = fig.add_subplot(224)
+#    ax1.plot(NPED,PPED,'ro')
+#    ax1.plot(NPED1D,PPED_A*NPED1D**PPED_B*IP1D**PPED_C,'k')
+#    ax2.plot(IP,PPED,'go')
+#    ax2.plot(IP1D,  PPED_A*NPED1D**PPED_B*IP1D**PPED_C,'k')
+#    ax3.plot(NPED,WPED,'b*')
+#    ax3.plot(NPED1D,WPED_A*NPED1D**WPED_B*IP1D**WPED_C,'k')
+#    ax4.plot(IP,WPED,'m*')
+#    ax4.plot(IP1D,  WPED_A*NPED1D**WPED_B*IP1D**WPED_C,'k')
+#    ax2.yaxis.tick_right()
+#    ax2.yaxis.set_label_position("right")
+#    ax4.yaxis.tick_right()
+#    ax4.yaxis.set_label_position("right")
+#    ax1.set_ylabel("$P_{ped}$",fontsize=12)
+#    ax3.set_ylabel("$W_{ped}$",fontsize=12)
+#    ax3.set_xlabel("$N_{EPED}$",fontsize=12)
+#    ax2.set_ylabel("$P_{ped}$",fontsize=12)
+#    ax4.set_ylabel("$W_{ped}$",fontsize=12)
+#    ax4.set_xlabel("$I_{P}$",fontsize=12)
+#    ax1.set_title("$P_{ped}$ = %3.2f$N_{eped}^{%3.2f}$$I_P^{%3.2f}$" % (PPED_A,PPED_B,PPED_C),fontsize=14)
+#    ax2.set_title("$W_{ped}$ = %3.2f$N_{eped}^{%3.2f}$$I_P^{%3.2f}$" % (WPED_A,WPED_B,WPED_C),fontsize=14)
+#    plt.suptitle("EPED Fitting Model",fontsize=16)
+#    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+#    fig.subplots_adjust(wspace=0,hspace=0)
+#    plt.show()
+#    plt.close(fig)
+#
+#    model = {}
+#    model['PPED'] = (PPED_A, PPED_B, PPED_C)
+#    model['WPED'] = (WPED_A, WPED_B, WPED_C)
+#
+#    return model
 
 
 def plot_eped_outputs(epeddata, plotparam={}):
@@ -694,55 +689,13 @@ def plot_eped_outputs(epeddata, plotparam={}):
 
     for sim in sims:
         print(CBLUE + "PLOTTING %s" % sim + CEND)
-      # # PLOTTING EPED PROFILES
-      # tppedfig = plt.figure("EPED PPRESSURE and TEMPERATURE PROFILES",dpi=200)
-      # ppedaxs = tppedfig.add_subplot(221)
-      # lcolor = colors[0]
-      # lstyle = styles[0]
-      # ppedaxs.plot(epeddata[sim]['eq_wped_rho']['data'][:],epeddata[sim]['eq_pped']['data'][:],color=lcolor,linestyle=lstyle)
-      # ppedaxs.set_ylabel("$P_{PED}$")
-      # ppedaxs.set_xlabel("$\\rho_{PED}$")
-
-      # tpedaxs = tppedfig.add_subplot(222)
-      # lcolor = colors[0]
-      # lstyle = styles[0]
-      # tpedaxs.plot(epeddata[sim]['eq_wped_rho']['data'][:],epeddata[sim]['eq_tped']['data'][:],color=lcolor,linestyle=lstyle)
-      # tpedaxs.set_ylabel("$T_{PED}$")
-      # tpedaxs.set_xlabel("$\\rho_{PED}$")
-      # tpedaxs.yaxis.tick_right()
-      # tpedaxs.yaxis.set_label_position("right")
-      ##ppedaxs.yaxis.set_ticks_position("none")
-      ##ppedaxs.yaxis.set_ticklabels([])
-
-      # ptopaxs = tppedfig.add_subplot(223)
-      # lcolor = colors[0]
-      # lstyle = styles[0]
-      # ptopaxs.plot(epeddata[sim]['eq_wped_rho']['data'][:],epeddata[sim]['eq_ptop']['data'][:],color=lcolor,linestyle=lstyle)
-      # ptopaxs.set_ylabel("$P^{Top}_{PED}$")
-      # ptopaxs.set_xlabel("$\\rho_{PED}$")
-
-      # ttopaxs = tppedfig.add_subplot(224)
-      # lcolor = colors[0]
-      # lstyle = styles[0]
-      # ttopaxs.plot(epeddata[sim]['eq_wped_rho']['data'][:],epeddata[sim]['eq_ttop']['data'][:],color=lcolor,linestyle=lstyle)
-      # ttopaxs.set_ylabel("$P^{Top}_{PED}$")
-      # ttopaxs.set_xlabel("$\\rho_{PED}$")
-      # ttopaxs.yaxis.tick_right()
-      # ttopaxs.yaxis.set_label_position("right")
-      ##ttopaxs.yaxis.set_ticks_position("none")
-      ##ttopaxs.yaxis.set_ticklabels([])
-
-      # title_txt_01 = "$I_P$ = %5.3f, $N_{e,ped}$ = %5.3f, $\\beta_n$ = %5.3f, $B_{T}$ = %5.3f" \
-      #              % (epeddata[sim]["ip"]['data'], epeddata[sim]["neped"]['data'], epeddata[sim]["betan"]['data'], epeddata[sim]["bt"]['data'])
-      # title_txt_02 = "$\\kappa$ = %5.3f, $\\delta$ = %5.3f, $R$ = %5.3f, $a$ = %5.3f" \
-      #              % (epeddata[sim]["kappa"]['data'], epeddata[sim]["delta"]['data'], epeddata[sim]["r"]['data'], epeddata[sim]["a"]['data'])
-      # tppedfig.suptitle("EPED PROFILES\n%s\n%s" % (title_txt_01,title_txt_02))
-      # tppedfig.tight_layout(rect=[0.0, 0.0, 1.0, 1.0])
-      # tppedfig.subplots_adjust(wspace=0,hspace=0)
-      # epedfigs.savefig(tppedfig)
-      # if savepng: tppedfig.savefig(figurepath+"eped_tpped_%04d.png" % sims.index(sim))
-      # plt.close(tppedfig)
-
+        modes = epeddata[sim]["nmodes"]['data']
+        gamma = epeddata[sim]["gamma_PB"]['data']
+        teped = epeddata[sim]["teped_list"]['data']
+        betan = epeddata[sim]["eq_betanped"]['data']
+        kEPED = epeddata[sim]["k_EPED"]['data'][:][0]
+        nGr = epeddata[sim]["ip"]['data'][-1]/npy.pi/epeddata[sim]["a"]['data'][-1]**2
+        FGW_PED_INPUT = epeddata[sim]['neped']['data'][-1]/10.0/nGr
 
         # PLOTTING EPED PROFILES
         k_EPED = epeddata[sim]['k_EPED']['data'][-1]
@@ -752,18 +705,10 @@ def plot_eped_outputs(epeddata, plotparam={}):
 
         proffig = plt.figure("EPED PROFILES",dpi=200)
         teaxs = proffig.add_subplot(321)
-       #lcolor = colors[1]
-       #lstyle = styles[1]
-       #prof = [x for x in epeddata[sim]['profile_Te']['data'][0,:]  if x != 0.0]
-       #teaxs.plot(rhos,prof,color=lcolor,linestyle=lstyle)
         lcolor = colors[0]
         lstyle = styles[0]
         prof = [x for x in epeddata[sim]['profile_Te']['data'][k_EPED,:]  if x != 0.0]
         teaxs.plot(rhok,prof,color=lcolor,linestyle=lstyle)
-       #lcolor = colors[2]
-       #lstyle = styles[2]
-       #prof = [x for x in epeddata[sim]['profile_Te']['data'][-1,:]  if x != 0.0]
-       #teaxs.plot(rhoe,prof,color=lcolor,linestyle=lstyle)
         teaxs.axvline(1.0-epeddata[sim]['wid_E1']['data'][-1],   ls="--",color="r")
         teaxs.axvline(1.0-epeddata[sim]['widtop_E1']['data'][-1],ls="--",color="b")
         teaxs.set_xticks([])
@@ -804,7 +749,7 @@ def plot_eped_outputs(epeddata, plotparam={}):
         paxs.set_xlabel("$\\rho_{PED}$")
         paxs.yaxis.tick_right()
         paxs.yaxis.set_label_position("right")
-        peaxs.set_xticks([])
+        paxs.set_xticks([])
 
         jaxs = proffig.add_subplot(324)
         lcolor = colors[0]
@@ -817,7 +762,7 @@ def plot_eped_outputs(epeddata, plotparam={}):
         jaxs.set_xlabel("$\\rho$")
         jaxs.yaxis.tick_right()
         jaxs.yaxis.set_label_position("right")
-        jeaxs.set_xticks([])
+        jaxs.set_xticks([])
 
         qaxs = proffig.add_subplot(326)
         lcolor = colors[0]
@@ -843,13 +788,7 @@ def plot_eped_outputs(epeddata, plotparam={}):
         plt.close(proffig)
 
 
-        modes = epeddata[sim]["nmodes"]['data']
-        gamma = epeddata[sim]["gamma_PB"]['data']
-        teped = epeddata[sim]["teped_list"]['data']
-        betan = epeddata[sim]["eq_betanped"]['data']
-        kEPED = epeddata[sim]["k_EPED"]['data'][:][0]
         gamma_all = npy.array([ max(max(igamma),1.0e-30) for igamma in gamma ])
-       #i = npy.where(epeddata[sim]["eq_pped"]['data'][:] > 0)[0]
         k_start = 0
         k_EPED_0 = k_start+npy.where(gamma[k_start:] > 1.0)[0][0]
 
@@ -977,11 +916,11 @@ def read_nubeam(WORK_DIR):
     return nubeamdata
 
 def read_genray_outputs(fpath):
-    if os.path.isfile(fpath[0]):
+    if os.path.isfile(fpath):
         print(CGREEN + "FINDING GENRAY OUTPUT AT %s: PASSED" % (fpath[0]) + CEND)
     else:
         print(CRED + "FINDING GENRAY OUTPUT AT %s: FAILED" % (fpath[0]) + CEND)
-    cdffh = Dataset(fpath[0], mode='r')
+    cdffh = Dataset(fpath, mode='r')
 
     genray = {}
     for name, variable in cdffh.variables.items():
@@ -997,7 +936,52 @@ def read_genray_outputs(fpath):
             genray[name]['long_name']     = ""
 
     return genray
-       
+
+def read_genray(WORK_DIR,model):
+    genraydata = {}
+
+    if type(WORK_DIR) == str: WORK_DIR = [WORK_DIR]
+
+    CASE_ID = 0
+    shotref = ""
+
+    for iWORK_DIR in WORK_DIR:
+        if model == "lh":
+            iWORK_DIR_PATH = glob('%s/work/fastran_lh_genray_*' % os.path.abspath(iWORK_DIR))[0]
+        elif model == "hc":
+            iWORK_DIR_PATH = glob('%s/work/fastran_hc_genray_*' % os.path.abspath(iWORK_DIR))[0]
+        elif model == "ec":
+            iWORK_DIR_PATH = glob('%s/work/fastran_ec_genray_*' % os.path.abspath(iWORK_DIR))[0]
+        elif model == "ic":
+            iWORK_DIR_PATH = glob('%s/work/fastran_ic_genray_*' % os.path.abspath(iWORK_DIR))[0]
+        WORK_FILES = glob('%s/genray.nc' % (iWORK_DIR_PATH))
+        if WORK_FILES:
+           GENRAY_FILEPATH = WORK_FILES[0]
+           GENRAY_FILENAME = GENRAY_FILEPATH.replace(iWORK_DIR_PATH+'/','')
+           SHOT_NUMBER, TIME_ID = GENRAY_FILENAME[1:].split('.')
+           shot = SHOT_NUMBER + '.' + TIME_ID
+           if shot == shotref:
+               CASE_ID += 1
+           elif shotref == "":
+               shotref = shot
+               CASE_ID += 1
+           elif shotref != "" and shot != shotref:
+               shotref = shot
+               CASE_ID = 1
+           shot = SHOT_NUMBER + '.' + TIME_ID + '.%02d' % CASE_ID
+
+           genraydata[shot] = read_genray_outputs(GENRAY_FILEPATH)
+           print(CGREEN + 'READING CURRENT GENRAY IN %s ... PASSED' % iWORK_DIR_PATH + CEND)
+          #if len(genraydata[shot]['power_inj_total']['data']) == 0:
+          #    del genraydata[shot]
+          #    print(CRED   + 'READING CURRENT GENRAY IN %s ... FAILED' % iWORK_DIR_PATH + CEND)
+          #else:
+          #    print(CGREEN + 'READING CURRENT GENRAY IN %s ... PASSED' % iWORK_DIR_PATH + CEND)
+        else:
+           print(CRED   + 'READING CURRENT GENRAY IN %s ... FAILED' % iWORK_DIR_PATH + CEND)
+
+    return genraydata       
+
 
 def read_toray_outputs(fpath):
     if os.path.isfile(fpath[0]):
@@ -1078,6 +1062,58 @@ def read_state_outputs(statefpath):
                elif attrname == 'specification': state[name]['specification'] = getattr(variable,attrname)
     return state
 
+def read_instate_inputs(instatefpath):
+    namelistdata = Namelist(instatefpath)
+
+    instatedata = {}
+    for ikey in list(namelistdata['INSTATE'].keys()):
+        instatedata[ikey] = {}
+        instatedata[ikey]['data'] = namelistdata['INSTATE'][ikey]
+
+    return instatedata
+
+def read_instate(WORK_DIR):
+    instatedata = {}
+
+    if type(WORK_DIR) == str: WORK_DIR = [WORK_DIR]
+
+    CASE_ID = 0
+    shotref = ""
+
+    for iWORK_DIR in WORK_DIR:
+        iWORK_DIR_PATH = '%s' % os.path.abspath(iWORK_DIR)
+        WORK_FILES = glob('%s/i*' % (iWORK_DIR_PATH))
+        if not WORK_FILES:
+            iWORK_DIR_PATH = '%s/work/plasma_state' % os.path.abspath(iWORK_DIR)
+            WORK_FILES = glob('%s/i*' % (iWORK_DIR_PATH))
+            if not WORK_FILES:
+                iWORK_DIR_PATH = '%s' % os.path.abspath(iWORK_DIR)
+                WORK_FILES = glob('%s/i*' % (iWORK_DIR_PATH))
+        if WORK_FILES:
+           INSTATE_FILEPATH = WORK_FILES[0]
+           INSTATE_FILENAME = INSTATE_FILEPATH.replace(iWORK_DIR_PATH+'/','')
+           SHOT_NUMBER, TIME_ID = INSTATE_FILENAME[1:].split('.')
+           shot = SHOT_NUMBER + '.' + TIME_ID
+           if shot == shotref:
+               CASE_ID += 1
+           elif shotref == "":
+               shotref = shot
+               CASE_ID += 1
+           elif shotref != "" and shot != shotref:
+               shotref = shot
+               CASE_ID = 1
+           shot = SHOT_NUMBER + '.' + TIME_ID + '.%02d' % CASE_ID
+
+           instatedata[shot] = read_instate_inputs(INSTATE_FILEPATH)
+           if len(instatedata[shot]['NE_PED']['data']) == 0:
+               del instatedata[shot]
+               print(CRED   + 'READING CURRENT_INSTATE IN %s ... FAILED' % iWORK_DIR_PATH + CEND)
+           else:
+               print(CGREEN + 'READING CURRENT_INSTATE IN %s ... PASSED' % iWORK_DIR_PATH + CEND)
+        else:
+           print(CRED   + 'READING CURRENT_INSTATE IN %s ... FAILED' % iWORK_DIR_PATH + CEND)
+
+    return instatedata
 
 def read_fastran_outputs(fastranfpath):
     cdffh = Dataset(fastranfpath, mode='r')
@@ -1370,6 +1406,7 @@ def fastran_summary(fastrandata, write_to_file = True, **kwargs):
         summary['irf'] = fastrandata[shot]["irf"]['data'][-1]
         summary['inb'] = fastrandata[shot]["inb"]['data'][-1]
         summary['ibs'] = fastrandata[shot]["ibs"]['data'][-1]
+        summary['poh'] = fastrandata[shot]["poh"]['data'][-1]
 
         fNI = INI/fastrandata[shot]["ip"]['data'][-1]
         summary['fNI'] = fNI
@@ -1381,15 +1418,33 @@ def fastran_summary(fastrandata, write_to_file = True, **kwargs):
         H89 = fastrandata[shot]["tauth"]['data'][-1]/fastrandata[shot]["tau89"]['data'][-1]
         summary['H98'] = H98
 
+        nGW = fastrandata[shot]["ip"]['data'][-1]/npy.pi/fastrandata[shot]["a0"]['data'][-1]**2
+        fGW = fastrandata[shot]["nebar"]['data'][-1]/10.0/nGW
+        summary['fGW'] = fGW
+
+        summary['betan'] = fastrandata[shot]["betan"]['data'][-1]
+
         if write_to_file:
             fhand = open("%ssummary_%s.dat" % (infopath,shot),"w")
             fhand.write("%s\t%5.3f\n" % ("Q",Q))
+            fhand.write("%s\t%5.3f\n" % ("Poh",summary['poh']))
+            fhand.write("%s\t%5.3f\n" % ("Ibs",summary['ibs']))
+            fhand.write("%s\t%5.3f\n" % ("Inb",summary['inb']))
+            fhand.write("%s\t%5.3f\n" % ("Irf",summary['irf']))
             fhand.write("%s\t%5.3f\n" % ("fNI",fNI))
             fhand.write("%s\t%5.3f\n" % ("fBS",fBS))
             fhand.write("%s\t%5.3f\n" % ("H98",H98))
             fhand.write("%s\t%5.3f\n" % ("H89",H89))
+            fhand.write("%s\t%5.3f\n" % ("nGW",nGW))
+            fhand.write("%s\t%5.3f\n" % ("fGW",fGW))
+            fhand.write("%s\t%5.3f\n" % ("<ne>",fastrandata[shot]['nebar']['data'][-1]))
+            fhand.write("%s\t%5.3f\n" % ("<Te>",fastrandata[shot]['tea']['data'][-1]))
+            fhand.write("%s\t%5.3f\n" % ("<Ti>",fastrandata[shot]['tia']['data'][-1]))
+            fhand.write("%s\t%5.3f\n" % ("Prad",fastrandata[shot]['prad']['data'][-1]))
+            fhand.write("%s\t%5.3f\n" % ("Pext",npy.round(Pext)))
             fhand.write("%s\t%5.3f\n" % ("Pfus",Pfus))
             fhand.write("%s\t%5.3f\n" % ("betan",fastrandata[shot]["betan"]['data'][-1]))
+            fhand.write("%s\t%5.3f\n" % ("WTHSTR",fastrandata[shot]['we']['data'][-1]+fastrandata[shot]['wi']['data'][-1]))
             fhand.close()
 
     return summary
@@ -1471,12 +1526,13 @@ def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
                 iline = 0; nlines = 0
                 lines = []
 
-                if "yscale" in jsonfdata["figures"][ifig]["subplots"][isubfig] and jsonfdata["figures"][ifig]["subplots"][isubfig]['yscale']:
-                    yscale = jsonfdata["figures"][ifig]["subplots"][isubfig]['yscale']
+                if "yfactor" in jsonfdata["figures"][ifig]["subplots"][isubfig] and jsonfdata["figures"][ifig]["subplots"][isubfig]['yfactor']:
+                    yfactor = jsonfdata["figures"][ifig]["subplots"][isubfig]['yfactor']
                 else:                                                           
-                    yscale = 1
+                    yfactor = 1
 
                 for sim in sims[bgnsim:endsim]:
+#                   if ifig == 0 and isubfig == 0: print(fastrandata[sim]['ip']);print(fastrandata[sim].keys())
                     if groups and (sims.index(sim)+1 - bgnsim) > groups[isubfig][iline]+nlines: iline += 1; nlines = sum(groups[isubfig][:iline])
 
                     for ifield in jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"]:
@@ -1494,8 +1550,11 @@ def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
                             else:
                                 if type(jsonfdata["figures"][ifig]["subplots"][isubfig]['label2']) in [list,tuple]:
                                     try:
-                                        if groups and (sims.index(sim)+1 - bgnsim) == groups[isubfig][iline]+nlines:
-                                            llabel2.append(jsonfdata["figures"][ifig]["subplots"][isubfig]['label2'][iline])
+                                        if groups:
+                                            if len(jsonfdata["figures"][ifig]["subplots"][isubfig]['label2']) > 1:
+                                                llabel2.append(jsonfdata["figures"][ifig]["subplots"][isubfig]['label2'][sims.index(sim) - bgnsim])
+                                            elif (sims.index(sim)+1 - bgnsim) == groups[isubfig][iline]+nlines:
+                                                llabel2.append(jsonfdata["figures"][ifig]["subplots"][isubfig]['label2'][iline])
                                             lines.append(Line2D([0],[0],color=lcolor,linestyle=lstyle))
                                         elif not groups:
                                             llabel2.append(jsonfdata["figures"][ifig]["subplots"][isubfig]['label2'][sims.index(sim)])
@@ -1528,7 +1587,7 @@ def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
                                 except IndexError:
                                     llabel = ""
 
-                            axs[isubfig].plot(fastrandata[sim]['rho']['data'][:],fastrandata[sim][ifield]['data'][-1,:]/yscale,color=lcolor,linestyle=lstyle,label=llabel)
+                            axs[isubfig].plot(fastrandata[sim]['rho']['data'][:],fastrandata[sim][ifield]['data'][-1,:]/yfactor,color=lcolor,linestyle=lstyle,label=llabel)
 
                 if "legncol" in jsonfdata["figures"][ifig]["subplots"][isubfig] and jsonfdata["figures"][ifig]["subplots"][isubfig]['legncol']:
                     legncol = int(jsonfdata["figures"][ifig]["subplots"][isubfig]['legncol'])
@@ -1546,6 +1605,14 @@ def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
                     legfs2  = jsonfdata["figures"][ifig]["subplots"][isubfig]['legfs2']
                 else:
                     legfs2 = 10
+                if 'yscale' in jsonfdata["figures"][ifig]["subplots"][isubfig] and jsonfdata["figures"][ifig]["subplots"][isubfig]['yscale']:
+                    yscale  = jsonfdata["figures"][ifig]["subplots"][isubfig]['yscale']
+                else:
+                    yscale = 'linear'
+                if 'xscale' in jsonfdata["figures"][ifig]["subplots"][isubfig] and jsonfdata["figures"][ifig]["subplots"][isubfig]['xscale']:
+                    xscale  = jsonfdata["figures"][ifig]["subplots"][isubfig]['xscale']
+                else:
+                    xscale = 'linear'
 
                 axs[isubfig].set_title( jsonfdata["figures"][ifig]["subplots"][isubfig]["title"],fontsize="10")
                 if not jsonfdata["figures"][ifig]["subplots"][isubfig]["ylabel"]:
@@ -1594,6 +1661,10 @@ def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
                    axs[isubfig].xaxis.set_label_position("top")
                 if jsonfdata["figures"][ifig]["subplots"][isubfig]["ylimit"]:
                    axs[isubfig].set_ylim(jsonfdata["figures"][ifig]["subplots"][isubfig]["ylimit"])
+                if jsonfdata["figures"][ifig]["subplots"][isubfig]["xlimit"]:
+                   axs[isubfig].set_xlim(jsonfdata["figures"][ifig]["subplots"][isubfig]["xlimit"])
+                axs[isubfig].set_xscale(xscale.strip())
+                axs[isubfig].set_yscale(yscale.strip())
 
             if jsonfdata["figures"][ifig]["title"]:
                 fig.suptitle(jsonfdata["figures"][ifig]["title"])
@@ -1794,6 +1865,10 @@ def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
 
 if __name__ == "__main__":
    parser = argparse.ArgumentParser()
+   parser.add_argument('--lh',      '-lh',           action='store_const',const=1,help='Lower-Hybrid HCD Model.')
+   parser.add_argument('--hc',      '-hc',           action='store_const',const=1,help='Helicon HCD Model.')
+   parser.add_argument('--ic',      '-ic',           action='store_const',const=1,help='Ion-Cyclotron HCD Model.')
+   parser.add_argument('--ec',      '-ec',           action='store_const',const=1,help='Electron-Cyclotron HCD Model.')
    parser.add_argument('--plot',    '-plot',         action='store_const',const=1,help='Plot FASTRAN ouputs.')
    parser.add_argument('--dcon',    '-dcon',         action='store_const',const=1,help='Calculate the beta values using DCON stability code.')
    parser.add_argument('--eped',    '-eped',         action='store_const',const=1,help='Read and Plot EPED Simulation Output file eped_state.nc.')
@@ -1814,6 +1889,10 @@ if __name__ == "__main__":
 
    if parser.parse_args():
        args    = parser.parse_args()
+       lh      = args.lh
+       hc      = args.hc
+       ec      = args.ec
+       ic      = args.ic
        plot    = args.plot
        dcon    = args.dcon
        eped    = args.eped
@@ -1834,6 +1913,11 @@ if __name__ == "__main__":
   #if not (fields or plot or figspec or summary or state or newplot or getbeta or genray or toray or cql3d or eped): plot = True
    if not (fastran or state or genray or toray or cql3d or eped or nubeam or geqdsk): fastran = True
    if fastran and not (summary or figspec or plot or fields): plot = True
+
+   if   lh: hcd_model = "lh"
+   elif hc: hcd_model = "hc"
+   elif ec: hcd_model = "ec"
+   elif ic: hcd_model = "ic"
 
    plotparam = {}
    if newplot: plotparam['newplot'] = True
@@ -1879,7 +1963,13 @@ if __name__ == "__main__":
              else:
                  ikeys   = list(fastrandata.keys())
                  for ikey in ikeys:
-                    print(fastrandata[ikey]['ip']['data'][-1])
+                   #print(ikey,fastrandata[ikey]['poh']['data'][-1],fastrandata[ikey]['ip']['data'][-1])
+                   #print(ikey,fastrandata[ikey]['j_oh']['data'][-1,10],fastrandata[ikey]['poh']['data'][-1],fastrandata[ikey]['ip']['data'][-1])
+                    print(ikey,fastrandata[ikey]['betan']['data'][-1])
+                 #  if abs(fastrandata[ikey]['j_oh']['data'][-1,10]) < 0.1:
+                 #      print(ikey,fastrandata[ikey]['j_oh']['data'][-1,10],fastrandata[ikey]['poh']['data'][-1],fastrandata[ikey]['ip']['data'][-1])
+                   #print(fastrandata[ikey]['ip']['data'][-1])
+                   #print(fastrandata[ikey]['zeff']['data'][-1])
                 #ikey   = list(fastrandata.keys())[0]
                 #fields = list(fastrandata[ikey].keys())
                 #for ifield in fields:
@@ -1890,8 +1980,12 @@ if __name__ == "__main__":
                  returnvals  = plot_fastran_outputs(fastrandata,plotparam=plotparam)
 
    if genray:
-        genraydata = read_genray_outputs(fpath=inputs)
-       #genraydata = read_genray(WORK_DIR=inputs)
+       #genraydata = read_genray_outputs(fpath=inputs)
+       #print(genraydata['power_inj_total']['data'],genraydata['powtot_e']['data'])
+        genraydata = read_genray(WORK_DIR=inputs,model=hcd_model.strip())
+        sims = list(genraydata.keys())
+        for isim in sims:
+            print(genraydata[isim]['power_inj_total']['data'],genraydata[isim]['powtot_e']['data'])
        #if genraydata:
        #    returnvals  = plot_genray_outputs(genraydata,plotparam=plotparam)
 
@@ -1912,14 +2006,15 @@ if __name__ == "__main__":
         nubeamdata = read_nubeam(WORK_DIR=inputs)
         sims = list(nubeamdata.keys())
         for isim in sims:
-            print('rtcena = %7.4f, xlbtna = %7.4f, xybsca = %7.4f, xlbapa = %7.4f, xybapa = %7.4f, foclra = %7.4f, foclza = %7.4f, divra = %7.4f, divza = %7.4f' %
-                  (
-                      nubeamdata[isim]['rtcena']['data'][0], nubeamdata[isim]['xlbtna']['data'][0], nubeamdata[isim]['xybsca']['data'][0],
-                      nubeamdata[isim]['xlbapa']['data'][0], nubeamdata[isim]['xybapa']['data'][0],
-                      nubeamdata[isim]['foclra']['data'][0], nubeamdata[isim]['foclza']['data'][0],
-                      nubeamdata[isim]['divra']['data'][0],  nubeamdata[isim]['divza']['data'][0]
-                  )
-                 )
+            print(nubeamdata[isim]['pinja']['data'][0])
+       #    print('rtcena = %7.4f, xlbtna = %7.4f, xybsca = %7.4f, xlbapa = %7.4f, xybapa = %7.4f, foclra = %7.4f, foclza = %7.4f, divra = %7.4f, divza = %7.4f' %
+       #          (
+       #              nubeamdata[isim]['rtcena']['data'][0], nubeamdata[isim]['xlbtna']['data'][0], nubeamdata[isim]['xybsca']['data'][0],
+       #              nubeamdata[isim]['xlbapa']['data'][0], nubeamdata[isim]['xybapa']['data'][0],
+       #              nubeamdata[isim]['foclra']['data'][0], nubeamdata[isim]['foclza']['data'][0],
+       #              nubeamdata[isim]['divra']['data'][0],  nubeamdata[isim]['divza']['data'][0]
+       #          )
+       #         )
        #for ikey in list(nubeamdata.keys()):
        #    print(ikey,nubeamdata[ikey]['long_name'],npy.shape(nubeamdata[ikey]['data']))
        #nubeamdata = read_nubeam(WORK_DIR=inputs)
