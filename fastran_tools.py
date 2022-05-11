@@ -63,6 +63,66 @@ def read_dcon(fn_log):
     if "betan_ideal_wall"   not in locals(): betan_ideal_wall = 0.0
     return betan_ideal_nowall,betan_ideal_wall
 
+def dcon_bas_file_data(iwall = 20.0):
+    bas_text  = ''
+    bas_text += 'read "d3.bas"\n'
+    bas_text += 'read "sewall.bas"\n'
+    bas_text += 'character*128 eqdsk\n'
+    bas_text += 'character*32 fileid\n'
+    bas_text += 'character*32 inv_save_file\n'
+    bas_text += 'eqdsk = "eqdsk"\n'
+    bas_text += 'd3(eqdsk, 0, 0.995, 1, 360, 0.001)\n'
+    bas_text += 'residj\n'
+    bas_text += 'fileid = trim(shotName) // "_" // format(shotTime*1e3, -4, 0, 1)\n'
+    bas_text += 'inv_save_file = trim(fileid) // "_inv.sav"\n'
+    bas_text += 'restore ^inv_save_file\n'
+    bas_text += 'sewall\n'
+    bas_text += 'real pmult_stable = 1.e-4\n'
+    bas_text += 'real pmult_unstable = 1.e4\n'
+    bas_text += 'real pstep_min = 0.9\n'
+    bas_text += 'real pstep_max = 1.4\n'
+    bas_text += 'real pstep\n'
+    bas_text += 'real pmult = 1.0\n'
+    bas_text += 'real pmult_k(100), betan_k(100), li_k(100), wtot_k(100)\n'
+    bas_text += 'integer k = 0\n'
+    bas_text += 'logical stable\n'
+    bas_text += 'real psave0 = psave\n'
+    bas_text += 'real jtsrf0 = jtsrf\n'
+    bas_text += 'real qsrf0 = qsrf\n'
+    bas_text += 'character*32 file_check\n'
+    bas_text += 'dcn.nn = 1\n'
+    bas_text += 'dcn.ishape = 6\n'
+    bas_text += 'dcn.a = %5.3f\n' % iwall
+    bas_text += 'dcn.delta_mlow = 6\n'
+    bas_text += 'dcn.delta_mhigh = 27\n'
+    bas_text += 'while (pmult_unstable/pmult_stable > 1.05)\n'
+    bas_text += '    k = k + 1\n'
+    bas_text += '    psave = pmult*psave0\n'
+    bas_text += '    teq_inv\n'
+    bas_text += '    call dcon\n'
+    bas_text += '    stable = (et(1) > 0)\n'
+    bas_text += '    betan_k(k) = ctroy\n'
+    bas_text += '    li_k(k)    = li(1)\n'
+    bas_text += '    wtot_k(k)  = et(1)\n'
+    bas_text += '    pmult_k(k) = pmult\n'
+    bas_text += '    if (stable) then\n'
+    bas_text += '      # Increase pressure\n'
+    bas_text += '      pstep = min(1+0.5*( pmult_unstable - pmult)/pmult, pstep_max)\n'
+    bas_text += '      pmult_stable = pmult\n'
+    bas_text += '    else\n'
+    bas_text += '      # Decrease pressure\n'
+    bas_text += '      pstep = max(1+ 0.5*( pmult_stable - pmult)/pmult, pstep_min)\n'
+    bas_text += '      pmult_unstable = pmult\n'
+    bas_text += '    endif\n'
+    bas_text += '    pmult = pmult*pstep\n'
+    bas_text += '    remark "Next pressure multiplier"\n'
+    bas_text += '    k\n'
+    bas_text += '    pmult\n'
+    bas_text += '  endwhile\n'
+    bas_text += '  remark "betaN_ideal-nowall: " // format(betan_k(k),5, 2, 1)\n'
+    bas_text += '  quit(0)\n'
+
+    return bas_text
 
 def calc_dcon_betan(WORK_DIR):
     dconfpath = "/global/project/projectdirs/atom/users/ehab/DCONfiles"
@@ -133,7 +193,10 @@ def calc_dcon_betan(WORK_DIR):
                betaiwpath = shotpath+"/"+betaiwfname
                if not os.path.isdir(betaiwpath):
                   os.system('mkdir '+betaiwpath)
-               os.system('cp %s/%s.bas %s/.'         % (dconfpath,betaiwfname,betaiwpath))
+              #os.system('cp %s/%s.bas %s/.'         % (dconfpath,betaiwfname,betaiwpath))
+               fhandle = open('%s/%s.bas'            % (betaiwpath,betaiwfname), "w")
+               fhandle.write(dcon_bas_file_data(iwall = ind))
+               fhandle.close()
                os.system('cp %s %s/eqdsk'            % (geqdskfpath,betaiwpath))
                os.chdir('%s'                         % (betaiwpath))
                scale_geqdsk_file(cur_eqdsk_file="eqdsk",R0_scale=1.7,B0_scale=2.0)
