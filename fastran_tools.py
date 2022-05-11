@@ -68,6 +68,12 @@ def calc_dcon_betan(WORK_DIR):
     dconfpath = "/global/project/projectdirs/atom/users/ehab/DCONfiles"
     dconfexec = os.path.abspath("/global/common/software/atom/cori/binaries/dcon/bin/caltrans")
 
+    os.environ["CPU"]             = "LINUX"
+    os.environ["GCC_PATH"]        = "/opt/gcc/11.2.0"
+    os.environ["NCARG_ROOT"]      = "/global/common/cori/software/ncl/6.5.0"
+    os.environ["CORSICA_PFB"]     = "/global/common/software/atom/cori/binaries/dcon/scripts"
+    os.environ["CORSICA_SCRIPTS"] = "/global/common/software/atom/cori/binaries/dcon/scripts"
+
     reportpath = os.path.abspath(".")+"/fastran_report/"
     if not os.path.isdir(reportpath):
        os.system('mkdir '+reportpath)
@@ -88,6 +94,7 @@ def calc_dcon_betan(WORK_DIR):
     fCURRENT_FASTRAN = [False for i in range(len(WORK_DIR))]
 
     mainpath = os.path.abspath(".")
+    CASE_ID = max(CASE_ID,len(glob(mainpath+"/fastran_report/DCON/*")))
 
     for iWORK_DIR in WORK_DIR:
         iWORK_DIR_PATH = os.path.abspath(iWORK_DIR)
@@ -131,8 +138,8 @@ def calc_dcon_betan(WORK_DIR):
                os.chdir('%s'                         % (betaiwpath))
                scale_geqdsk_file(cur_eqdsk_file="eqdsk",R0_scale=1.7,B0_scale=2.0)
                print(CGREEN + "Finding Stability Factor for %s.bas in %s" % (betaiwfname,iWORK_DIR) + CEND)
-              #os.system("%s %s.bas "    % (dconfexec,betaiwfname))
-               os.system("%s %s.bas >> xdcon.log"    % (dconfexec,betaiwfname))
+               os.system("%s %s.bas "    % (dconfexec,betaiwfname))
+              #os.system("%s %s.bas >> xdcon.log"    % (dconfexec,betaiwfname))
 
            betanwpath = shotpath+"/"+"betanw"
            if not os.path.isdir(betanwpath):
