@@ -128,11 +128,15 @@ def calc_dcon_betan(WORK_DIR):
     dconfpath = "/global/project/projectdirs/atom/users/ehab/DCONfiles"
     dconfexec = os.path.abspath("/global/common/software/atom/cori/binaries/dcon/bin/caltrans")
 
-    os.environ["CPU"]             = "LINUX"
-    os.environ["GCC_PATH"]        = "/opt/gcc/11.2.0"
-    os.environ["NCARG_ROOT"]      = "/global/common/cori/software/ncl/6.5.0"
-    os.environ["CORSICA_PFB"]     = "/global/common/software/atom/cori/binaries/dcon/scripts"
-    os.environ["CORSICA_SCRIPTS"] = "/global/common/software/atom/cori/binaries/dcon/scripts"
+    os.environ["CPU"]               = "LINUX"
+    os.environ["DCON"]              = "/global/common/software/atom/cori/binaries/dcon/dcon"
+    os.environ["GCC_PATH"]          = "/opt/gcc/11.2.0"
+    os.environ["NCARG_ROOT"]        = "/global/common/cori/software/ncl/6.5.0"
+    os.environ["CORSICA_PFB"]       = "/global/common/software/atom/cori/binaries/dcon/scripts"
+    os.environ["CORSICA_ROOT"]      = "/global/common/software/atom/cori/binaries/dcon"
+    os.environ["CORSICA_SCRIPTS"]   = "/global/common/software/atom/cori/binaries/dcon/scripts"
+    os.environ["CALTRANS_BIN_DIR"]  = "/global/common/software/atom/cori/binaries/dcon/bin"
+    os.environ["CALTRANS_BIN_NAME"] = "caltrans"
 
     reportpath = os.path.abspath(".")+"/fastran_report/"
     if not os.path.isdir(reportpath):
@@ -187,13 +191,16 @@ def calc_dcon_betan(WORK_DIR):
            shotpath = mainpath+"/fastran_report/DCON/"+shot
            if not os.path.isdir(shotpath):
               os.system('mkdir '+shotpath)
+           if os.path.isfile(shotpath+"/dcon.dat"):
+               fcollect = open(shotpath+"/dcon.dat", "a")
+           else:
+               fcollect = open(shotpath+"/dcon.dat", "x")
 
            for ind in npy.arange(0.4,2.2,0.4):
                betaiwfname = "betaiw_%dp%d" % (int(ind),int(round((10*(ind-int(ind))))))
                betaiwpath = shotpath+"/"+betaiwfname
                if not os.path.isdir(betaiwpath):
                   os.system('mkdir '+betaiwpath)
-              #os.system('cp %s/%s.bas %s/.'         % (dconfpath,betaiwfname,betaiwpath))
                fhandle = open('%s/%s.bas'            % (betaiwpath,betaiwfname), "w")
                fhandle.write(dcon_bas_file_data(iwall = ind))
                fhandle.close()
@@ -201,20 +208,27 @@ def calc_dcon_betan(WORK_DIR):
                os.chdir('%s'                         % (betaiwpath))
                scale_geqdsk_file(cur_eqdsk_file="eqdsk",R0_scale=1.7,B0_scale=2.0)
                print(CGREEN + "Finding Stability Factor for %s.bas in %s" % (betaiwfname,iWORK_DIR) + CEND)
-               os.system("%s %s.bas "    % (dconfexec,betaiwfname))
-              #os.system("%s %s.bas >> xdcon.log"    % (dconfexec,betaiwfname))
+               os.system("%s %s.bas >> xdcon.log"    % (dconfexec,betaiwfname))
+               fbetanw,fbetaiw = read_dcon("xdcon.log")
+               fcollect.write("betan_iwall (d = %5.3fa) = %5.3f\n" % (ind,max(fbetanw,fbetaiw)))
 
            betanwpath = shotpath+"/"+"betanw"
            if not os.path.isdir(betanwpath):
               os.system('mkdir '+betanwpath)
-           os.system('cp %s/betanw.bas %s/.'         % (dconfpath,betanwpath))
+           fhandle = open('%s/betanw.bas'            % (betanwpath), "w")
+           fhandle.write(dcon_bas_file_data(iwall = 20.0))
+           fhandle.close()
            os.system('cp %s %s/eqdsk'                % (geqdskfpath,betanwpath))
            os.chdir('%s'                             % (betanwpath))
            scale_geqdsk_file(cur_eqdsk_file="eqdsk",R0_scale=1.7,B0_scale=2.0)
            print(CGREEN + "Finding Stability Factor for betanw.bas" + CEND)
            os.system("%s betanw.bas >> xdcon.log"    % (dconfexec))
+           fbetanw,fbetaiw = read_dcon("xdcon.log")
+           fcollect.write("betan_nwall (d = %5.3fa) = %5.3f\n" % (ind,fbetanw))
 
-           os.chdir('%s'                         % (mainpath))
+           fcollect.close()
+
+           os.chdir('%s'                             % (mainpath))
            shots.append(shot)
 
     return 1
