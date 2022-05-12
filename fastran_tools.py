@@ -224,7 +224,7 @@ def calc_dcon_betan(WORK_DIR):
            print(CGREEN + "Finding Stability Factor for betanw.bas" + CEND)
            os.system("%s betanw.bas >> xdcon.log"    % (dconfexec))
            fbetanw,fbetaiw = read_dcon("xdcon.log")
-           fcollect.write("betan_nwall (d = %5.3fa) = %5.3f\n" % (ind,fbetanw))
+           fcollect.write("betan_nwall (d = infty) = %5.3f\n" % (fbetanw))
 
            fcollect.close()
 
