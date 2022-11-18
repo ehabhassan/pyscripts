@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import os
 import re
 import sys
@@ -14,6 +16,7 @@ import matplotlib.gridspec as gds
 
 from glob                            import glob
 from netCDF4                         import Dataset
+from scipy.signal                    import find_peaks
 from scipy.optimize                  import curve_fit
 from scipy.interpolate               import CubicSpline
 from matplotlib.lines                import Line2D
@@ -34,7 +37,7 @@ CYELLOW = '\33[33m'
 #    if rand_color not in colors: colors.append(rand_color); icolors += 1
 #    if icolors > ncolors: break
 
-colors = ['red','blue','green','orange','black','cyan','sienna','magenta','teal','olive','steelblue','deeppink','indigo','purple','maroon','lime']
+colors = ['red','blue','green','orange','sienna','magenta','cyan','teal','olive','steelblue','deeppink','indigo','purple','maroon','lime','black']
 colors.extend(['gold','lawngreen','sandybrown','cadetblue','deepskyblue'])
 colors.extend(['#0000FF','#FF4040','#8A2BE2','#458B00','#E3CF57','#8EE5EE','#FF7F24','#FF1493','#97FFFF','#FFD700','#FF69B4','#27408B'])
 colors.extend(['#FFF68F','#7A8B8B','#FFAEB9','#EE9572','#20B2AA','#B3EE3A','#FFBBFF','#8E8E38','#FF8247','#EE82EE','#FFFF00','#8B8B00'])
@@ -51,7 +54,6 @@ def listndims(mylist):
     for i in mylist:
         if type(i)  in [list,tuple]: maxdims += 1; break
     return maxdims
-
 
 def read_dcon(fn_log):
     for line in open(fn_log,"r").readlines():
@@ -224,7 +226,7 @@ def calc_dcon_betan(WORK_DIR):
            print(CGREEN + "Finding Stability Factor for betanw.bas" + CEND)
            os.system("%s betanw.bas >> xdcon.log"    % (dconfexec))
            fbetanw,fbetaiw = read_dcon("xdcon.log")
-           fcollect.write("betan_nwall (d = infty) = %5.3f\n" % (fbetanw))
+           fcollect.write("betan_nwall (d = infnty) = %5.3f\n" % (fbetanw))
 
            fcollect.close()
 
@@ -539,8 +541,10 @@ def plot_geqdsk_outputs(geqdskdata, plotparam={}):
     reportpath = os.path.abspath(".")+"/fastran_report/"
     if not os.path.isdir(reportpath):
        os.system('mkdir '+reportpath)
-
     figurepath = os.path.abspath(".")+"/fastran_report/Figures/"
+    if not os.path.isdir(figurepath):
+       os.system('mkdir '+figurepath)
+    figurepath = os.path.abspath(".")+"/fastran_report/Figures/GEQDSK/"
     if not os.path.isdir(figurepath):
        os.system('mkdir '+figurepath)
 
@@ -608,7 +612,6 @@ def plot_geqdsk_outputs(geqdskdata, plotparam={}):
     return 1
 
 
-       
 def read_eped_outputs(fpath):
    #if os.path.isfile(fpath):
    #    print(CGREEN + "FINDING EPED OUTPUT AT %s: PASSED" % (fpath) + CEND)
@@ -755,8 +758,10 @@ def plot_eped_outputs(epeddata, plotparam={}):
     reportpath = os.path.abspath(".")+"/fastran_report/"
     if not os.path.isdir(reportpath):
        os.system('mkdir '+reportpath)
-
     figurepath = os.path.abspath(".")+"/fastran_report/Figures/"
+    if not os.path.isdir(figurepath):
+       os.system('mkdir '+figurepath)
+    figurepath = os.path.abspath(".")+"/fastran_report/Figures/EPED/"
     if not os.path.isdir(figurepath):
        os.system('mkdir '+figurepath)
 
@@ -769,12 +774,49 @@ def plot_eped_outputs(epeddata, plotparam={}):
     if 'figspec' in plotparam:  figspec = plotparam['figspec']
     else:                       figspec = False
 
+    if 'collect' in plotparam:  collect = plotparam['collect']
+    else:                       collect = False
+
+    if 'plabels' in plotparam:  plabels = plotparam['plabels']
+    else:                       plabels = False
+
     epedfigs = PdfPages(figurepath+'eped_plots.pdf')
 
+    if collect:
+        gammaBetanfig = plt.figure("GAMMA PROFILES Betan",dpi=200)
+        figgrd = int("%d%d%d" % (1,1,1))
+        gammaBetanaxs = gammaBetanfig.add_subplot(figgrd)
+
+        proffig = plt.figure("EPED PROFILES",dpi=200)
+        teaxs = proffig.add_subplot(321)
+        tiaxs = proffig.add_subplot(323)
+        neaxs = proffig.add_subplot(325)
+        paxs  = proffig.add_subplot(322)
+        jaxs  = proffig.add_subplot(324)
+        qaxs  = proffig.add_subplot(326)
+
+        gammaTepedfig = plt.figure("GAMMA PROFILES Teped",dpi=200)
+        gammaTepedaxs = [None for i in range(9)]
+        for sim in sims:
+            modes = epeddata[sim]["nmodes"]['data']
+            for n in range(len(modes)):
+                figgrd = int("%d%d%d" % (3,3,n+1))
+                gammaTepedaxs[n] = gammaTepedfig.add_subplot(figgrd)
+
     for sim in sims:
-        print(CBLUE + "PLOTTING %s" % sim + CEND)
-        modes = epeddata[sim]["nmodes"]['data']
         gamma = epeddata[sim]["gamma_PB"]['data']
+        gamma_all = npy.array([ max(max(igamma),1.0e-30) for igamma in gamma ])
+        gamma_peaks_ind = find_peaks(gamma_all)[0]
+        gamma_peaks_val = gamma_all[gamma_peaks_ind]
+        gamma_sum_below_1 = sum(gamma_peaks_val[gamma_peaks_val <  1.0])
+        gamma_sum_above_1 = sum(gamma_peaks_val[gamma_peaks_val >= 1.0])
+        if gamma_sum_below_1 > gamma_sum_above_1:
+            print(CRED  + "SKIPPED %s" % sim + CEND)
+            continue
+        else:
+            print(CBLUE + "PLOTTING %s" % sim + CEND)
+
+        modes = epeddata[sim]["nmodes"]['data']
         teped = epeddata[sim]["teped_list"]['data']
         betan = epeddata[sim]["eq_betanped"]['data']
         kEPED = epeddata[sim]["k_EPED"]['data'][:][0]
@@ -783,105 +825,81 @@ def plot_eped_outputs(epeddata, plotparam={}):
 
         # PLOTTING EPED PROFILES
         k_EPED = epeddata[sim]['k_EPED']['data'][-1]
-        rhok = [x for x in epeddata[sim]['profile_rho']['data'][k_EPED,:] if x != 0.0]
-       #rhos = [x for x in epeddata[sim]['profile_rho']['data'][0,:] if x != 0.0]
-       #rhoe = [x for x in epeddata[sim]['profile_rho']['data'][-1,:] if x != 0.0]
+        rhok = [x for x in epeddata[sim]['profile_rho']['data'][k_EPED,1:] if x != 0.0]
 
-        proffig = plt.figure("EPED PROFILES",dpi=200)
-        teaxs = proffig.add_subplot(321)
-        lcolor = colors[0]
-        lstyle = styles[0]
-        prof = [x for x in epeddata[sim]['profile_Te']['data'][k_EPED,:]  if x != 0.0]
-        teaxs.plot(rhok,prof,color=lcolor,linestyle=lstyle)
-        teaxs.axvline(1.0-epeddata[sim]['wid_E1']['data'][-1],   ls="--",color="r")
-        teaxs.axvline(1.0-epeddata[sim]['widtop_E1']['data'][-1],ls="--",color="b")
-        teaxs.set_xticks([])
-        teaxs.set_ylabel("$T_{e}$")
-        teaxs.set_xlabel("$\\rho$")
-        teaxs.set_xticks([])
+        if collect:
+            lcolor = colors[0]
+            lstyle = styles[sims.index(sim)]
+            if plabels:
+                try:
+                    llabel = plabels[sims.index(sim)]
+                except IndexError:
+                    llabel = ""
+            else:       
+                    llabel = sim
+        else:
+            lcolor = colors[0]
+            lstyle = styles[0]
+            llabel = ""
 
-        tiaxs = proffig.add_subplot(323)
-        lcolor = colors[0]
-        lstyle = styles[0]
-        prof = [x for x in epeddata[sim]['profile_Ti']['data'][k_EPED,:]  if x != 0.0]
-        tiaxs.plot(rhok,prof,color=lcolor,linestyle=lstyle)
-        tiaxs.axvline(1.0-epeddata[sim]['wid_E1']['data'][-1],   ls="--",color="r")
-        tiaxs.axvline(1.0-epeddata[sim]['widtop_E1']['data'][-1],ls="--",color="b")
-        tiaxs.set_xticks([])
-        tiaxs.set_ylabel("$T_{i}$")
-        tiaxs.set_xlabel("$\\rho$")
-        teaxs.set_xticks([])
+            gammaBetanfig = plt.figure("GAMMA PROFILES Betan",dpi=200)
+            figgrd = int("%d%d%d" % (1,1,1))
+            gammaBetanaxs = gammaBetanfig.add_subplot(figgrd)
 
-        neaxs = proffig.add_subplot(325)
-        lcolor = colors[0]
-        lstyle = styles[0]
-        prof = [x for x in epeddata[sim]['profile_ne']['data'][k_EPED,:]  if x != 0.0]
-        neaxs.plot(rhok,prof,color=lcolor,linestyle=lstyle)
-        neaxs.axvline(1.0-epeddata[sim]['wid_E1']['data'][-1],   ls="--",color="r")
-        neaxs.axvline(1.0-epeddata[sim]['widtop_E1']['data'][-1],ls="--",color="b")
-        neaxs.set_ylabel("$N_e$")
-        neaxs.set_xlabel("$\\rho_{PED}$")
+            proffig = plt.figure("EPED PROFILES",dpi=200)
+            teaxs = proffig.add_subplot(321)
+            tiaxs = proffig.add_subplot(323)
+            neaxs = proffig.add_subplot(325)
+            paxs  = proffig.add_subplot(322)
+            jaxs  = proffig.add_subplot(324)
+            qaxs  = proffig.add_subplot(326)
 
-        paxs = proffig.add_subplot(322)
-        lcolor = colors[0]
-        lstyle = styles[0]
-        prof = [x for x in epeddata[sim]['profile_ptot']['data'][k_EPED,:]  if x != 0.0]
-        paxs.plot(rhok,prof,color=lcolor,linestyle=lstyle)
-        paxs.axvline(1.0-epeddata[sim]['wid_E1']['data'][-1],   ls="--",color="r")
-        paxs.axvline(1.0-epeddata[sim]['widtop_E1']['data'][-1],ls="--",color="b")
-        paxs.set_ylabel("$P_{TOT}$")
-        paxs.set_xlabel("$\\rho_{PED}$")
-        paxs.yaxis.tick_right()
-        paxs.yaxis.set_label_position("right")
-        paxs.set_xticks([])
+            gammaTepedfig = plt.figure("GAMMA PROFILES Teped",dpi=200)
+            gammaTepedaxs = [None for i in range(9)]
+            for sim in sims:
+                modes = epeddata[sim]["nmodes"]['data']
+                for n in range(len(modes)):
+                    figgrd = int("%d%d%d" % (3,3,n+1))
+                    gammaTepedaxs[n] = gammaTepedfig.add_subplot(figgrd)
 
-        jaxs = proffig.add_subplot(324)
-        lcolor = colors[0]
-        lstyle = styles[0]
-        prof = [x for x in epeddata[sim]['profile_jtot']['data'][k_EPED,:]  if x != 0.0]
-        jaxs.plot(rhok,prof,color=lcolor,linestyle=lstyle)
-        jaxs.axvline(1.0-epeddata[sim]['wid_E1']['data'][-1],   ls="--",color="r")
-        jaxs.axvline(1.0-epeddata[sim]['widtop_E1']['data'][-1],ls="--",color="b")
-        jaxs.set_ylabel("$J_{TOT}$")
-        jaxs.set_xlabel("$\\rho$")
-        jaxs.yaxis.tick_right()
-        jaxs.yaxis.set_label_position("right")
-        jaxs.set_xticks([])
+        prof = epeddata[sim]['profile_Te']['data'][k_EPED,:len(rhok)]
+        teaxs.plot(rhok,prof,color=lcolor,linestyle=lstyle,label=llabel)
+        teaxs.axvline(1.0-epeddata[sim]['wid_E1']['data'][-1],   ls=lstyle,color="g")
+        teaxs.axvline(1.0-epeddata[sim]['widtop_E1']['data'][-1],ls=lstyle,color="b")
 
-        qaxs = proffig.add_subplot(326)
-        lcolor = colors[0]
-        lstyle = styles[0]
-        prof = [x for x in epeddata[sim]['profile_q']['data'][k_EPED,:]  if x != 0.0]
-        qaxs.plot(rhok,prof,color=lcolor,linestyle=lstyle)
-        qaxs.axvline(1.0-epeddata[sim]['wid_E1']['data'][-1],   ls="--",color="r")
-        qaxs.axvline(1.0-epeddata[sim]['widtop_E1']['data'][-1],ls="--",color="b")
-        qaxs.set_ylabel("$q$")
-        qaxs.set_xlabel("$\\rho$")
-        qaxs.yaxis.tick_right()
-        qaxs.yaxis.set_label_position("right")
+        prof = epeddata[sim]['profile_Ti']['data'][k_EPED,:len(rhok)]
+        tiaxs.plot(rhok,prof,color=lcolor,linestyle=lstyle,label=llabel)
+        tiaxs.axvline(1.0-epeddata[sim]['wid_E1']['data'][-1],   ls=lstyle,color="g")
+        tiaxs.axvline(1.0-epeddata[sim]['widtop_E1']['data'][-1],ls=lstyle,color="b")
 
-        title_txt_01 = "$I_P$ = %5.3f, $N_{e,ped}$ = %5.3f, $\\beta_n$ = %5.3f, $B_{T}$ = %5.3f" \
-                     % (epeddata[sim]["ip"]['data'], epeddata[sim]["neped"]['data'], epeddata[sim]["betan"]['data'], epeddata[sim]["bt"]['data'])
-        title_txt_02 = "$\\kappa$ = %5.3f, $\\delta$ = %5.3f, $R$ = %5.3f, $a$ = %5.3f" \
-                     % (epeddata[sim]["kappa"]['data'], epeddata[sim]["delta"]['data'], epeddata[sim]["r"]['data'], epeddata[sim]["a"]['data'])
-        proffig.suptitle("EPED PROFILES\n%s\n%s" % (title_txt_01,title_txt_02))
-        proffig.tight_layout(rect=[0.0, 0.0, 1.0, 1.0])
-        proffig.subplots_adjust(wspace=0,hspace=0)
-        epedfigs.savefig(proffig)
-        if savepng: proffig.savefig(figurepath+"eped_tpped_%04d.png" % sims.index(sim))
-        plt.close(proffig)
+        prof = epeddata[sim]['profile_ne']['data'][k_EPED,:len(rhok)]
+        neaxs.plot(rhok,prof,color=lcolor,linestyle=lstyle,label=llabel)
+        neaxs.axvline(1.0-epeddata[sim]['wid_E1']['data'][-1],   ls=lstyle,color="g")
+        neaxs.axvline(1.0-epeddata[sim]['widtop_E1']['data'][-1],ls=lstyle,color="b")
 
+        prof = epeddata[sim]['profile_ptot']['data'][k_EPED,:len(rhok)]
+        paxs.plot(rhok,prof,color=lcolor,linestyle=lstyle,label=llabel)
+        paxs.axvline(1.0-epeddata[sim]['wid_E1']['data'][-1],   ls=lstyle,color="g")
+        paxs.axvline(1.0-epeddata[sim]['widtop_E1']['data'][-1],ls=lstyle,color="b")
 
-        gamma_all = npy.array([ max(max(igamma),1.0e-30) for igamma in gamma ])
-        k_start = 0
-        k_EPED_0 = k_start+npy.where(gamma[k_start:] > 1.0)[0][0]
+        prof = epeddata[sim]['profile_jtot']['data'][k_EPED,:len(rhok)]
+        jaxs.plot(rhok,prof,color=lcolor,linestyle=lstyle,label=llabel)
+        jaxs.axvline(1.0-epeddata[sim]['wid_E1']['data'][-1],   ls=lstyle,color="g")
+        jaxs.axvline(1.0-epeddata[sim]['widtop_E1']['data'][-1],ls=lstyle,color="b")
+
+        prof = epeddata[sim]['profile_q']['data'][k_EPED,:len(rhok)]
+        qaxs.plot(rhok,prof,color=lcolor,linestyle=lstyle,label=llabel)
+        qaxs.axvline(1.0-epeddata[sim]['wid_E1']['data'][-1],   ls=lstyle,color="g")
+        qaxs.axvline(1.0-epeddata[sim]['widtop_E1']['data'][-1],ls=lstyle,color="b")
+
+        k_start  = 0
+        k_EPED_0 = k_start
+        k_index = npy.where(gamma[k_start:] > 1.0)
+        if len(k_index[0]):
+           k_EPED_0 += k_index[0][0]
 
         # PLOTTING GAMMA PROFILES
-        gammaTepedfig = plt.figure("GAMMA PROFILES Teped",dpi=200)
-        gammaTepedaxs = [None for i in range(9)]
         for n in range(len(modes)):
-            figgrd = int("%d%d%d" % (3,3,n+1))
-            gammaTepedaxs[n] = gammaTepedfig.add_subplot(figgrd)
             lstyle = styles[n]
             gammaTepedaxs[n].plot(teped,gamma_all,  color='r', linestyle = "-")
             gammaTepedaxs[n].plot(teped,gamma[:,n], color='k', linestyle = "--", label="mode = %d" % modes[n])
@@ -901,39 +919,158 @@ def plot_eped_outputs(epeddata, plotparam={}):
                 gammaTepedaxs[n].yaxis.set_ticklabels([])
             gammaTepedaxs[n].legend()
 
-        title_txt_01 = "$I_P$ = %3.2f, $N_{e,ped}$ = %3.2f, $\\beta_n$ = %3.2f, $B_{T}$ = %3.2f" \
-                     % (epeddata[sim]["ip"]['data'], epeddata[sim]["neped"]['data'], epeddata[sim]["betan"]['data'], epeddata[sim]["bt"]['data'])
-        title_txt_02 = "$\\kappa$ = %3.2f, $\\delta$ = %3.2f, $R$ = %3.2f, $a$ = %3.2f" \
-                     % (epeddata[sim]["kappa"]['data'], epeddata[sim]["delta"]['data'], epeddata[sim]["r"]['data'], epeddata[sim]["a"]['data'])
-        title_txt_03 = "$q_{95}$ = %3.2f, $\\ell_i$ = %3.2f" \
-                     % (epeddata[sim]["eq_q95"]['data'][k_EPED], epeddata[sim]["eq_li"]['data'][k_EPED])
+       #title_txt_01 = "$I_P$ = %3.2f, $N_{e,ped}$ = %3.2f, $\\beta_n$ = %3.2f, $B_{T}$ = %3.2f" \
+       #             % (epeddata[sim]["ip"]['data'], epeddata[sim]["neped"]['data'], epeddata[sim]["betan"]['data'], epeddata[sim]["bt"]['data'])
+       #title_txt_02 = "$\\kappa$ = %3.2f, $\\delta$ = %3.2f, $R$ = %3.2f, $a$ = %3.2f, $Z_{eff}$ = %3.2f" \
+       #             % (epeddata[sim]["kappa"]['data'], epeddata[sim]["delta"]['data'], epeddata[sim]["r"]['data'], epeddata[sim]["a"]['data'], epeddata[sim]["zeffped"]['data'])
+       #title_txt_03 = "$q_{95}$ = %3.2f, $\\ell_i$ = %3.2f" \
+       #             % (epeddata[sim]["eq_q95"]['data'][k_EPED], epeddata[sim]["eq_li"]['data'][k_EPED])
 
-        gammaTepedfig.suptitle("GAMMA PROFILES\n%s\n%s\n%s" % (title_txt_01,title_txt_02,title_txt_03), fontsize = "10")
+       #gammaTepedfig.suptitle("GAMMA PROFILES\n%s\n%s\n%s" % (title_txt_01,title_txt_02,title_txt_03), fontsize = "10")
         gammaTepedfig.tight_layout(rect=[0.0, 0.0, 1.0, 1.0])
         gammaTepedfig.subplots_adjust(wspace=0,hspace=0)
-        epedfigs.savefig(gammaTepedfig)
-        if savepng: gammaTepedfig.savefig(figurepath+"eped_gamma_%04d_teped.png" % sims.index(sim))
-        plt.close(gammaTepedfig)
 
-
-        gammaBetanfig = plt.figure("GAMMA PROFILES Betan",dpi=200)
-        figgrd = int("%d%d%d" % (1,1,1))
-        gammaBetanaxs = gammaBetanfig.add_subplot(figgrd)
-        lstyle = styles[0]
-        gammaBetanaxs.plot(betan,gamma_all,  color='b', linestyle = "-",)
-        gammaBetanaxs.set_yscale("symlog")
+        gammaBetanaxs.plot(betan,gamma_all,  color='b', linestyle = lstyle)
         gammaBetanaxs.axhline(1.0,ls="--",color="g")
         if k_EPED > 0:
             gammaBetanaxs.axvline(betan[k_EPED],   ls="--", color="g")
-            gammaBetanaxs.axvline(betan[k_EPED_0], ls="--", color="g")
+            gammaBetanaxs.axvline(betan[k_EPED_0], ls="--", color="b")
+
+        if not collect:
+            teaxs.set_xticks([])
+            teaxs.set_ylabel("$T_{e}$")
+            teaxs.set_xlabel("$\\rho$")
+            teaxs.set_xticks([])
+            teaxs.set_xlim([0.0,1.1])
+
+            tiaxs.set_xticks([])
+            tiaxs.set_ylabel("$T_{i}$")
+            tiaxs.set_xlabel("$\\rho$")
+            tiaxs.set_xticks([])
+            tiaxs.set_xlim([0.0,1.1])
+
+            neaxs.set_ylabel("$N_e$")
+            neaxs.set_xlabel("$\\rho_{PED}$")
+            neaxs.set_xlim([0.0,1.1])
+
+            paxs.set_ylabel("$P_{TOT}$")
+            paxs.set_xlabel("$\\rho_{PED}$")
+            paxs.yaxis.tick_right()
+            paxs.yaxis.set_label_position("right")
+            paxs.set_xticks([])
+            paxs.set_xlim([0.0,1.1])
+
+            jaxs.set_ylabel("$J_{TOT}$")
+            jaxs.set_xlabel("$\\rho$")
+            jaxs.yaxis.tick_right()
+            jaxs.yaxis.set_label_position("right")
+            jaxs.set_xticks([])
+            jaxs.set_xlim([0.0,1.1])
+
+            qaxs.set_ylabel("$q$")
+            qaxs.set_xlabel("$\\rho$")
+            qaxs.yaxis.tick_right()
+            qaxs.yaxis.set_label_position("right")
+            qaxs.set_xlim([0.0,1.1])
+
+           #title_txt_01 = "$I_P$ = %5.3f, $N_{e,ped}$ = %5.3f, $\\beta_n$ = %5.3f, $B_{T}$ = %5.3f" \
+           #             % (epeddata[sim]["ip"]['data'], epeddata[sim]["neped"]['data'], epeddata[sim]["betan"]['data'], epeddata[sim]["bt"]['data'])
+           #title_txt_02 = "$\\kappa$ = %5.3f, $\\delta$ = %5.3f, $R$ = %5.3f, $a$ = %5.3f" \
+           #             % (epeddata[sim]["kappa"]['data'], epeddata[sim]["delta"]['data'], epeddata[sim]["r"]['data'], epeddata[sim]["a"]['data'])
+           #proffig.suptitle("EPED PROFILES\n%s\n%s" % (title_txt_01,title_txt_02))
+            proffig.tight_layout(rect=[0.0, 0.0, 1.0, 1.0])
+            proffig.subplots_adjust(wspace=0,hspace=0)
+
+            epedfigs.savefig(proffig)
+            if savepng: proffig.savefig(figurepath+"eped_tpped_%04d.png" % sims.index(sim))
+            plt.close(proffig)
+
+            epedfigs.savefig(gammaTepedfig)
+            if savepng: gammaTepedfig.savefig(figurepath+"eped_gamma_%04d_teped.png" % sims.index(sim))
+            plt.close(gammaTepedfig)
+
+            gammaBetanaxs.set_yscale("symlog")
+            gammaBetanaxs.set_xlabel("$\\beta_n$")
+            gammaBetanaxs.set_ylabel("$\gamma/(\omega_{*}/2)$")
+
+           #gammaBetanfig.suptitle("GAMMA PROFILES\n%s\n%s\n%s" % (title_txt_01,title_txt_02,title_txt_03), fontsize = "10")
+            gammaBetanfig.tight_layout(rect=[0.0, 0.0, 1.0, 1.0])
+            gammaBetanfig.subplots_adjust(wspace=0,hspace=0)
+
+            epedfigs.savefig(gammaBetanfig)
+            if savepng: gammaBetanfig.savefig(figurepath+"eped_gamma_betan_%04d.png" % sims.index(sim))
+            plt.close(gammaBetanfig)
+
+    if collect:
+        teaxs.set_xticks([])
+        teaxs.set_ylabel("$T_{e}$")
+        teaxs.set_xlabel("$\\rho$")
+        teaxs.set_xticks([])
+        teaxs.set_xlim([0.0,1.1])
+
+        tiaxs.set_xticks([])
+        tiaxs.set_ylabel("$T_{i}$")
+        tiaxs.set_xlabel("$\\rho$")
+        tiaxs.set_xticks([])
+        tiaxs.set_xlim([0.0,1.1])
+
+        neaxs.set_ylabel("$N_e$")
+        neaxs.set_xlabel("$\\rho_{PED}$")
+        neaxs.set_xlim([0.0,1.1])
+        neaxs.legend(fontsize=7)
+
+        paxs.set_ylabel("$P_{TOT}$")
+        paxs.set_xlabel("$\\rho_{PED}$")
+        paxs.yaxis.tick_right()
+        paxs.yaxis.set_label_position("right")
+        paxs.set_xticks([])
+        paxs.set_xlim([0.0,1.1])
+
+        jaxs.set_ylabel("$J_{TOT}$")
+        jaxs.set_xlabel("$\\rho$")
+        jaxs.yaxis.tick_right()
+        jaxs.yaxis.set_label_position("right")
+        jaxs.set_xticks([])
+        jaxs.set_xlim([0.0,1.1])
+
+        qaxs.set_ylabel("$q$")
+        qaxs.set_xlabel("$\\rho$")
+        qaxs.yaxis.tick_right()
+        qaxs.yaxis.set_label_position("right")
+        qaxs.set_xlim([0.0,1.1])
+
+       #title_txt_01 = "$I_P$ = %5.3f, $N_{e,ped}$ = %5.3f, $\\beta_n$ = %5.3f, $B_{T}$ = %5.3f" \
+       #             % (epeddata[sim]["ip"]['data'], epeddata[sim]["neped"]['data'], epeddata[sim]["betan"]['data'], epeddata[sim]["bt"]['data'])
+       #title_txt_02 = "$\\kappa$ = %5.3f, $\\delta$ = %5.3f, $R$ = %5.3f, $a$ = %5.3f" \
+       #             % (epeddata[sim]["kappa"]['data'], epeddata[sim]["delta"]['data'], epeddata[sim]["r"]['data'], epeddata[sim]["a"]['data'])
+       #title_txt_01 = "$I_P$ = %3.2f, $N_{e,ped}$ = %3.2f, $\\beta_n$ = %3.2f, $B_{T}$ = %3.2f" \
+       #             % (epeddata[sim]["ip"]['data'], epeddata[sim]["neped"]['data'], epeddata[sim]["betan"]['data'], epeddata[sim]["bt"]['data'])
+       #title_txt_02 = "$\\kappa$ = %3.2f, $\\delta$ = %3.2f, $R$ = %3.2f, $a$ = %3.2f, $Z_{eff}$ = %3.2f" \
+       #             % (epeddata[sim]["kappa"]['data'], epeddata[sim]["delta"]['data'], epeddata[sim]["r"]['data'], epeddata[sim]["a"]['data'], epeddata[sim]["zeffped"]['data'])
+       #title_txt_03 = "$q_{95}$ = %3.2f, $\\ell_i$ = %3.2f" \
+       #             % (epeddata[sim]["eq_q95"]['data'][k_EPED], epeddata[sim]["eq_li"]['data'][k_EPED])
+       #proffig.suptitle("EPED PROFILES\n%s\n%s" % (title_txt_01,title_txt_02,title_txt_03))
+        proffig.tight_layout(rect=[0.0, 0.0, 1.0, 1.0])
+        proffig.subplots_adjust(wspace=0,hspace=0)
+
+        epedfigs.savefig(proffig)
+        if savepng: proffig.savefig(figurepath+"eped_tpped.png")
+        plt.close(proffig)
+
+       #epedfigs.savefig(gammaTepedfig)
+       #if savepng: gammaTepedfig.savefig(figurepath+"eped_gamma_%04d_teped.png" % sims.index(sim))
+       #plt.close(gammaTepedfig)
+
+        gammaBetanaxs.set_yscale("symlog")
         gammaBetanaxs.set_xlabel("$\\beta_n$")
         gammaBetanaxs.set_ylabel("$\gamma/(\omega_{*}/2)$")
 
-        gammaBetanfig.suptitle("GAMMA PROFILES\n%s\n%s\n%s" % (title_txt_01,title_txt_02,title_txt_03), fontsize = "10")
+       #gammaBetanfig.suptitle("GAMMA PROFILES\n%s\n%s\n%s" % (title_txt_01,title_txt_02,title_txt_03), fontsize = "10")
         gammaBetanfig.tight_layout(rect=[0.0, 0.0, 1.0, 1.0])
         gammaBetanfig.subplots_adjust(wspace=0,hspace=0)
+
         epedfigs.savefig(gammaBetanfig)
-        if savepng: gammaBetanfig.savefig(figurepath+"eped_gamma_betan_%04d.png" % sims.index(sim))
+        if savepng: gammaBetanfig.savefig(figurepath+"eped_gamma_betan")
         plt.close(gammaBetanfig)
 
     epedfigs.close()
@@ -1030,15 +1167,21 @@ def read_genray(WORK_DIR,model):
     shotref = ""
 
     for iWORK_DIR in WORK_DIR:
-        if model == "lh":
+        if model == None or model == "":
+            iWORK_DIR_PATH = glob('%s' % os.path.abspath(iWORK_DIR))[0]
+            WORK_FILES = glob('%s/*.nc' % (iWORK_DIR_PATH))
+        elif model == "lh":
             iWORK_DIR_PATH = glob('%s/work/fastran_lh_genray_*' % os.path.abspath(iWORK_DIR))[0]
+            WORK_FILES = glob('%s/genray.nc' % (iWORK_DIR_PATH))
         elif model == "hc":
             iWORK_DIR_PATH = glob('%s/work/fastran_hc_genray_*' % os.path.abspath(iWORK_DIR))[0]
+            WORK_FILES = glob('%s/genray.nc' % (iWORK_DIR_PATH))
         elif model == "ec":
             iWORK_DIR_PATH = glob('%s/work/fastran_ec_genray_*' % os.path.abspath(iWORK_DIR))[0]
+            WORK_FILES = glob('%s/genray.nc' % (iWORK_DIR_PATH))
         elif model == "ic":
             iWORK_DIR_PATH = glob('%s/work/fastran_ic_genray_*' % os.path.abspath(iWORK_DIR))[0]
-        WORK_FILES = glob('%s/genray.nc' % (iWORK_DIR_PATH))
+            WORK_FILES = glob('%s/genray.nc' % (iWORK_DIR_PATH))
         if WORK_FILES:
            GENRAY_FILEPATH = WORK_FILES[0]
            GENRAY_FILENAME = GENRAY_FILEPATH.replace(iWORK_DIR_PATH+'/','')
@@ -1286,6 +1429,7 @@ def read_fastran_outputs(fastranfpath):
         elif name == 'j_nb':               fastran[name]['symbol']    = "$J_{NB}$"        # DONE
         elif name == 'j_rf':               fastran[name]['symbol']    = "$J_{RF}$"        # DONE
         elif name == 'j_oh':               fastran[name]['symbol']    = "$J_{OH}$"        # DONE
+        elif name == 'qmhd':               fastran[name]['symbol']    = "$q_{mhd}$"
         elif name == 'shat':               fastran[name]['symbol']    = "$\\hat{s}$"
         elif name == 'chii':               fastran[name]['symbol']    = "$D_i$"
         elif name == 'chie':               fastran[name]['symbol']    = "$D_e$"
@@ -1415,7 +1559,7 @@ def read_fastran(WORK_DIR):
 
     for iWORK_DIR in WORK_DIR:
         iWORK_DIR_PATH = '%s' % os.path.abspath(iWORK_DIR)
-        WORK_FILES = glob('%s/f*' % (iWORK_DIR_PATH))
+        WORK_FILES = sorted(glob('%s/f*' % (iWORK_DIR_PATH)))
         if not WORK_FILES:
             iWORK_DIR_PATH = '%s/work/plasma_state' % os.path.abspath(iWORK_DIR)
             WORK_FILES = glob('%s/f*' % (iWORK_DIR_PATH))
@@ -1423,35 +1567,36 @@ def read_fastran(WORK_DIR):
                 iWORK_DIR_PATH = '%s' % os.path.abspath(iWORK_DIR)
                 WORK_FILES = glob('%s/f*' % (iWORK_DIR_PATH))
         if WORK_FILES:
-           FASTRAN_FILEPATH = WORK_FILES[0]
-           FASTRAN_FILENAME = FASTRAN_FILEPATH.replace(iWORK_DIR_PATH+'/','')
-           SHOT_NUMBER, TIME_ID = FASTRAN_FILENAME[1:].split('.')
-           shot = SHOT_NUMBER + '.' + TIME_ID
-           if shot == shotref:
-               CASE_ID += 1
-           elif shotref == "":
-               shotref = shot
-               CASE_ID += 1
-           elif shotref != "" and shot != shotref:
-               shotref = shot
-               CASE_ID = 1
-           shot = SHOT_NUMBER + '.' + TIME_ID + '.%02d' % CASE_ID
+            for i in range(len(WORK_FILES)):
+                FASTRAN_FILEPATH = WORK_FILES[i]
+                FASTRAN_FILENAME = FASTRAN_FILEPATH.replace(iWORK_DIR_PATH+'/','')
+                SHOT_NUMBER, TIME_ID = FASTRAN_FILENAME[1:].split('.')
+                shot = SHOT_NUMBER + '.' + TIME_ID
+                if shot == shotref:
+                    CASE_ID += 1
+                elif shotref == "":
+                    shotref = shot
+                    CASE_ID += 1
+                elif shotref != "" and shot != shotref:
+                    shotref = shot
+                    CASE_ID = 1
+                shot = SHOT_NUMBER + '.' + TIME_ID + '.%02d' % CASE_ID
 
-           fastrandata[shot] = read_fastran_outputs(FASTRAN_FILEPATH)
-           if len(fastrandata[shot]['j_rf']['data']) == 0:
-               del fastrandata[shot]
-               print(CRED   + 'READING CURRENT_FASTRAN IN %s ... FAILED' % iWORK_DIR_PATH + CEND)
-           else:
-               print(CGREEN + 'READING CURRENT_FASTRAN IN %s ... PASSED' % iWORK_DIR_PATH + CEND)
+                fastrandata[shot] = read_fastran_outputs(FASTRAN_FILEPATH)
+                if len(fastrandata[shot]['j_rf']['data']) == 0:
+                    del fastrandata[shot]
+                    print(CRED   + 'READING %s ... FAILED' % FASTRAN_FILEPATH + CEND)
+                else:
+                    print(CGREEN + 'READING %s ... PASSED' % FASTRAN_FILEPATH + CEND)
         else:
-           print(CRED   + 'READING CURRENT_FASTRAN IN %s ... FAILED' % iWORK_DIR_PATH + CEND)
+           print(CRED   + 'READING %s ... FAILED' % iWORK_DIR_PATH + CEND)
 
     return fastrandata
 
 
 def fastran_summary(fastrandata, write_to_file = True, **kwargs):
-    shots = list(fastrandata.keys())
-    nshot = len(shots)
+    sims = list(fastrandata.keys())
+    nsim = len(sims)
 
     if write_to_file:
         reportpath = os.path.abspath(".")+"/fastran_report/"
@@ -1464,71 +1609,95 @@ def fastran_summary(fastrandata, write_to_file = True, **kwargs):
 
     summary = {}
 
-    for shot in shots:
+    for isim in sims:
+        summary[isim] = {}
         try:
-            summary['ip']  = fastrandata[shot]["ip"]['data'][-1]
+            summary[isim]['ip']  = fastrandata[isim]["ip"]['data'][-1]
         except IndexError:
             return {}
 
-        Pext  = 0.0
+        summary[isim]['Pext']  = 0.0
         for ipext in ["prfi","prfe","pnbi","pnbe"]:
-            Pext += fastrandata[shot][ipext]['data'][-1]
-        summary['Pext'] = Pext
+            print(ipext,fastrandata[isim][ipext]['data'][-1])
+            summary[isim]['Pext'] += fastrandata[isim][ipext]['data'][-1]
+       #summary[isim]['Pext'] = npy.round(summary[isim]['Pext'])
+        summary[isim]['Pext'] = summary[isim]['Pext']
 
-        Pfus  = 0.0
+        summary[isim]['Pfus']  = 0.0
         for ipfus in ["pfusi","pfuse"]:
-            Pfus += fastrandata[shot][ipfus]['data'][-1]
-        Pfus *= 5.0
-        summary['Pfus'] = Pfus
+            summary[isim]['Pfus'] += fastrandata[isim][ipfus]['data'][-1]
+        summary[isim]['Pfus'] *= 5.0
 
-        Q = Pfus/Pext
-        summary['Q'] = Q
+        summary[isim]['Q'] = summary[isim]['Pfus']/summary[isim]['Pext']
 
         INI  = 0.0
         for iINI in ["ibs","inb","irf"]:
-            INI += fastrandata[shot][iINI]['data'][-1]
-        summary['irf'] = fastrandata[shot]["irf"]['data'][-1]
-        summary['inb'] = fastrandata[shot]["inb"]['data'][-1]
-        summary['ibs'] = fastrandata[shot]["ibs"]['data'][-1]
-        summary['poh'] = fastrandata[shot]["poh"]['data'][-1]
+            INI += fastrandata[isim][iINI]['data'][-1]
+        summary[isim]['irf'] = fastrandata[isim]["irf"]['data'][-1]
+        summary[isim]['inb'] = fastrandata[isim]["inb"]['data'][-1]
+        summary[isim]['ibs'] = fastrandata[isim]["ibs"]['data'][-1]
+        summary[isim]['poh'] = fastrandata[isim]["poh"]['data'][-1]
 
-        fNI = INI/fastrandata[shot]["ip"]['data'][-1]
-        summary['fNI'] = fNI
+        summary[isim]['H98'] = fastrandata[isim]["tauth"]['data'][-1]/fastrandata[isim]["tau98"]['data'][-1]
+        summary[isim]['H89'] = fastrandata[isim]["tauth"]['data'][-1]/fastrandata[isim]["tau89"]['data'][-1]
 
-        fBS = fastrandata[shot]["ibs"]['data'][-1]/fastrandata[shot]["ip"]['data'][-1]
-        summary['fBS'] = fBS
+        summary[isim]['nGW'] = fastrandata[isim]["ip"]['data'][-1]/npy.pi/fastrandata[isim]["a0"]['data'][-1]**2
+        summary[isim]['fGW'] = fastrandata[isim]["nebar"]['data'][-1]/10.0/summary[isim]['nGW']
+        summary[isim]['fNI'] = INI/fastrandata[isim]["ip"]['data'][-1]
+        summary[isim]['fBS'] = fastrandata[isim]["ibs"]['data'][-1]/fastrandata[isim]["ip"]['data'][-1]
 
-        H98 = fastrandata[shot]["tauth"]['data'][-1]/fastrandata[shot]["tau98"]['data'][-1]
-        H89 = fastrandata[shot]["tauth"]['data'][-1]/fastrandata[shot]["tau89"]['data'][-1]
-        summary['H98'] = H98
+        summary[isim]['betan'] = fastrandata[isim]["betan"]['data'][-1]
 
-        nGW = fastrandata[shot]["ip"]['data'][-1]/npy.pi/fastrandata[shot]["a0"]['data'][-1]**2
-        fGW = fastrandata[shot]["nebar"]['data'][-1]/10.0/nGW
-        summary['fGW'] = fGW
+        summary[isim]['q95']  = fastrandata[isim]["qmhd"]['data'][-1]
+        summary[isim]['qmin'] = min(fastrandata[isim]["q"]['data'][-1,:])
 
-        summary['betan'] = fastrandata[shot]["betan"]['data'][-1]
+        summary[isim]['WTHSTR'] = fastrandata[isim]['we']['data'][-1]+fastrandata[isim]['wi']['data'][-1]
+
+        summary[isim]["neave"] = fastrandata[isim]['nebar']['data'][-1]
+        summary[isim]["teave"] = fastrandata[isim]['tea']['data'][-1]
+        summary[isim]["tiave"] = fastrandata[isim]['tia']['data'][-1]
+        summary[isim]["Prad"]  = fastrandata[isim]['prad']['data'][-1]
+        summary[isim]["taue"]  = fastrandata[isim]['taue']['data'][-1]
+        summary[isim]["taui"]  = fastrandata[isim]['taui']['data'][-1]
+        summary[isim]["tautot"]= fastrandata[isim]['tautot']['data'][-1]
+
+        powcd  = fastrandata[isim]['pnbe']['data'][-1]
+        powcd += fastrandata[isim]['pnbi']['data'][-1]
+        powcd += fastrandata[isim]['prfe']['data'][-1]
+        powcd += fastrandata[isim]['prfi']['data'][-1]
+        crndr  = fastrandata[isim]['inb']['data'][-1]
+        crndr += fastrandata[isim]['irf']['data'][-1]
+
+        summary[isim]['etacd']  = crndr/powcd
+        summary[isim]['etacd'] *= fastrandata[isim]['r0']['data'][-1]
+        summary[isim]['etacd'] *= summary[isim]['neave']/10.0
 
         if write_to_file:
-            fhand = open("%ssummary_%s.dat" % (infopath,shot),"w")
-            fhand.write("%s\t%5.3f\n" % ("Q",Q))
-            fhand.write("%s\t%5.3f\n" % ("Poh",summary['poh']))
-            fhand.write("%s\t%5.3f\n" % ("Ibs",summary['ibs']))
-            fhand.write("%s\t%5.3f\n" % ("Inb",summary['inb']))
-            fhand.write("%s\t%5.3f\n" % ("Irf",summary['irf']))
-            fhand.write("%s\t%5.3f\n" % ("fNI",fNI))
-            fhand.write("%s\t%5.3f\n" % ("fBS",fBS))
-            fhand.write("%s\t%5.3f\n" % ("H98",H98))
-            fhand.write("%s\t%5.3f\n" % ("H89",H89))
-            fhand.write("%s\t%5.3f\n" % ("nGW",nGW))
-            fhand.write("%s\t%5.3f\n" % ("fGW",fGW))
-            fhand.write("%s\t%5.3f\n" % ("<ne>",fastrandata[shot]['nebar']['data'][-1]))
-            fhand.write("%s\t%5.3f\n" % ("<Te>",fastrandata[shot]['tea']['data'][-1]))
-            fhand.write("%s\t%5.3f\n" % ("<Ti>",fastrandata[shot]['tia']['data'][-1]))
-            fhand.write("%s\t%5.3f\n" % ("Prad",fastrandata[shot]['prad']['data'][-1]))
-            fhand.write("%s\t%5.3f\n" % ("Pext",npy.round(Pext)))
-            fhand.write("%s\t%5.3f\n" % ("Pfus",Pfus))
-            fhand.write("%s\t%5.3f\n" % ("betan",fastrandata[shot]["betan"]['data'][-1]))
-            fhand.write("%s\t%5.3f\n" % ("WTHSTR",fastrandata[shot]['we']['data'][-1]+fastrandata[shot]['wi']['data'][-1]))
+            fhand = open("%ssummary_%s.dat" % (infopath,isim),"w")
+            fhand.write("%s\t%5.3f\n" % ("Q",     summary[isim]['Q']))
+            fhand.write("%s\t%5.3f\n" % ("Poh",   summary[isim]['poh']))
+            fhand.write("%s\t%5.3f\n" % ("Ibs",   summary[isim]['ibs']))
+            fhand.write("%s\t%5.3f\n" % ("Inb",   summary[isim]['inb']))
+            fhand.write("%s\t%5.3f\n" % ("Irf",   summary[isim]['irf']))
+            fhand.write("%s\t%5.3f\n" % ("fNI",   summary[isim]['fNI']))
+            fhand.write("%s\t%5.3f\n" % ("fBS",   summary[isim]['fBS']))
+            fhand.write("%s\t%5.3f\n" % ("H98",   summary[isim]['H98']))
+            fhand.write("%s\t%5.3f\n" % ("H89",   summary[isim]['H89']))
+            fhand.write("%s\t%5.3f\n" % ("nGW",   summary[isim]['nGW']))
+            fhand.write("%s\t%5.3f\n" % ("fGW",   summary[isim]['fGW']))
+           #fhand.write("%s\t%5.3f\n" % ("q95",   summary[isim]['q95']))
+            fhand.write("%s\t%5.3f\n" % ("qmin",  summary[isim]['qmin']))
+            fhand.write("%s\t%5.3f\n" % ("Pext",  summary[isim]['Pext']))
+            fhand.write("%s\t%5.3f\n" % ("Pfus",  summary[isim]['Pfus']))
+            fhand.write("%s\t%5.3f\n" % ("Prad",  summary[isim]['Prad']))
+            fhand.write("%s\t%5.3f\n" % ("taue",  summary[isim]['taue']))
+            fhand.write("%s\t%5.3f\n" % ("taui",  summary[isim]['taui']))
+            fhand.write("%s\t%5.3f\n" % ("<ne>",  summary[isim]['neave']))
+            fhand.write("%s\t%5.3f\n" % ("<Te>",  summary[isim]['teave']))
+            fhand.write("%s\t%5.3f\n" % ("<Ti>",  summary[isim]['tiave']))
+            fhand.write("%s\t%5.3f\n" % ("betan", summary[isim]['betan']))
+            fhand.write("%s\t%5.3f\n" % ("etacd", summary[isim]['etacd']))
+            fhand.write("%s\t%5.3f\n" % ("WTHSTR",summary[isim]['WTHSTR']))
             fhand.close()
 
     return summary
@@ -1552,8 +1721,10 @@ def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
     reportpath = os.path.abspath(".")+"/fastran_report/"
     if not os.path.isdir(reportpath):
        os.system('mkdir '+reportpath)
-
     figurepath = os.path.abspath(".")+"/fastran_report/Figures/"
+    if not os.path.isdir(figurepath):
+       os.system('mkdir '+figurepath)
+    figurepath = os.path.abspath(".")+"/fastran_report/Figures/FASTRAN/"
     if not os.path.isdir(figurepath):
        os.system('mkdir '+figurepath)
 
@@ -1610,22 +1781,23 @@ def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
                 iline = 0; nlines = 0
                 lines = []
 
-                if "yfactor" in jsonfdata["figures"][ifig]["subplots"][isubfig] and jsonfdata["figures"][ifig]["subplots"][isubfig]['yfactor']:
-                    yfactor = jsonfdata["figures"][ifig]["subplots"][isubfig]['yfactor']
-                else:                                                           
-                    yfactor = 1
-
                 for sim in sims[bgnsim:endsim]:
 #                   if ifig == 0 and isubfig == 0: print(fastrandata[sim]['ip']);print(fastrandata[sim].keys())
                     if groups and (sims.index(sim)+1 - bgnsim) > groups[isubfig][iline]+nlines: iline += 1; nlines = sum(groups[isubfig][:iline])
 
                     for ifield in jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"]:
+                        ifield_index = jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"].index(ifield)
                         if nsims > 1:
                             lcolor = colors[sims.index(sim)]
                             lstyle = styles[jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"].index(ifield)+iline]
                         else:
                             lcolor = colors[jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"].index(ifield)+iline]
                             lstyle = styles[sims.index(sim)]
+
+                        if "yfactor" in jsonfdata["figures"][ifig]["subplots"][isubfig] and jsonfdata["figures"][ifig]["subplots"][isubfig]['yfactor']:
+                            yfactor = jsonfdata["figures"][ifig]["subplots"][isubfig]['yfactor'][ifield_index]
+                        else:                                                           
+                            yfactor = 1
 
                         if legned2 and ifield == jsonfdata["figures"][ifig]["subplots"][isubfig]["fields"][0]:
                             if not jsonfdata["figures"][ifig]["subplots"][isubfig]['label2']:
@@ -1927,47 +2099,80 @@ def plot_fastran_outputs(fastrandata,plotparam={},**kwargs):
         if savepng: nifig.savefig(figurepath+"fastran_shat.png")
         plt.close(nifig)
 
-        nifig = plt.figure("MAGNETIC PERTURBATION PROFILE",dpi=200)
-        niaxs = nifig.add_subplot(111)
-        for sim in sims:
-            lcolor = colors[sims.index(sim)]
-            lsytle = styles[0]
-            llabel = sim
-            niaxs.plot(fastrandata[sim]['rho']['data'][:],fastrandata[sim]['betan_loc']['data'][-1,:],color=lcolor,linestyle=lstyle,label=llabel)
-        niaxs.set_title("Magnetic Perturbation Profile")
-        niaxs.set_ylabel("$\\beta_N$")
-        niaxs.set_xlabel("$\\rho$")
-        niaxs.legend()
-        fastranfigs.savefig(nifig)
-        if savepng: nifig.savefig(figurepath+"fastran_betan.png")
-        plt.close(nifig)
-
         fastranfigs.close()
 
     return True
         
 
+def read_params_file(fpath):
+    fhand = open(fpath,'r')
+    paramsdata = {}
+    lines = fhand.readlines()
+    nvars = int(lines[0].split()[0])
+    for i in range(1,nvars+1):
+        varvals = float(lines[i].split()[0])
+        varname = lines[i].split()[-1].split("__")[-1].lower()
+        paramsdata[varname] = varvals
+    fhand.close()
+    return paramsdata
+
+def read_dakota_file(fpath):
+    fhand = open(fpath,'r')
+    dakotadata = {}
+    
+    lines = fhand.readlines()
+
+    name_start_line = None
+    data_start_line = None
+    for num,line in enumerate(fhand,1):
+        if "continuous_design" in line: nrec = int(line.strip().split()[-1])
+        if "descriptor"        in line: name_start_line = num+1
+        if "list_of_points"    in line: data_start_line = num+1
+
+    fhand.close()
+    return dakotadata
+
+def read_simulation_list_file(fpath=''):
+    if fpath == '': fpath = glob("SIMULATION_LIST.*")[0]
+    simulationdata = {'SIMULATION':[],'efit:TIME_ID':[]}
+    fhand = open(fpath,'r')
+    headers = fhand.readline().strip().split()
+   #for iheader in headers:
+   #    simulationdata[iheader] = []
+    for num,line in enumerate(fhand,1):
+        records = line.strip().split()
+        simulationdata['SIMULATION'].append(records[0])
+        simulationdata['efit:TIME_ID'].append(records[1])
+       #for irecord in records:
+       #    simulationdata[headers[records.index(irecord)]].append(irecord)
+    fhand.close()
+    return simulationdata
+
+
 if __name__ == "__main__":
    parser = argparse.ArgumentParser()
-   parser.add_argument('--lh',      '-lh',           action='store_const',const=1,help='Lower-Hybrid HCD Model.')
-   parser.add_argument('--hc',      '-hc',           action='store_const',const=1,help='Helicon HCD Model.')
-   parser.add_argument('--ic',      '-ic',           action='store_const',const=1,help='Ion-Cyclotron HCD Model.')
-   parser.add_argument('--ec',      '-ec',           action='store_const',const=1,help='Electron-Cyclotron HCD Model.')
-   parser.add_argument('--plot',    '-plot',         action='store_const',const=1,help='Plot FASTRAN ouputs.')
-   parser.add_argument('--dcon',    '-dcon',         action='store_const',const=1,help='Calculate the beta values using DCON stability code.')
-   parser.add_argument('--eped',    '-eped',         action='store_const',const=1,help='Read and Plot EPED Simulation Output file eped_state.nc.')
-   parser.add_argument('--model',   '-model',        action='store_const',const=1,help='Create a MODEL from EPED data.')
-   parser.add_argument('--state',   '-state',        action='store_const',const=1,help='Include STATE data in the summary and plots.')
-   parser.add_argument('--toray',   '-toray',        action='store_const',const=1,help='Read and Plot TORAY Simulation Output file toray.nc.')
-   parser.add_argument('--cql3d',   '-cql3d',        action='store_const',const=1,help='Read and Plot CQL3D Simulation Output file cql3d.nc.')
-   parser.add_argument('--genray',  '-genray',       action='store_const',const=1,help='Read and Plot GENRAY Simulation Output file genray.nc.')
-   parser.add_argument('--nubeam',  '-nubeam',       action='store_const',const=1,help='Read and Plot NUBEAM Simulation Output file ips_nbi_fld_state.cdf.')
-   parser.add_argument('--fields',  '-fields',       action='store_const',const=1,help='Print Fields in target output, defualt: fastran.')
+   parser.add_argument('--lh',      '-lh',      action='store_const',const=1,help='Lower-Hybrid HCD Model.')
+   parser.add_argument('--hc',      '-hc',      action='store_const',const=1,help='Helicon HCD Model.')
+   parser.add_argument('--ic',      '-ic',      action='store_const',const=1,help='Ion-Cyclotron HCD Model.')
+   parser.add_argument('--ec',      '-ec',      action='store_const',const=1,help='Electron-Cyclotron HCD Model.')
+   parser.add_argument('--plot',    '-plot',    action='store_const',const=1,help='Plot FASTRAN ouputs.')
+   parser.add_argument('--dcon',    '-dcon',    action='store_const',const=1,help='Calculate the beta values using DCON stability code.')
+   parser.add_argument('--eped',    '-eped',    action='store_const',const=1,help='Read and Plot EPED Simulation Output file eped_state.nc.')
+   parser.add_argument('--model',   '-model',   action='store_const',const=1,help='Create a MODEL from EPED data.')
+   parser.add_argument('--state',   '-state',   action='store_const',const=1,help='Include STATE data in the summary and plots.')
+   parser.add_argument('--toray',   '-toray',   action='store_const',const=1,help='Read and Plot TORAY Simulation Output file toray.nc.')
+   parser.add_argument('--cql3d',   '-cql3d',   action='store_const',const=1,help='Read and Plot CQL3D Simulation Output file cql3d.nc.')
+   parser.add_argument('--genray',  '-genray',  action='store_const',const=1,help='Read and Plot GENRAY Simulation Output file genray.nc.')
+   parser.add_argument('--nubeam',  '-nubeam',  action='store_const',const=1,help='Read and Plot NUBEAM Simulation Output file ips_nbi_fld_state.cdf.')
+   parser.add_argument('--fields',  '-fields',  action='store_const',const=1,help='Print Fields in target output, defualt: fastran.')
+   parser.add_argument('--params',  '-params',  action='store_const',const=1,help='Read params file.')
    parser.add_argument('--geqdsk',  '-geqdsk',  action='store_const',const=1,help='Read and Plot Equilibrium State from FASTRAN Simulation geqdsk file.')
-   parser.add_argument('--summary', '-summary',      action='store_const',const=1,help='Plot FASTRAN output from Summary Folder.')
-   parser.add_argument('--figspec', '-figspec',      action='store_const',const=1,help='Create Figures Based on Specifications provided by the user.')
-   parser.add_argument('--newplot', '-newplot',      action='store_const',const=1,help='Remove the old figures and plot new ones.')
-   parser.add_argument('--fastran', '-fastran',      action='store_const',const=1,help='Read and Plot FASTRAN Simulation Output file fastran.nc.')
+   parser.add_argument('--collect', '-collect', action='store_const',const=1,help='Collect plots from multiple simulations into a single plot')
+   parser.add_argument('--summary', '-summary', action='store_const',const=1,help='Plot FASTRAN output from Summary Folder.')
+   parser.add_argument('--figspec', '-figspec', action='store_const',const=1,help='Create Figures Based on Specifications provided by the user.')
+   parser.add_argument('--newplot', '-newplot', action='store_const',const=1,help='Remove the old figures and plot new ones.')
+   parser.add_argument('--fastran', '-fastran', action='store_const',const=1,help='Read and Plot FASTRAN Simulation Output file fastran.nc.')
+   parser.add_argument('--simlist', '-simlist', action='store_const',const=1,help='READ SIMULATION_LIST file.')
 
    parser.add_argument('inputs',nargs='*')
 
@@ -1988,20 +2193,36 @@ if __name__ == "__main__":
        nubeam  = args.nubeam
        inputs  = args.inputs
        fields  = args.fields
+       params  = args.params
        geqdsk  = args.geqdsk
+       collect = args.collect
        summary = args.summary
        figspec = args.figspec
        newplot = args.newplot
        fastran = args.fastran
+       simlist = args.simlist
 
   #if not (fields or plot or figspec or summary or state or newplot or getbeta or genray or toray or cql3d or eped): plot = True
-   if not (fastran or state or genray or toray or cql3d or eped or nubeam or geqdsk): fastran = True
+   if not (fastran or state or genray or toray or cql3d or eped or nubeam or geqdsk or collect or params or simlist): fastran = True
    if fastran and not (summary or figspec or plot or fields): plot = True
 
-   if   lh: hcd_model = "lh"
-   elif hc: hcd_model = "hc"
-   elif ec: hcd_model = "ec"
-   elif ic: hcd_model = "ic"
+   if simlist:
+       simdata = read_simulation_list_file(fpath=inputs[0])
+       for isim in range(len(simdata['SIMULATION'])):
+           print(simdata['SIMULATION'][isim],simdata['efit:TIME_ID'][isim])
+
+   if params:
+       paramsdata = read_params_file(fpath = inputs[0])
+       print(paramsdata)
+
+   if genray:
+       if   lh: hcd_model = "lh"
+       elif hc: hcd_model = "hc"
+       elif ec: hcd_model = "ec"
+       elif ic: hcd_model = "ic"
+       else:    hcd_model = ""
+   else:
+                hcd_model = ""
 
    plotparam = {}
    if newplot: plotparam['newplot'] = True
@@ -2047,9 +2268,13 @@ if __name__ == "__main__":
              else:
                  ikeys   = list(fastrandata.keys())
                  for ikey in ikeys:
+                  # print(fastrandata[ikey].keys())
+                    rho_pedmid_id = npy.argmin(abs(fastrandata[ikey]['rho']['data'] - 0.970))
+                   #print(ikey,fastrandata[ikey]['nue_s']['data'][-1][rho_pedmid_id])
+                    print(ikey,fastrandata[ikey]['pei']['data'][-1])
                    #print(ikey,fastrandata[ikey]['poh']['data'][-1],fastrandata[ikey]['ip']['data'][-1])
                    #print(ikey,fastrandata[ikey]['j_oh']['data'][-1,10],fastrandata[ikey]['poh']['data'][-1],fastrandata[ikey]['ip']['data'][-1])
-                    print(ikey,fastrandata[ikey]['betan']['data'][-1])
+                   #print(ikey,fastrandata[ikey]['betan']['data'][-1])
                  #  if abs(fastrandata[ikey]['j_oh']['data'][-1,10]) < 0.1:
                  #      print(ikey,fastrandata[ikey]['j_oh']['data'][-1,10],fastrandata[ikey]['poh']['data'][-1],fastrandata[ikey]['ip']['data'][-1])
                    #print(fastrandata[ikey]['ip']['data'][-1])
@@ -2060,6 +2285,12 @@ if __name__ == "__main__":
                 #    print(ifield, fastrandata[ikey][ifield]['long_name'], npy.shape(fastrandata[ikey][ifield]['data']))
         elif plot or figspec:
              fastrandata = read_fastran(WORK_DIR=inputs)
+             ikeys   = list(fastrandata.keys())
+             for ikey in ikeys:
+                 if npy.round(fastrandata[ikey]['prfe']['data'][-1] + fastrandata[ikey]['prfi']['data'][-1]) != 50:
+                    del(fastrandata[ikey])
+                 else:
+                    print(npy.round(fastrandata[ikey]['prfe']['data'][-1] + fastrandata[ikey]['prfi']['data'][-1]))
              if fastrandata:
                  returnvals  = plot_fastran_outputs(fastrandata,plotparam=plotparam)
 
@@ -2069,7 +2300,12 @@ if __name__ == "__main__":
         genraydata = read_genray(WORK_DIR=inputs,model=hcd_model.strip())
         sims = list(genraydata.keys())
         for isim in sims:
-            print(genraydata[isim]['power_inj_total']['data'],genraydata[isim]['powtot_e']['data'])
+           #print(genraydata[isim]['power_inj_total']['data'],genraydata[isim]['powtot_e']['data'])
+            for ikey in genraydata[isim].keys():
+                if len(npy.shape(genraydata[isim][ikey]['data'])) == 0:
+                    print(ikey, " = ",   genraydata[isim][ikey]['data'] ,genraydata[isim][ikey]['long_name'])
+                else:
+                    print(ikey,npy.shape(genraydata[isim][ikey]['data']),genraydata[isim][ikey]['long_name'])
        #if genraydata:
        #    returnvals  = plot_genray_outputs(genraydata,plotparam=plotparam)
 
@@ -2111,28 +2347,44 @@ if __name__ == "__main__":
        #    print(ikey,epeddata[ikey]['long_name'],npy.shape(epeddata[ikey]['data']))
         epeddata = read_eped(WORK_DIR=inputs)
         if epeddata and plot:
+            if collect: plotparam['collect'] = True
+            plabels = []
+            plabels.append('$I_P$=11.9 MA')
+            plabels.append('$I_P$=11.2 MA')
+            plabels.append('$I_P$=10.6 MA')
+            plotparam['plabels'] = plabels.copy()
             returnvals  = plot_eped_outputs(epeddata,plotparam=plotparam)
         elif epeddata and model:
             returnvals  = eped_model(epeddata)
             print(returnvals['PPED'],returnvals['WPED'])
         elif epeddata and fields:
-            #field_list  = []
-            #field_list += ['ip','bt','r','a','kappa','delta','zeta','betan','k_EPED','neped','zeffped']
-            #field_list += ['p_E1','wid_E1','ptop_E1','widtop_E1']
-            #field_list += ['eq_tped','eq_pped','eq_ptop','eq_ttop','eq_betanped','eq_wped_rho','eq_wped_psi']
-            #ikeys   = sorted(list(epeddata.keys()))
-            #for ikey in ikeys:
-            #    print(CBLUE + ikey + CEND)
-            #    for ifield in field_list:
-            #        if ifield in ['eq_tped','eq_pped','eq_ptop','eq_ttop','eq_betanped','eq_wped_rho','eq_wped_psi']:
-            #            k_EPED = epeddata[ikey]['k_EPED']['data'][-1]
-            #            print(ifield," = ",epeddata[ikey][ifield]['data'][k_EPED])
-            #        else:
-            #            print(ifield," = ",epeddata[ikey][ifield]['data'][-1])
-             ikey   = list(epeddata.keys())[0]
-             fields = list(epeddata[ikey].keys())
-             for ifield in fields:
-                 print(ifield, epeddata[ikey][ifield]['long_name'], npy.shape(epeddata[ikey][ifield]['data']))
+             field_list  = []
+             field_list += ['ip','bt','r','a','kappa','delta','zeta','betan','k_EPED','neped','zeffped']
+             field_list += ['p_E1','wid_E1','ptop_E1','widtop_E1']
+             field_list += ['eq_tped','eq_pped','eq_ptop','eq_ttop','eq_betanped','eq_wped_rho','eq_wped_psi']
+             ikeys   = sorted(list(epeddata.keys()))
+             for ikey in ikeys:
+                 k_EPED = epeddata[ikey]['k_EPED']['data'][-1]
+                 print(epeddata[ikey].keys())
+                 print(max(epeddata[ikey]['profile_ne']['data'][-1,:]))
+                 print(epeddata[ikey]['profile_ne']['data'][-1,0])
+                 print(max(epeddata[ikey]['profile_Te']['data'][-1,:]))
+                 print(epeddata[ikey]['profile_Te']['data'][-1,0])
+                 print(max(epeddata[ikey]['profile_Ti']['data'][-1,:]))
+                 print(epeddata[ikey]['profile_Ti']['data'][-1,0])
+                 print(max(epeddata[ikey]['profile_ptot']['data'][-1,:]))
+                 print(epeddata[ikey]['profile_ptot']['data'][-1,0])
+                 print(CBLUE + ikey + CEND)
+                 for ifield in field_list:
+                     if ifield in ['eq_tped','eq_pped','eq_ptop','eq_ttop','eq_betanped','eq_wped_rho','eq_wped_psi']:
+                         k_EPED = epeddata[ikey]['k_EPED']['data'][-1]
+                         print(ifield," = ",epeddata[ikey][ifield]['data'][k_EPED])
+                     else:
+                         print(ifield," = ",epeddata[ikey][ifield]['data'][-1])
+            #ikey   = list(epeddata.keys())[0]
+            #fields = list(epeddata[ikey].keys())
+            #for ifield in fields:
+            #    print(ifield, epeddata[ikey][ifield]['long_name'], npy.shape(epeddata[ikey][ifield]['data']))
 
    if geqdsk:
        geqdskdata = read_geqdsk(WORK_DIR=inputs)
