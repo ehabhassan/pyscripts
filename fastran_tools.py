@@ -1618,7 +1618,6 @@ def fastran_summary(fastrandata, write_to_file = True, **kwargs):
 
         summary[isim]['Pext']  = 0.0
         for ipext in ["prfi","prfe","pnbi","pnbe"]:
-            print(ipext,fastrandata[isim][ipext]['data'][-1])
             summary[isim]['Pext'] += fastrandata[isim][ipext]['data'][-1]
        #summary[isim]['Pext'] = npy.round(summary[isim]['Pext'])
         summary[isim]['Pext'] = summary[isim]['Pext']
@@ -1651,9 +1650,11 @@ def fastran_summary(fastrandata, write_to_file = True, **kwargs):
         summary[isim]['q95']  = fastrandata[isim]["qmhd"]['data'][-1]
         summary[isim]['qmin'] = min(fastrandata[isim]["q"]['data'][-1,:])
 
+        summary[isim]['zeff'] = npy.mean(fastrandata[isim]['zeff']['data'][-1,:])
+
         summary[isim]['WTHSTR'] = fastrandata[isim]['we']['data'][-1]+fastrandata[isim]['wi']['data'][-1]
 
-        summary[isim]["neave"] = fastrandata[isim]['nebar']['data'][-1]
+        summary[isim]["neave"] = fastrandata[isim]['nebar']['data'][-1]*1.0e19
         summary[isim]["teave"] = fastrandata[isim]['tea']['data'][-1]
         summary[isim]["tiave"] = fastrandata[isim]['tia']['data'][-1]
         summary[isim]["Prad"]  = fastrandata[isim]['prad']['data'][-1]
@@ -1661,16 +1662,16 @@ def fastran_summary(fastrandata, write_to_file = True, **kwargs):
         summary[isim]["taui"]  = fastrandata[isim]['taui']['data'][-1]
         summary[isim]["tautot"]= fastrandata[isim]['tautot']['data'][-1]
 
-        powcd  = fastrandata[isim]['pnbe']['data'][-1]
-        powcd += fastrandata[isim]['pnbi']['data'][-1]
-        powcd += fastrandata[isim]['prfe']['data'][-1]
-        powcd += fastrandata[isim]['prfi']['data'][-1]
-        crndr  = fastrandata[isim]['inb']['data'][-1]
-        crndr += fastrandata[isim]['irf']['data'][-1]
+        summary[isim]['powcd']  = fastrandata[isim]['pnbe']['data'][-1]
+        summary[isim]['powcd'] += fastrandata[isim]['pnbi']['data'][-1]
+        summary[isim]['powcd'] += fastrandata[isim]['prfe']['data'][-1]
+        summary[isim]['powcd'] += fastrandata[isim]['prfi']['data'][-1]
+        summary[isim]['crndr']  = fastrandata[isim]['inb']['data'][-1]
+        summary[isim]['crndr'] += fastrandata[isim]['irf']['data'][-1]
 
-        summary[isim]['etacd']  = crndr/powcd
+        summary[isim]['etacd']  = summary[isim]['crndr']/summary[isim]['powcd']
         summary[isim]['etacd'] *= fastrandata[isim]['r0']['data'][-1]
-        summary[isim]['etacd'] *= summary[isim]['neave']/10.0
+        summary[isim]['etacd'] *= summary[isim]['neave']/1.0e20
 
         if write_to_file:
             fhand = open("%ssummary_%s.dat" % (infopath,isim),"w")
@@ -1686,6 +1687,7 @@ def fastran_summary(fastrandata, write_to_file = True, **kwargs):
             fhand.write("%s\t%5.3f\n" % ("nGW",   summary[isim]['nGW']))
             fhand.write("%s\t%5.3f\n" % ("fGW",   summary[isim]['fGW']))
            #fhand.write("%s\t%5.3f\n" % ("q95",   summary[isim]['q95']))
+            fhand.write("%s\t%5.3f\n" % ("zeff",  summary[isim]['zeff']))
             fhand.write("%s\t%5.3f\n" % ("qmin",  summary[isim]['qmin']))
             fhand.write("%s\t%5.3f\n" % ("Pext",  summary[isim]['Pext']))
             fhand.write("%s\t%5.3f\n" % ("Pfus",  summary[isim]['Pfus']))
@@ -2202,7 +2204,6 @@ if __name__ == "__main__":
        fastran = args.fastran
        simlist = args.simlist
 
-  #if not (fields or plot or figspec or summary or state or newplot or getbeta or genray or toray or cql3d or eped): plot = True
    if not (fastran or state or genray or toray or cql3d or eped or nubeam or geqdsk or collect or params or simlist): fastran = True
    if fastran and not (summary or figspec or plot or fields): plot = True
 
@@ -2268,21 +2269,9 @@ if __name__ == "__main__":
              else:
                  ikeys   = list(fastrandata.keys())
                  for ikey in ikeys:
-                  # print(fastrandata[ikey].keys())
-                    rho_pedmid_id = npy.argmin(abs(fastrandata[ikey]['rho']['data'] - 0.970))
-                   #print(ikey,fastrandata[ikey]['nue_s']['data'][-1][rho_pedmid_id])
-                    print(ikey,fastrandata[ikey]['pei']['data'][-1])
-                   #print(ikey,fastrandata[ikey]['poh']['data'][-1],fastrandata[ikey]['ip']['data'][-1])
-                   #print(ikey,fastrandata[ikey]['j_oh']['data'][-1,10],fastrandata[ikey]['poh']['data'][-1],fastrandata[ikey]['ip']['data'][-1])
-                   #print(ikey,fastrandata[ikey]['betan']['data'][-1])
-                 #  if abs(fastrandata[ikey]['j_oh']['data'][-1,10]) < 0.1:
-                 #      print(ikey,fastrandata[ikey]['j_oh']['data'][-1,10],fastrandata[ikey]['poh']['data'][-1],fastrandata[ikey]['ip']['data'][-1])
-                   #print(fastrandata[ikey]['ip']['data'][-1])
-                   #print(fastrandata[ikey]['zeff']['data'][-1])
-                #ikey   = list(fastrandata.keys())[0]
-                #fields = list(fastrandata[ikey].keys())
-                #for ifield in fields:
-                #    print(ifield, fastrandata[ikey][ifield]['long_name'], npy.shape(fastrandata[ikey][ifield]['data']))
+                    print(fastrandata[ikey].keys())
+                    if 'betan' in fastrandata[ikey]:
+                        print(ikey,fastrandata[ikey]['betan']['data'][-1])
         elif plot or figspec:
              fastrandata = read_fastran(WORK_DIR=inputs)
              ikeys   = list(fastrandata.keys())
@@ -2295,19 +2284,14 @@ if __name__ == "__main__":
                  returnvals  = plot_fastran_outputs(fastrandata,plotparam=plotparam)
 
    if genray:
-       #genraydata = read_genray_outputs(fpath=inputs)
-       #print(genraydata['power_inj_total']['data'],genraydata['powtot_e']['data'])
         genraydata = read_genray(WORK_DIR=inputs,model=hcd_model.strip())
         sims = list(genraydata.keys())
         for isim in sims:
-           #print(genraydata[isim]['power_inj_total']['data'],genraydata[isim]['powtot_e']['data'])
             for ikey in genraydata[isim].keys():
                 if len(npy.shape(genraydata[isim][ikey]['data'])) == 0:
                     print(ikey, " = ",   genraydata[isim][ikey]['data'] ,genraydata[isim][ikey]['long_name'])
                 else:
                     print(ikey,npy.shape(genraydata[isim][ikey]['data']),genraydata[isim][ikey]['long_name'])
-       #if genraydata:
-       #    returnvals  = plot_genray_outputs(genraydata,plotparam=plotparam)
 
    if toray:
         toraydata = read_toray_outputs(fpath=inputs)
@@ -2327,24 +2311,9 @@ if __name__ == "__main__":
         sims = list(nubeamdata.keys())
         for isim in sims:
             print(nubeamdata[isim]['pinja']['data'][0])
-       #    print('rtcena = %7.4f, xlbtna = %7.4f, xybsca = %7.4f, xlbapa = %7.4f, xybapa = %7.4f, foclra = %7.4f, foclza = %7.4f, divra = %7.4f, divza = %7.4f' %
-       #          (
-       #              nubeamdata[isim]['rtcena']['data'][0], nubeamdata[isim]['xlbtna']['data'][0], nubeamdata[isim]['xybsca']['data'][0],
-       #              nubeamdata[isim]['xlbapa']['data'][0], nubeamdata[isim]['xybapa']['data'][0],
-       #              nubeamdata[isim]['foclra']['data'][0], nubeamdata[isim]['foclza']['data'][0],
-       #              nubeamdata[isim]['divra']['data'][0],  nubeamdata[isim]['divza']['data'][0]
-       #          )
-       #         )
-       #for ikey in list(nubeamdata.keys()):
-       #    print(ikey,nubeamdata[ikey]['long_name'],npy.shape(nubeamdata[ikey]['data']))
-       #nubeamdata = read_nubeam(WORK_DIR=inputs)
-       #if nubemadata:
-       #    returnvals  = plot_nubeam_outputs(nubeamdata,plotparam=plotparam)
 
    if eped:
        #epeddata = read_eped_outputs(fpath=inputs)
-       #for ikey in list(epeddata.keys()):
-       #    print(ikey,epeddata[ikey]['long_name'],npy.shape(epeddata[ikey]['data']))
         epeddata = read_eped(WORK_DIR=inputs)
         if epeddata and plot:
             if collect: plotparam['collect'] = True
@@ -2381,10 +2350,6 @@ if __name__ == "__main__":
                          print(ifield," = ",epeddata[ikey][ifield]['data'][k_EPED])
                      else:
                          print(ifield," = ",epeddata[ikey][ifield]['data'][-1])
-            #ikey   = list(epeddata.keys())[0]
-            #fields = list(epeddata[ikey].keys())
-            #for ifield in fields:
-            #    print(ifield, epeddata[ikey][ifield]['long_name'], npy.shape(epeddata[ikey][ifield]['data']))
 
    if geqdsk:
        geqdskdata = read_geqdsk(WORK_DIR=inputs)
